@@ -13,6 +13,7 @@ import type {
   PermissionMode,
   PlanLimits,
   PortInfo,
+  ProjectPreview,
   ProjectSummary,
   Provider,
   SearchHit,
@@ -126,6 +127,9 @@ export interface Invokes {
   'memory:delete': (a: { tabId: string; name: string }) => { ok: true } | { error: string }
 
   'dictation:start': () => { ok: true } | { error: string }
+
+  'previews:cards': () => ProjectPreview[]
+  'previews:capture': (a: { cwd: string; url: string }) => { ok: true } | { error: string }
 
   'ports:list': () => PortInfo[] | { error: string }
   'ports:kill': (a: { pid: number }) => { ok: true } | { error: string }

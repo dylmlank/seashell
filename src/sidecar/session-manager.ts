@@ -503,7 +503,14 @@ class SessionHandle {
         maxTokens: cu.maxTokens,
         percentage: cu.percentage,
         model: cu.model,
-        categories: (cu.categories ?? []).map((c) => ({ name: c.name, tokens: c.tokens })),
+        categories: (cu.categories ?? []).map((c) => ({
+          name: c.name,
+          tokens: c.tokens,
+          color: c.color
+        })),
+        grid: (cu.gridRows ?? [])
+          .slice(0, 50)
+          .map((row) => row.map((cell) => ({ color: cell.color, filled: cell.isFilled }))),
         mcpServers: [...byServer.entries()]
           .map(([name, tokens]) => ({ name, tokens }))
           .sort((a, b) => b.tokens - a.tokens)

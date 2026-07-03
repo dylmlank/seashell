@@ -28070,8 +28070,8 @@ Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resour
 });
 
 // src/sidecar/ipc.ts
-import { readdir as readdir4, readFile as readFile5, writeFile as writeFile3 } from "fs/promises";
-import { extname, join as join14, resolve as resolve2 } from "path";
+import { readdir as readdir4, readFile as readFile6, writeFile as writeFile3 } from "fs/promises";
+import { extname, join as join15, resolve as resolve2 } from "path";
 
 // src/sidecar/approvals.ts
 import { randomUUID } from "crypto";
@@ -28826,6 +28826,159 @@ var ports = {
   }
 };
 
+// src/sidecar/previews.ts
+import { execFile as execFile2 } from "child_process";
+import { createHash } from "crypto";
+import { existsSync as existsSync5, mkdirSync as mkdirSync3 } from "fs";
+import { readFile as readFile4 } from "fs/promises";
+import { join as join11 } from "path";
+var LANG_COLORS = {
+  ts: ["#3178c6", "TypeScript"],
+  tsx: ["#3178c6", "TypeScript"],
+  js: ["#f1e05a", "JavaScript"],
+  jsx: ["#f1e05a", "JavaScript"],
+  rs: ["#dea584", "Rust"],
+  py: ["#3572a5", "Python"],
+  html: ["#e34c26", "HTML"],
+  css: ["#663399", "CSS"],
+  json: ["#8b8b8b", "JSON"],
+  md: ["#4b9e6c", "Markdown"],
+  lua: ["#000080", "Lua"],
+  cs: ["#178600", "C#"],
+  cpp: ["#f34b7d", "C++"],
+  c: ["#555555", "C"],
+  java: ["#b07219", "Java"],
+  go: ["#00add8", "Go"],
+  ps1: ["#012456", "PowerShell"],
+  toml: ["#9c4221", "TOML"],
+  yml: ["#cb171e", "YAML"],
+  yaml: ["#cb171e", "YAML"],
+  svg: ["#ffb13b", "SVG"],
+  wav: ["#c084fc", "Audio"],
+  mp3: ["#c084fc", "Audio"],
+  blend: ["#ea7600", "Blender"]
+};
+var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function shotPath(cwd) {
+  const dir = join11(userDataDir(), "previews");
+  mkdirSync3(dir, { recursive: true });
+  const hash = createHash("sha1").update(cwd.toLowerCase()).digest("hex").slice(0, 12);
+  return join11(dir, `${hash}.png`);
+}
+async function readmeLine(cwd) {
+  try {
+    const raw = await readFile4(join11(cwd, "README.md"), "utf8");
+    const line = raw.split(`
+`).map((l4) => l4.trim()).find((l4) => l4 && !l4.startsWith("#") && !l4.startsWith("!") && !l4.startsWith("<"));
+    return line?.replace(/[*_`[\]]/g, "").slice(0, 90) ?? "";
+  } catch {
+    return "";
+  }
+}
+async function projectCard(cwd, name) {
+  const files = await listProjectFiles(cwd);
+  const byLang = new Map;
+  for (const f of files) {
+    const ext = f.split(".").pop()?.toLowerCase() ?? "";
+    if (LANG_COLORS[ext])
+      byLang.set(ext, (byLang.get(ext) ?? 0) + 1);
+  }
+  const top = [...byLang.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const langTotal = top.reduce((s, [, n]) => s + n, 0) || 1;
+  let branch = "";
+  try {
+    const b = await changes.branches(cwd);
+    if (!("error" in b))
+      branch = b.current;
+  } catch {}
+  const desc = await readmeLine(cwd);
+  const barY = 236;
+  let x = 32;
+  const segments = top.map(([ext, n]) => {
+    const w = Math.max(8, n / langTotal * 576);
+    const rect = `<rect x="${x}" y="${barY}" width="${w}" height="8" rx="4" fill="${LANG_COLORS[ext][0]}"/>`;
+    x += w + 4;
+    return rect;
+  }).join("");
+  const legend = top.map(([ext, n], i) => {
+    const lx = 32 + i * 150;
+    return `<circle cx="${lx}" cy="266" r="4" fill="${LANG_COLORS[ext][0]}"/><text x="${lx + 10}" y="270" font-size="12" fill="#9ca3af">${esc(LANG_COLORS[ext][1])} \xB7 ${n}</text>`;
+  }).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="320" viewBox="0 0 640 320">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101616"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="320" fill="url(#bg)"/>
+  <circle cx="590" cy="40" r="140" fill="#14b8a6" opacity="0.05"/>
+  <text x="32" y="52" font-size="15" fill="#14b8a6" font-family="Consolas,monospace">\u2733</text>
+  <text x="56" y="52" font-size="13" fill="#6b7280" font-family="Consolas,monospace">${esc(cwd).slice(0, 60)}</text>
+  <text x="32" y="112" font-size="34" font-weight="600" fill="#ededed" font-family="Segoe UI,sans-serif">${esc(name).slice(0, 28)}</text>
+  ${desc ? `<text x="32" y="146" font-size="15" fill="#9ca3af" font-family="Segoe UI,sans-serif">${esc(desc)}</text>` : ""}
+  <text x="32" y="196" font-size="13" fill="#6b7280" font-family="Segoe UI,sans-serif">${files.length} files${branch ? `   \xB7   \u2387 ${esc(branch)}` : ""}</text>
+  ${segments}
+  ${legend}
+</svg>`;
+}
+function findEdge() {
+  for (const p of [
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
+  ]) {
+    if (existsSync5(p))
+      return p;
+  }
+  return null;
+}
+var previews = {
+  async cards() {
+    const projects = (await history.listProjects()).slice(0, 8);
+    return Promise.all(projects.map(async (p) => {
+      const name = p.realPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || p.realPath;
+      const svg = await projectCard(p.realPath, name).catch(() => `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="320"><rect width="640" height="320" fill="#0a0a0a"/><text x="32" y="112" font-size="34" fill="#ededed">${esc(name)}</text></svg>`);
+      const shot = shotPath(p.realPath);
+      let screenshot;
+      if (existsSync5(shot)) {
+        screenshot = (await readFile4(shot)).toString("base64");
+      }
+      return {
+        cwd: p.realPath,
+        name,
+        lastActive: p.lastActive,
+        sessionCount: p.sessionCount,
+        svg,
+        screenshot
+      };
+    }));
+  },
+  capture(cwd, url) {
+    if (!/^https?:\/\//.test(url))
+      return Promise.resolve({ error: "URL must start with http(s)://" });
+    const edge = findEdge();
+    if (!edge)
+      return Promise.resolve({ error: "Microsoft Edge not found for headless capture" });
+    const out = shotPath(cwd);
+    return new Promise((resolve2) => {
+      execFile2(edge, [
+        "--headless=new",
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--window-size=1280,800",
+        `--screenshot=${out}`,
+        url
+      ], { timeout: 25000, windowsHide: true }, (err) => {
+        if (err || !existsSync5(out)) {
+          resolve2({ error: err ? err.message : "Capture produced no image" });
+        } else {
+          resolve2({ ok: true });
+        }
+      });
+    });
+  }
+};
+
 // src/sidecar/session-manager.ts
 init_sdk();
 
@@ -28871,10 +29024,10 @@ class AsyncQueue {
 }
 
 // src/sidecar/retrospective.ts
-import { existsSync as existsSync5, mkdirSync as mkdirSync3, writeFileSync as writeFileSync3 } from "fs";
+import { existsSync as existsSync6, mkdirSync as mkdirSync4, writeFileSync as writeFileSync3 } from "fs";
 import { homedir as homedir5 } from "os";
-import { join as join11 } from "path";
-var SKILL_DIR = join11(homedir5(), ".claude", "skills", "shell-retrospective");
+import { join as join12 } from "path";
+var SKILL_DIR = join12(homedir5(), ".claude", "skills", "shell-retrospective");
 var SKILL_MD = `---
 name: shell-retrospective
 description: Brief end-of-turn retrospective \u2014 capture durable lessons from the exchange that just happened into persistent memory. Invoked automatically by Claude Shell when auto-retrospective is enabled.
@@ -28890,10 +29043,10 @@ Hard limits: no code changes, no file edits outside the memory directory, reply 
 `;
 function ensureRetrospectiveSkill() {
   try {
-    if (!existsSync5(SKILL_DIR))
-      mkdirSync3(SKILL_DIR, { recursive: true });
-    const file3 = join11(SKILL_DIR, "SKILL.md");
-    if (!existsSync5(file3))
+    if (!existsSync6(SKILL_DIR))
+      mkdirSync4(SKILL_DIR, { recursive: true });
+    const file3 = join12(SKILL_DIR, "SKILL.md");
+    if (!existsSync6(file3))
       writeFileSync3(file3, SKILL_MD);
   } catch (err) {
     console.error("failed to install shell-retrospective skill:", err);
@@ -28903,8 +29056,8 @@ var RETRO_PROMPT = "Run your shell-retrospective skill now for the exchange abov
 
 // src/sidecar/usage-store.ts
 import { readFileSync as readFileSync5, writeFileSync as writeFileSync4 } from "fs";
-import { join as join12 } from "path";
-var file3 = () => join12(userDataDir(), "usage.json");
+import { join as join13 } from "path";
+var file3 = () => join13(userDataDir(), "usage.json");
 var cache3 = null;
 function load() {
   if (cache3)
@@ -29323,7 +29476,12 @@ class SessionHandle {
         maxTokens: cu.maxTokens,
         percentage: cu.percentage,
         model: cu.model,
-        categories: (cu.categories ?? []).map((c) => ({ name: c.name, tokens: c.tokens })),
+        categories: (cu.categories ?? []).map((c) => ({
+          name: c.name,
+          tokens: c.tokens,
+          color: c.color
+        })),
+        grid: (cu.gridRows ?? []).slice(0, 50).map((row) => row.map((cell) => ({ color: cell.color, filled: cell.isFilled }))),
         mcpServers: [...byServer.entries()].map(([name, tokens]) => ({ name, tokens })).sort((a, b) => b.tokens - a.tokens)
       };
     } catch (err) {
@@ -29504,10 +29662,10 @@ async function refreshPlanLimits(handle) {
 }
 
 // src/sidecar/transcript-search.ts
-import { readdir as readdir3, readFile as readFile4, stat as stat2 } from "fs/promises";
+import { readdir as readdir3, readFile as readFile5, stat as stat2 } from "fs/promises";
 import { homedir as homedir6 } from "os";
-import { join as join13 } from "path";
-var projectsRoot = () => join13(homedir6(), ".claude", "projects");
+import { join as join14 } from "path";
+var projectsRoot = () => join14(homedir6(), ".claude", "projects");
 var cache4 = new Map;
 function extractText(content) {
   if (typeof content === "string")
@@ -29528,7 +29686,7 @@ async function parseFile(path, mtimeMs) {
     return cached;
   const entry = { mtimeMs, texts: [] };
   try {
-    const raw = await readFile4(path, "utf8");
+    const raw = await readFile5(path, "utf8");
     for (const line of raw.split(`
 `)) {
       if (!line.trim())
@@ -29565,7 +29723,7 @@ var transcriptSearch = {
     const root = projectsRoot();
     let projectDirs;
     try {
-      projectDirs = (await readdir3(root, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => join13(root, d.name));
+      projectDirs = (await readdir3(root, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => join14(root, d.name));
     } catch {
       return [];
     }
@@ -29575,7 +29733,7 @@ var transcriptSearch = {
         for (const f of await readdir3(dir)) {
           if (!f.endsWith(".jsonl"))
             continue;
-          const path = join13(dir, f);
+          const path = join14(dir, f);
           const st2 = await stat2(path);
           files.push({ path, sessionId: f.slice(0, -6), mtimeMs: st2.mtimeMs });
         }
@@ -29610,7 +29768,7 @@ var transcriptSearch = {
       for (const d of await readdir3(root, { withFileTypes: true })) {
         if (!d.isDirectory())
           continue;
-        const candidate = join13(root, d.name, `${sessionId}.jsonl`);
+        const candidate = join14(root, d.name, `${sessionId}.jsonl`);
         try {
           await stat2(candidate);
           found = candidate;
@@ -29624,7 +29782,7 @@ var transcriptSearch = {
       return null;
     const lines = [];
     let cwd;
-    const raw = await readFile4(found, "utf8");
+    const raw = await readFile5(found, "utf8");
     for (const line of raw.split(`
 `)) {
       if (!line.trim())
@@ -29719,7 +29877,7 @@ var handlers = {
   },
   "fs:readFile": async (a) => {
     try {
-      const content = await readFile5(a.path, "utf8");
+      const content = await readFile6(a.path, "utf8");
       return { content };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -29730,7 +29888,7 @@ var handlers = {
       const mediaType = IMAGE_MEDIA[extname(a.path).toLowerCase()];
       if (!mediaType)
         return { error: "Not a supported image type" };
-      const buf = await readFile5(a.path);
+      const buf = await readFile6(a.path);
       return { data: buf.toString("base64"), mediaType };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -29818,6 +29976,8 @@ var handlers = {
     return h ? memoryFiles.remove(h.cwd, a.name) : { error: "Session not found" };
   },
   "dictation:start": () => startDictation(),
+  "previews:cards": () => previews.cards(),
+  "previews:capture": (a) => previews.capture(a.cwd, a.url),
   "ports:list": () => ports.list(),
   "ports:kill": (a) => ports.kill(a.pid),
   "ports:open": (a) => ports.open(a.port),
@@ -29825,7 +29985,7 @@ var handlers = {
     const h = sessionManager.get(a.tabId);
     if (!h)
       return { error: "Session not found" };
-    const target = resolve2(join14(h.cwd, a.rel));
+    const target = resolve2(join15(h.cwd, a.rel));
     if (!target.startsWith(resolve2(h.cwd)))
       return { error: "Path outside project" };
     try {
@@ -29846,7 +30006,7 @@ var handlers = {
     const h = sessionManager.get(a.tabId);
     if (!h)
       return { error: "Session not found" };
-    const target = resolve2(join14(h.cwd, a.rel));
+    const target = resolve2(join15(h.cwd, a.rel));
     if (!target.startsWith(resolve2(h.cwd)))
       return { error: "Path outside project" };
     try {

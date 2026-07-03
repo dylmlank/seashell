@@ -12,6 +12,7 @@ import { listDesktopMcp } from './desktop-mcp'
 import { listOpenRouterModels } from './openrouter'
 import { memoryFiles } from './memory-files'
 import { ports } from './ports'
+import { previews } from './previews'
 import { secrets } from './secrets'
 import { sessionManager } from './session-manager'
 import { settingsStore } from './settings-store'
@@ -177,6 +178,9 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   },
 
   'dictation:start': () => startDictation(),
+
+  'previews:cards': () => previews.cards(),
+  'previews:capture': (a) => previews.capture(a.cwd, a.url),
 
   'ports:list': () => ports.list(),
   'ports:kill': (a) => ports.kill(a.pid),

@@ -8,6 +8,7 @@ import { ChangesPanel } from './components/ChangesPanel'
 import { ChatView } from './components/ChatView'
 import { CommandPalette } from './components/CommandPalette'
 import { OnboardingView } from './components/OnboardingView'
+import { ProjectGallery } from './components/ProjectGallery'
 import { SettingsView } from './components/SettingsView'
 import { Sidebar } from './components/Sidebar'
 import { UsagePanel } from './components/UsagePanel'
@@ -31,8 +32,8 @@ function Welcome(): React.JSX.Element {
   }
 
   return (
-    <div className="chat-wash flex h-full flex-col items-center justify-center">
-      <div className="stagger flex flex-col items-center gap-7">
+    <div className="chat-wash flex h-full flex-col items-center overflow-y-auto">
+      <div className="stagger flex flex-col items-center gap-7 pb-10 pt-[12vh]">
         <div className="text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/15 text-3xl text-accent shadow-2xl shadow-accent/10">
             ✳
@@ -51,8 +52,8 @@ function Welcome(): React.JSX.Element {
           Open a project folder
         </button>
         {error && <p className="max-w-md text-center text-sm text-red-400">{error}</p>}
-        <p className="text-xs text-text-dim/60">or resume a recent session from the sidebar</p>
       </div>
+      <ProjectGallery />
     </div>
   )
 }

@@ -4,6 +4,29 @@ import type { ContextBreakdown } from '@shared/types'
 
 const fmt = (n: number): string => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n))
 
+// The CLI reports terminal-ish color names; map them onto the app palette.
+const CLI_COLORS: Record<string, string> = {
+  red: '#ef4444',
+  green: '#22c55e',
+  blue: '#3b82f6',
+  yellow: '#eab308',
+  magenta: '#d946ef',
+  purple: '#a855f7',
+  cyan: '#06b6d4',
+  orange: '#f97316',
+  pink: '#ec4899',
+  teal: '#14b8a6',
+  gray: '#4b5563',
+  grey: '#4b5563',
+  white: '#e5e7eb'
+}
+
+function cellColor(color: string, filled: boolean): string {
+  if (!filled) return '#1f1f1f'
+  if (color.startsWith('#')) return color
+  return CLI_COLORS[color.toLowerCase()] ?? '#14b8a6'
+}
+
 /** What's filling the context window, straight from the CLI — makes it obvious
  *  when MCP tool definitions (not the conversation) are eating the budget. */
 export function ContextPopover({
@@ -53,13 +76,29 @@ export function ContextPopover({
                   </span>
                   <span className="text-text-dim">{data.percentage.toFixed(0)}%</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-                  <span
-                    className="block h-full rounded-full bg-accent"
-                    style={{ width: `${Math.min(100, data.percentage)}%` }}
-                  />
-                </div>
-                <p className="pt-1 font-mono text-[10px] text-text-dim/60">{data.model}</p>
+                {data.grid.length > 0 ? (
+                  <div className="flex flex-col gap-[3px] pt-1">
+                    {data.grid.map((row, ri) => (
+                      <div key={ri} className="flex gap-[3px]">
+                        {row.map((cell, ci) => (
+                          <span
+                            key={ci}
+                            className="h-2.5 w-2.5 flex-1 rounded-[3px]"
+                            style={{ backgroundColor: cellColor(cell.color, cell.filled) }}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+                    <span
+                      className="block h-full rounded-full bg-accent"
+                      style={{ width: `${Math.min(100, data.percentage)}%` }}
+                    />
+                  </div>
+                )}
+                <p className="pt-1.5 font-mono text-[10px] text-text-dim/60">{data.model}</p>
               </div>
 
               <div className="space-y-1 border-t border-border/60 pt-2">
@@ -67,9 +106,13 @@ export function ContextPopover({
                   .filter((c) => c.tokens > 0)
                   .sort((a, b) => b.tokens - a.tokens)
                   .map((c) => (
-                    <div key={c.name} className="flex justify-between text-xs">
+                    <div key={c.name} className="flex items-center gap-2 text-xs">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+                        style={{ backgroundColor: cellColor(c.color, true) }}
+                      />
                       <span className="capitalize text-text-dim">{c.name}</span>
-                      <span className="tabular-nums">{fmt(c.tokens)}</span>
+                      <span className="ml-auto tabular-nums">{fmt(c.tokens)}</span>
                     </div>
                   ))}
               </div>

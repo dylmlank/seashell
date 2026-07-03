@@ -214,7 +214,21 @@ export interface ContextBreakdown {
   maxTokens: number
   percentage: number
   model: string
-  categories: { name: string; tokens: number }[]
+  categories: { name: string; tokens: number; color: string }[]
+  /** The /context-style square grid, one cell per slice of the window. */
+  grid: { color: string; filled: boolean }[][]
   /** Token cost per MCP server (summed over its tools). */
   mcpServers: { name: string; tokens: number }[]
+}
+
+/** A project folder with a generated visual preview. */
+export interface ProjectPreview {
+  cwd: string
+  name: string
+  lastActive: number
+  sessionCount: number
+  /** Generated SVG card (languages, README, git). */
+  svg: string
+  /** base64 PNG screenshot, when one has been captured for this project. */
+  screenshot?: string
 }
