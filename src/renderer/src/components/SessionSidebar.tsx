@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  Folder,
   History,
   MessageSquare,
   Loader2,
   Pencil,
   Pin,
   PinOff,
+  Plus,
   Trash2,
   Search,
   Check,
@@ -85,6 +87,7 @@ export function SessionList({
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null)
   const [pinned, setPinned] = useState<string[]>([])
   const [resuming, setResuming] = useState<string | null>(null)
+  const [creating, setCreating] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [hits, setHits] = useState<SearchHit[] | null>(null)
@@ -176,17 +179,29 @@ export function SessionList({
   const pinnedSessions = filtered.filter((s) => pinned.includes(s.sessionId))
   const unpinned = filtered.filter((s) => !pinned.includes(s.sessionId))
 
-  // Compact sidebar: group sessions under their project folder, newest project first.
+  // Every session belongs to a project — the folder it ran in. Group by the
+  // FULL path (two folders that share a name stay separate projects).
   const groups = new Map<string, SessionSummary[]>()
   if (compact) {
     for (const s of unpinned) {
-      const key = s.cwd ? s.cwd.split(/[\\/]/).filter(Boolean).pop() || s.cwd : 'other'
+      const key = s.cwd ?? ''
       const list = groups.get(key)
       if (list) list.push(s)
       else groups.set(key, [s])
     }
   }
   const sections: [string, SessionSummary[]][] = compact ? [...groups.entries()] : [['', unpinned]]
+
+  const newInProject = async (cwd: string): Promise<void> => {
+    if (creating) return
+    setCreating(cwd)
+    try {
+      await createTab(cwd)
+      onResume?.()
+    } finally {
+      setCreating(null)
+    }
+  }
 
   const renderRow = (s: SessionSummary): React.JSX.Element => {
     const isOpen = openSessionIds.includes(s.sessionId)
@@ -349,10 +364,31 @@ export function SessionList({
               {pinnedSessions.map(renderRow)}
             </div>
           )}
-          {sections.map(([project, list]) =>
+          {sections.map(([cwd, list]) =>
             list.length === 0 ? null : (
-              <div key={project || 'all'}>
-                {compact && <div className={SECTION_HEADER}>{project}</div>}
+              <div key={cwd || 'all'}>
+                {compact && (
+                  <div className={`group/project ${SECTION_HEADER}`} title={cwd || undefined}>
+                    <Folder size={11} className="shrink-0" />
+                    <span className="truncate">
+                      {cwd ? cwd.split(/[\\/]/).filter(Boolean).pop() || cwd : 'unknown folder'}
+                    </span>
+                    <span className="font-normal text-text-dim/40">{list.length}</span>
+                    {cwd && (
+                      <button
+                        onClick={() => void newInProject(cwd)}
+                        title={`New session in ${cwd}`}
+                        className="ml-auto rounded p-0.5 text-text-dim opacity-0 hover:bg-border hover:text-accent group-hover/project:opacity-100"
+                      >
+                        {creating === cwd ? (
+                          <Loader2 size={12} className="animate-spin text-accent" />
+                        ) : (
+                          <Plus size={12} />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {list.map(renderRow)}
               </div>
             )

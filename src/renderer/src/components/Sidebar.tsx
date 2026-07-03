@@ -58,12 +58,12 @@ export function Sidebar({
         <span className="text-sm font-semibold tracking-tight">Claude Shell</span>
       </div>
 
-      {/* New session */}
+      {/* Open a project (a folder on disk) — starts its first session */}
       <div className="px-3 pb-2">
         <button
           onClick={() => void newSession()}
           disabled={opening}
-          title="New session (pick a folder)"
+          title="Pick a project folder — opens a session in it"
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2 text-sm font-medium text-white shadow-lg shadow-accent/10 hover:bg-accent-dim disabled:opacity-50"
         >
           {opening ? (
@@ -71,7 +71,7 @@ export function Sidebar({
           ) : (
             <Plus size={15} />
           )}
-          New session
+          Open project
         </button>
       </div>
 
@@ -124,7 +124,7 @@ export function Sidebar({
       {/* Recent history */}
       <div className="mt-3 flex min-h-0 flex-1 flex-col px-1.5">
         <div className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-text-dim/70">
-          Recent sessions
+          Projects
         </div>
         <SessionList compact />
       </div>

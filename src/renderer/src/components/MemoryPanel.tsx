@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, Brain, Loader2, Trash2 } from 'lucide-react'
 import type { MemoryFile } from '@shared/types'
 import { confirmDialog } from '../lib/dialogs'
+import { useSessions } from '../stores/sessions'
 
 function timeAgo(ms: number): string {
   const days = Math.floor((Date.now() - ms) / 86_400_000)
@@ -13,6 +14,8 @@ function timeAgo(ms: number): string {
 /** Browse and edit what Claude remembers about this project
  *  (~/.claude/projects/<project>/memory). */
 export function MemoryPanel({ tabId }: { tabId: string }): React.JSX.Element {
+  const cwd = useSessions((s) => s.tabs.find((t) => t.tabId === tabId)?.cwd)
+  const project = cwd?.replace(/[\\/]+$/, '').split(/[\\/]/).pop()
   const [files, setFiles] = useState<MemoryFile[] | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [content, setContent] = useState<string | null>(null)
@@ -66,7 +69,12 @@ export function MemoryPanel({ tabId }: { tabId: string }): React.JSX.Element {
         ) : (
           <Brain size={14} className="text-accent" />
         )}
-        <span className="truncate font-mono text-xs">{open ?? 'Memory'}</span>
+        <span
+          className="truncate font-mono text-xs"
+          title={cwd ? `This memory belongs only to ${cwd}` : undefined}
+        >
+          {open ?? (project ? `Memory · ${project}` : 'Memory')}
+        </span>
         {open && (
           <button
             onClick={() => void save()}
