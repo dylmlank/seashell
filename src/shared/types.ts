@@ -250,6 +250,20 @@ export interface ProjectMap {
   totalLines: number
 }
 
+/** Claude-written explanation of how a project actually works — the narrative
+ *  layer on top of the static ProjectMap. Generated once, cached per project. */
+export interface ProjectExplanation {
+  /** Plain-language paragraph: what this project is and does. */
+  summary: string
+  /** What happens step by step when the project is used (rendered as a flow diagram). */
+  flow: { title: string; detail: string }[]
+  /** The main moving parts and each one's job. */
+  parts: { name: string; role: string }[]
+  /** What makes this project different from typical alternatives. */
+  different: string[]
+  generatedAt: number
+}
+
 /** A project folder with a generated visual preview. */
 export interface ProjectPreview {
   cwd: string

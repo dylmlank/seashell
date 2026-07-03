@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Globe, Loader2, RefreshCw, Waypoints } from 'lucide-react'
-import type { ProjectMap } from '@shared/types'
+import { Globe, Loader2, RefreshCw, Sparkles, Waypoints } from 'lucide-react'
+import type { ProjectExplanation, ProjectMap } from '@shared/types'
 
 const fmt = (n: number): string => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n))
 
@@ -118,6 +118,129 @@ function ExternalsGraph({ map }: { map: ProjectMap }): React.JSX.Element {
   )
 }
 
+/** Vertical flow diagram: what happens step by step when the project runs. */
+function FlowDiagram({ flow }: { flow: ProjectExplanation['flow'] }): React.JSX.Element {
+  return (
+    <div className="relative space-y-2 pl-1">
+      {/* spine connecting the step markers */}
+      <span className="absolute bottom-5 left-[15px] top-5 w-px bg-accent/30" />
+      {flow.map((step, i) => (
+        <div key={step.title} className="relative flex items-start gap-3">
+          <span className="z-10 mt-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/50 bg-bg text-xs font-semibold text-accent">
+            {i + 1}
+          </span>
+          <div className="min-w-0 flex-1 rounded-xl border border-border/60 bg-bg px-3 py-2">
+            <p className="text-xs font-medium">{step.title}</p>
+            <p className="pt-0.5 text-[11px] leading-snug text-text-dim">{step.detail}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Claude-written "how it actually works" — summary, flow diagram, parts,
+ *  and what sets the project apart. Cached; generating spends one call. */
+function HowItWorks({ tabId }: { tabId: string }): React.JSX.Element {
+  const [explanation, setExplanation] = useState<ProjectExplanation | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void window.api.invoke('project:explain', { tabId }).then((result) => {
+      if (!('error' in result)) setExplanation(result.explanation)
+    })
+  }, [tabId])
+
+  const generate = async (): Promise<void> => {
+    setGenerating(true)
+    setError(null)
+    const result = await window.api.invoke('project:explain', { tabId, refresh: true })
+    setGenerating(false)
+    if ('error' in result) setError(result.error)
+    else setExplanation(result.explanation)
+  }
+
+  if (explanation === null) {
+    return (
+      <div className="rounded-xl border border-border/60 bg-bg p-4">
+        <p className="text-xs text-text-dim">
+          Get a plain-language walkthrough of how this project actually works — what happens step
+          by step, the main parts, and what makes it different.
+        </p>
+        {error && <p className="pt-2 text-xs text-red-400">{error}</p>}
+        <button
+          onClick={() => void generate()}
+          disabled={generating}
+          className="mt-3 flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 disabled:opacity-60"
+        >
+          {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+          {generating ? 'Asking Claude…' : 'Explain how it works'}
+        </button>
+        {!generating && (
+          <p className="pt-1.5 text-[10px] text-text-dim/60">One Claude call, then cached.</p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="rounded-xl border border-accent/25 bg-accent/5 px-3 py-2.5 text-xs leading-relaxed">
+        {explanation.summary}
+      </p>
+
+      <div>
+        <p className="pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-dim/60">
+          What happens, step by step
+        </p>
+        <FlowDiagram flow={explanation.flow} />
+      </div>
+
+      <div>
+        <p className="pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-dim/60">
+          The moving parts
+        </p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {explanation.parts.map((part) => (
+            <div key={part.name} className="rounded-xl border border-border/60 bg-bg px-3 py-2">
+              <p className="text-xs font-medium text-accent">{part.name}</p>
+              <p className="pt-0.5 text-[11px] leading-snug text-text-dim">{part.role}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-dim/60">
+          What makes it different
+        </p>
+        <ul className="space-y-1">
+          {explanation.different.map((point) => (
+            <li key={point} className="flex items-start gap-1.5 text-[11px] leading-snug text-text-dim">
+              <Sparkles size={11} className="mt-0.5 shrink-0 text-accent" />
+              {point}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <p className="flex items-center gap-2 text-[10px] text-text-dim/50">
+        {error && <span className="text-red-400">{error}</span>}
+        Written by Claude · {new Date(explanation.generatedAt).toLocaleDateString()}
+        <button
+          onClick={() => void generate()}
+          disabled={generating}
+          className="flex items-center gap-1 text-accent/80 hover:text-accent disabled:opacity-60"
+        >
+          {generating && <Loader2 size={10} className="animate-spin" />}
+          {generating ? 'regenerating…' : 'Regenerate'}
+        </button>
+      </p>
+    </div>
+  )
+}
+
 /** The Workflow tab: how the project fits together, generated by static
  *  analysis of the code — stack, composition, module graph, external calls. */
 export function WorkflowPanel({ tabId }: { tabId: string }): React.JSX.Element {
@@ -179,6 +302,14 @@ export function WorkflowPanel({ tabId }: { tabId: string }): React.JSX.Element {
                 </div>
               </div>
             )}
+
+            {/* How it works — Claude-written narrative + flow diagram */}
+            <div>
+              <p className="pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-dim/60">
+                How it works
+              </p>
+              <HowItWorks tabId={tabId} />
+            </div>
 
             {/* Composition */}
             <div>

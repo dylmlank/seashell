@@ -7,7 +7,7 @@ import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out', 'src-tauri/target'] },
+  { ignores: ['**/node_modules', '**/dist', '**/out', 'src-tauri/target', 'src-tauri/resources'] },
   js.configs.recommended,
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,

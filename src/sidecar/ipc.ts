@@ -14,8 +14,10 @@ import { listDesktopMcp } from './desktop-mcp'
 import { listOpenRouterModels } from './openrouter'
 import { memoryFiles } from './memory-files'
 import { userDataDir } from './paths'
+import { pins } from './pins'
 import { ports } from './ports'
 import { captureShot, previews } from './previews'
+import { projectExplain } from './project-explain'
 import { analyzeProject } from './project-map'
 import { secrets } from './secrets'
 import { sessionManager } from './session-manager'
@@ -105,6 +107,8 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
     await deleteSession(a.sessionId, a.dir ? { dir: a.dir } : undefined)
   },
   'history:search': (a) => transcriptSearch.search(a.query),
+  'history:pins': () => pins.list(),
+  'history:togglePin': (a) => pins.toggle(a.sessionId),
   'history:export': async (a) => {
     const markdown = await transcriptSearch.exportMarkdown(a.sessionId)
     if (markdown === null) return { error: 'Transcript not found' }
@@ -186,6 +190,13 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   'project:map': (a) => {
     const h = sessionManager.get(a.tabId)
     return h ? analyzeProject(h.cwd) : { error: 'Session not found' }
+  },
+  'project:explain': async (a) => {
+    const h = sessionManager.get(a.tabId)
+    if (!h) return { error: 'Session not found' }
+    if (!a.refresh) return { explanation: projectExplain.cached(h.cwd) }
+    const result = await projectExplain.generate(h.cwd)
+    return 'error' in result ? result : { explanation: result }
   },
 
   'previews:cards': () => previews.cards(),

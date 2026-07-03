@@ -13,6 +13,7 @@ import type {
   PermissionMode,
   PlanLimits,
   PortInfo,
+  ProjectExplanation,
   ProjectMap,
   ProjectPreview,
   ProjectSummary,
@@ -72,6 +73,8 @@ export interface Invokes {
   'history:rename': (a: { sessionId: string; title: string; dir?: string }) => void
   'history:delete': (a: { sessionId: string; dir?: string }) => void
   'history:search': (a: { query: string }) => SearchHit[]
+  'history:pins': () => string[]
+  'history:togglePin': (a: { sessionId: string }) => string[]
   'history:export': (a: {
     sessionId: string
   }) => { markdown: string; suggestedName: string } | { error: string }
@@ -133,6 +136,12 @@ export interface Invokes {
   'dictation:start': () => { ok: true } | { error: string }
 
   'project:map': (a: { tabId: string }) => ProjectMap | { error: string }
+  /** How the project works, written by Claude. Without refresh this only reads
+   *  the per-project cache (null = never generated); refresh spends one call. */
+  'project:explain': (a: {
+    tabId: string
+    refresh?: boolean
+  }) => { explanation: ProjectExplanation | null } | { error: string }
 
   'previews:cards': () => ProjectPreview[]
   'previews:capture': (a: { cwd: string; url: string }) => { ok: true } | { error: string }

@@ -4,6 +4,8 @@ import {
   MessageSquare,
   Loader2,
   Pencil,
+  Pin,
+  PinOff,
   Trash2,
   Search,
   Check,
@@ -44,7 +46,7 @@ function RenameInput({
           if (e.key === 'Escape') onDone(null)
         }}
         onClick={(e) => e.stopPropagation()}
-        className="min-w-0 flex-1 rounded border border-accent-dim bg-bg px-1.5 py-0.5 text-sm outline-none"
+        className="min-w-0 flex-1 rounded border border-accent-dim bg-bg px-1.5 py-0.5 text-[13px] outline-none"
       />
       <button
         onClick={(e) => {
@@ -53,7 +55,7 @@ function RenameInput({
         }}
         className="rounded p-0.5 text-green-500 hover:bg-surface-2"
       >
-        <Check size={13} />
+        <Check size={12} />
       </button>
       <button
         onClick={(e) => {
@@ -62,11 +64,14 @@ function RenameInput({
         }}
         className="rounded p-0.5 text-text-dim hover:bg-surface-2"
       >
-        <X size={13} />
+        <X size={12} />
       </button>
     </span>
   )
 }
+
+const SECTION_HEADER =
+  'flex items-center gap-1.5 px-2 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-text-dim/50'
 
 export function SessionList({
   dir,
@@ -78,6 +83,7 @@ export function SessionList({
   compact?: boolean
 }): React.JSX.Element {
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null)
+  const [pinned, setPinned] = useState<string[]>([])
   const [resuming, setResuming] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -99,8 +105,12 @@ export function SessionList({
   }, [search])
 
   const refresh = useCallback(async (): Promise<void> => {
-    const list = await window.api.invoke('history:listSessions', { dir })
+    const [list, pinList] = await Promise.all([
+      window.api.invoke('history:listSessions', { dir }),
+      window.api.invoke('history:pins')
+    ])
     setSessions(list)
+    setPinned(pinList)
   }, [dir])
 
   useEffect(() => {
@@ -127,6 +137,10 @@ export function SessionList({
     if (!(await confirmDialog(`Delete "${s.title}"? This removes the session transcript permanently.`))) return
     await window.api.invoke('history:delete', { sessionId: s.sessionId, dir: s.cwd })
     void refresh()
+  }
+
+  const togglePin = async (s: SessionSummary): Promise<void> => {
+    setPinned(await window.api.invoke('history:togglePin', { sessionId: s.sessionId }))
   }
 
   const exportSession = async (sessionId: string): Promise<void> => {
@@ -159,17 +173,112 @@ export function SessionList({
     )
   })
 
+  const pinnedSessions = filtered.filter((s) => pinned.includes(s.sessionId))
+  const unpinned = filtered.filter((s) => !pinned.includes(s.sessionId))
+
   // Compact sidebar: group sessions under their project folder, newest project first.
   const groups = new Map<string, SessionSummary[]>()
   if (compact) {
-    for (const s of filtered) {
+    for (const s of unpinned) {
       const key = s.cwd ? s.cwd.split(/[\\/]/).filter(Boolean).pop() || s.cwd : 'other'
       const list = groups.get(key)
       if (list) list.push(s)
       else groups.set(key, [s])
     }
   }
-  const sections: [string, SessionSummary[]][] = compact ? [...groups.entries()] : [['', filtered]]
+  const sections: [string, SessionSummary[]][] = compact ? [...groups.entries()] : [['', unpinned]]
+
+  const renderRow = (s: SessionSummary): React.JSX.Element => {
+    const isOpen = openSessionIds.includes(s.sessionId)
+    const isPinned = pinned.includes(s.sessionId)
+    return (
+      <div
+        key={s.sessionId}
+        onClick={() => void resume(s)}
+        title={s.firstPrompt}
+        className={
+          'group block w-full cursor-pointer rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-surface-2 ' +
+          (isOpen || !s.cwd ? 'opacity-50' : '')
+        }
+      >
+        <div className="flex items-start gap-1.5">
+          {resuming === s.sessionId ? (
+            <Loader2 size={12} className="mt-0.5 shrink-0 animate-spin text-accent" />
+          ) : isPinned ? (
+            <Pin size={12} className="mt-0.5 shrink-0 text-accent" />
+          ) : (
+            <MessageSquare size={12} className="mt-0.5 shrink-0 text-text-dim" />
+          )}
+          {renaming === s.sessionId ? (
+            <RenameInput
+              initial={s.title}
+              onDone={(value) => {
+                setRenaming(null)
+                if (value) void rename(s, value)
+              }}
+            />
+          ) : (
+            <>
+              <span
+                className={
+                  'min-w-0 text-[13px] leading-snug ' + (compact ? 'line-clamp-2' : 'truncate')
+                }
+              >
+                {s.title || '(untitled)'}
+              </span>
+              <span className="ml-auto flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void togglePin(s)
+                  }}
+                  title={isPinned ? 'Unpin' : 'Pin to top'}
+                  className="rounded p-1 text-text-dim hover:bg-border hover:text-accent"
+                >
+                  {isPinned ? <PinOff size={11} /> : <Pin size={11} />}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setRenaming(s.sessionId)
+                  }}
+                  title="Rename"
+                  className="rounded p-1 text-text-dim hover:bg-border hover:text-text"
+                >
+                  <Pencil size={11} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void exportSession(s.sessionId)
+                  }}
+                  title="Export as Markdown"
+                  className="rounded p-1 text-text-dim hover:bg-border hover:text-text"
+                >
+                  <Download size={11} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void remove(s)
+                  }}
+                  title="Delete"
+                  className="rounded p-1 text-text-dim hover:bg-border hover:text-red-400"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </span>
+            </>
+          )}
+        </div>
+        <div className="ml-[18px] flex gap-2 text-[11px] text-text-dim/70">
+          <span>{timeAgo(s.lastModified)}</span>
+          {!compact && s.cwd && <span className="truncate font-mono">{s.cwd}</span>}
+          {isOpen && <span className="text-accent">open</span>}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -195,7 +304,7 @@ export function SessionList({
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
           {hits !== null && (
             <div className="pb-1">
-              <div className="flex items-center gap-1.5 px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-text-dim/50">
+              <div className={SECTION_HEADER}>
                 <FileSearch size={11} />
                 In transcripts ({hits.length})
               </div>
@@ -208,21 +317,21 @@ export function SessionList({
                     onClick={() => void resumeHit(hit)}
                     title={hit.cwd ?? 'project path unknown — cannot resume'}
                     className={
-                      'group cursor-pointer rounded-lg px-3 py-1.5 transition-colors hover:bg-surface-2 ' +
+                      'group cursor-pointer rounded-lg px-2.5 py-1.5 transition-colors hover:bg-surface-2 ' +
                       (hit.cwd ? '' : 'opacity-50')
                     }
                   >
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-start gap-1.5">
                       {resuming === hit.sessionId ? (
-                        <Loader2 size={13} className="mt-0.5 shrink-0 animate-spin text-accent" />
+                        <Loader2 size={12} className="mt-0.5 shrink-0 animate-spin text-accent" />
                       ) : (
-                        <MessageSquare size={13} className="mt-0.5 shrink-0 text-text-dim" />
+                        <MessageSquare size={12} className="mt-0.5 shrink-0 text-text-dim" />
                       )}
                       <span className="line-clamp-2 min-w-0 text-xs leading-snug text-text-dim">
                         {hit.snippet}
                       </span>
                     </div>
-                    <div className="ml-5 flex gap-2 text-[11px] text-text-dim/60">
+                    <div className="ml-[18px] flex gap-2 text-[11px] text-text-dim/60">
                       <span>{hit.role === 'user' ? 'you said' : 'Claude said'}</span>
                       <span>{timeAgo(hit.lastModified)}</span>
                     </div>
@@ -231,92 +340,20 @@ export function SessionList({
               )}
             </div>
           )}
-          {sections.map(([project, list]) => (
+          {pinnedSessions.length > 0 && (
+            <div className="border-b border-border/40 pb-1.5">
+              <div className={SECTION_HEADER}>
+                <Pin size={11} />
+                Pinned
+              </div>
+              {pinnedSessions.map(renderRow)}
+            </div>
+          )}
+          {sections.map(([project, list]) =>
+            list.length === 0 ? null : (
               <div key={project || 'all'}>
-                {compact && (
-                  <div className="px-2 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-text-dim/50">
-                    {project}
-                  </div>
-                )}
-                {list.map((s) => {
-                  const isOpen = openSessionIds.includes(s.sessionId)
-                  return (
-                    <div
-                      key={s.sessionId}
-                      onClick={() => void resume(s)}
-                      title={s.firstPrompt}
-                      className={
-                        'group block w-full cursor-pointer rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-2 ' +
-                        (isOpen || !s.cwd ? 'opacity-50' : '')
-                      }
-                    >
-                      <div className="flex items-start gap-2">
-                        {resuming === s.sessionId ? (
-                          <Loader2 size={13} className="mt-0.5 shrink-0 animate-spin text-accent" />
-                        ) : (
-                          <MessageSquare size={13} className="mt-0.5 shrink-0 text-text-dim" />
-                        )}
-                        {renaming === s.sessionId ? (
-                          <RenameInput
-                            initial={s.title}
-                            onDone={(value) => {
-                              setRenaming(null)
-                              if (value) void rename(s, value)
-                            }}
-                          />
-                        ) : (
-                          <>
-                            <span
-                              className={
-                                'min-w-0 text-sm leading-snug ' +
-                                (compact ? 'line-clamp-2' : 'truncate')
-                              }
-                            >
-                              {s.title || '(untitled)'}
-                            </span>
-                            <span className="ml-auto flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setRenaming(s.sessionId)
-                                }}
-                                title="Rename"
-                                className="rounded p-1 text-text-dim hover:bg-border hover:text-text"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  void exportSession(s.sessionId)
-                                }}
-                                title="Export as Markdown"
-                                className="rounded p-1 text-text-dim hover:bg-border hover:text-text"
-                              >
-                                <Download size={12} />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  void remove(s)
-                                }}
-                                title="Delete"
-                                className="rounded p-1 text-text-dim hover:bg-border hover:text-red-400"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      <div className="ml-5 flex gap-2 text-xs text-text-dim/70">
-                        <span>{timeAgo(s.lastModified)}</span>
-                        {!compact && s.cwd && <span className="truncate font-mono">{s.cwd}</span>}
-                        {isOpen && <span className="text-accent">open</span>}
-                      </div>
-                    </div>
-                  )
-                })}
+                {compact && <div className={SECTION_HEADER}>{project}</div>}
+                {list.map(renderRow)}
               </div>
             )
           )}
