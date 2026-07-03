@@ -1,8 +1,102 @@
 import { useEffect, useState } from 'react'
-import { X, Settings2, LogOut, KeyRound, Trash2 } from 'lucide-react'
+import { X, Settings2, LogIn, LogOut, KeyRound, SquareTerminal, Trash2 } from 'lucide-react'
 import type { PermissionMode, Provider } from '@shared/types'
 import { updateSettings, useSettings } from '../stores/settings'
 import { useAuth } from '../stores/auth'
+
+/** Log in with your Claude (Anthropic) account so sessions bill the
+ *  subscription: guided setup-token flow in a terminal + manual paste. */
+function AccountSection(): React.JSX.Element {
+  const authState = useAuth((s) => s.auth)
+  const [token, setToken] = useState('')
+  const [tokenState, setTokenState] = useState<'idle' | 'busy' | 'error' | 'saved'>('idle')
+  const [tokenError, setTokenError] = useState('')
+  const loggedIn = authState.state === 'token' || authState.state === 'apiKey'
+
+  const saveToken = async (): Promise<void> => {
+    setTokenState('busy')
+    const result = await window.api.invoke('auth:saveManualToken', { token: token.trim() })
+    if (result.ok) {
+      setTokenState('saved')
+      setToken('')
+    } else {
+      setTokenState('error')
+      setTokenError(result.error ?? 'Could not save the token')
+    }
+  }
+
+  return (
+    <div>
+      <div className="pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-text-dim">
+        Account
+      </div>
+
+      <Row
+        label={authState.state === 'loggedOut' ? 'Not logged in' : (authState.detail ?? 'Logged in')}
+        hint={
+          loggedIn
+            ? 'New sessions use this login and bill your Claude subscription.'
+            : 'Log in with your Claude account so sessions use your subscription instead of an API key.'
+        }
+      >
+        <span className="flex items-center gap-2">
+          <span
+            className={`h-2 w-2 rounded-full ${loggedIn ? 'bg-green-500' : 'bg-red-500'}`}
+          />
+          {loggedIn && (
+            <button
+              onClick={() => void window.api.invoke('auth:logout')}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm hover:bg-border"
+            >
+              <LogOut size={14} /> Log out
+            </button>
+          )}
+        </span>
+      </Row>
+
+      <Row
+        label="Log in with Claude"
+        hint="Opens a terminal running `claude setup-token` — finish the sign-in in your browser, then paste the sk-ant-… token it prints into the field below."
+      >
+        <button
+          onClick={() => void window.api.invoke('auth:openTerminalLogin')}
+          className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-dim"
+        >
+          <SquareTerminal size={14} /> Start login
+        </button>
+      </Row>
+
+      <Row label="Paste a token" hint="A long-lived token from `claude setup-token` (starts with sk-ant-). Stored encrypted with Windows DPAPI.">
+        <span className="flex items-center gap-2">
+          <input
+            type="password"
+            value={token}
+            onChange={(e) => {
+              setToken(e.target.value)
+              setTokenState('idle')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && token.trim()) void saveToken()
+            }}
+            placeholder="sk-ant-…"
+            className="w-52 rounded-lg border border-border bg-bg px-2.5 py-1.5 text-sm outline-none focus:border-accent-dim"
+          />
+          <button
+            onClick={() => void saveToken()}
+            disabled={!token.trim() || tokenState === 'busy'}
+            className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-dim disabled:opacity-40"
+          >
+            <LogIn size={14} /> {tokenState === 'saved' ? 'Saved' : 'Save'}
+          </button>
+        </span>
+      </Row>
+      {tokenState === 'error' && <p className="pb-2 text-xs text-red-400">{tokenError}</p>}
+      {tokenState === 'saved' && (
+        <p className="pb-2 text-xs text-accent">Logged in — new sessions will use your subscription.</p>
+      )}
+    </div>
+  )
+}
 
 function Row({
   label,
@@ -159,7 +253,6 @@ function ProvidersSection(): React.JSX.Element {
 
 export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.Element {
   const settings = useSettings((s) => s.settings)
-  const authState = useAuth((s) => s.auth)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-8">
@@ -311,24 +404,7 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
             </Row>
           </div>
 
-          <div>
-            <div className="pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-text-dim">
-              Account
-            </div>
-            <Row
-              label={
-                authState.state === 'loggedOut' ? 'Not logged in' : (authState.detail ?? 'Logged in')
-              }
-              hint="New sessions use this login."
-            >
-              <button
-                onClick={() => void window.api.invoke('auth:logout')}
-                className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm hover:bg-border"
-              >
-                <LogOut size={14} /> Log out
-              </button>
-            </Row>
-          </div>
+          <AccountSection />
         </div>
       </div>
     </div>
