@@ -28547,7 +28547,11 @@ var history = {
     return [...byPath.values()].sort((a, b) => b.lastActive - a.lastActive);
   },
   async listSessions(dir) {
-    const sessions = await yze(dir ? { dir } : { limit: 50 });
+    let sessions = await yze(dir ? { dir } : { limit: 50 });
+    if (dir && sessions.length === 0) {
+      const want = dir.replace(/[\\/]+$/, "").toLowerCase();
+      sessions = (await yze({ limit: 200 })).filter((s) => (s.cwd ?? "").replace(/[\\/]+$/, "").toLowerCase() === want);
+    }
     return sessions.map(toSummary).sort((a, b) => b.lastModified - a.lastModified);
   }
 };
@@ -29598,7 +29602,11 @@ class SessionHandle {
   }
   async replayHistory(sessionId, cwd) {
     try {
-      const messages = await hze(sessionId, { dir: cwd });
+      let messages = await hze(sessionId).catch(() => []);
+      if (messages.length === 0)
+        messages = await hze(sessionId, { dir: cwd });
+      if (messages.length > 400)
+        messages = messages.slice(-400);
       for (const m of messages) {
         const body = m.message;
         const content = body?.content;
@@ -30333,11 +30341,11 @@ var handlers = {
   "history:listSessions": (a) => history.listSessions(a?.dir),
   "history:rename": async (a) => {
     const { renameSession } = await Promise.resolve().then(() => (init_sdk(), exports_sdk));
-    await renameSession(a.sessionId, a.title, a.dir ? { dir: a.dir } : undefined);
+    await renameSession(a.sessionId, a.title);
   },
   "history:delete": async (a) => {
     const { deleteSession } = await Promise.resolve().then(() => (init_sdk(), exports_sdk));
-    await deleteSession(a.sessionId, a.dir ? { dir: a.dir } : undefined);
+    await deleteSession(a.sessionId);
   },
   "history:search": (a) => transcriptSearch.search(a.query),
   "history:pins": () => pins.list(),

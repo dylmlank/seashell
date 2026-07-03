@@ -70,8 +70,8 @@ export interface Invokes {
 
   'history:listProjects': () => ProjectSummary[]
   'history:listSessions': (a: { dir?: string }) => SessionSummary[]
-  'history:rename': (a: { sessionId: string; title: string; dir?: string }) => void
-  'history:delete': (a: { sessionId: string; dir?: string }) => void
+  'history:rename': (a: { sessionId: string; title: string }) => void
+  'history:delete': (a: { sessionId: string }) => void
   'history:search': (a: { query: string }) => SearchHit[]
   'history:pins': () => string[]
   'history:togglePin': (a: { sessionId: string }) => string[]

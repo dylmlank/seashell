@@ -98,13 +98,15 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
 
   'history:listProjects': () => history.listProjects(),
   'history:listSessions': (a) => history.listSessions(a?.dir),
+  // Session ids are globally unique — omit {dir}, whose lookup silently
+  // misses drive-root projects like E:\ (see history.listSessions).
   'history:rename': async (a) => {
     const { renameSession } = await import('@anthropic-ai/claude-agent-sdk')
-    await renameSession(a.sessionId, a.title, a.dir ? { dir: a.dir } : undefined)
+    await renameSession(a.sessionId, a.title)
   },
   'history:delete': async (a) => {
     const { deleteSession } = await import('@anthropic-ai/claude-agent-sdk')
-    await deleteSession(a.sessionId, a.dir ? { dir: a.dir } : undefined)
+    await deleteSession(a.sessionId)
   },
   'history:search': (a) => transcriptSearch.search(a.query),
   'history:pins': () => pins.list(),

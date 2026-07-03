@@ -140,13 +140,13 @@ export function SessionList({
   }
 
   const rename = async (s: SessionSummary, title: string): Promise<void> => {
-    await window.api.invoke('history:rename', { sessionId: s.sessionId, title, dir: s.cwd })
+    await window.api.invoke('history:rename', { sessionId: s.sessionId, title })
     void refresh()
   }
 
   const remove = async (s: SessionSummary): Promise<void> => {
     if (!(await confirmDialog(`Delete "${s.title}"? This removes the session transcript permanently.`))) return
-    await window.api.invoke('history:delete', { sessionId: s.sessionId, dir: s.cwd })
+    await window.api.invoke('history:delete', { sessionId: s.sessionId })
     void refresh()
   }
 

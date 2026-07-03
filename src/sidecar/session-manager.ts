@@ -173,7 +173,13 @@ class SessionHandle {
   /** Rebuild the UI transcript of a resumed session from its stored messages. */
   private async replayHistory(sessionId: string, cwd: string): Promise<void> {
     try {
-      const messages = await getSessionMessages(sessionId, { dir: cwd })
+      // Global lookup first: the {dir} variant silently finds nothing for
+      // drive-root projects like E:\ (SDK path munging edge case).
+      let messages = await getSessionMessages(sessionId).catch(() => [])
+      if (messages.length === 0) messages = await getSessionMessages(sessionId, { dir: cwd })
+      // Very long sessions: replay only the recent tail — enough to recognize
+      // the conversation without hammering the UI with thousands of items.
+      if (messages.length > 400) messages = messages.slice(-400)
       for (const m of messages) {
         const body = m.message as { role?: string; content?: unknown } | undefined
         const content = body?.content

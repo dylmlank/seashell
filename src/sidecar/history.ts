@@ -39,7 +39,14 @@ export const history = {
   },
 
   async listSessions(dir?: string): Promise<SessionSummary[]> {
-    const sessions = await listSessions(dir ? { dir } : { limit: 50 })
+    let sessions = await listSessions(dir ? { dir } : { limit: 50 })
+    if (dir && sessions.length === 0) {
+      // {dir} finds nothing for drive-root projects (E:\) — filter globally.
+      const want = dir.replace(/[\\/]+$/, '').toLowerCase()
+      sessions = (await listSessions({ limit: 200 })).filter(
+        (s) => (s.cwd ?? '').replace(/[\\/]+$/, '').toLowerCase() === want
+      )
+    }
     return sessions.map(toSummary).sort((a, b) => b.lastModified - a.lastModified)
   }
 }
