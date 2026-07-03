@@ -21,10 +21,54 @@ const CLI_COLORS: Record<string, string> = {
   white: '#e5e7eb'
 }
 
-function cellColor(color: string, filled: boolean): string {
-  if (!filled) return '#1f1f1f'
-  if (color.startsWith('#')) return color
-  return CLI_COLORS[color.toLowerCase()] ?? '#14b8a6'
+// Fallback pool for categories whose CLI color is missing or already taken —
+// guarantees every category gets its own distinguishable color.
+const PALETTE = [
+  '#14b8a6',
+  '#3b82f6',
+  '#a855f7',
+  '#f97316',
+  '#eab308',
+  '#ec4899',
+  '#22c55e',
+  '#06b6d4',
+  '#ef4444',
+  '#d946ef'
+]
+
+const FREE_CELL = '#1f1f1f'
+
+type Category = ContextBreakdown['categories'][number]
+
+/** One distinct color per category: honor the CLI's color when it resolves and
+ *  isn't already used by a bigger category, otherwise pull from the palette. */
+function assignColors(categories: Category[]): Map<string, string> {
+  const used = new Set<string>()
+  const out = new Map<string, string>()
+  for (const c of categories) {
+    if (/free/i.test(c.name)) {
+      out.set(c.name, FREE_CELL)
+      continue
+    }
+    const wanted = c.color.startsWith('#') ? c.color : CLI_COLORS[c.color.toLowerCase()]
+    const color =
+      wanted && !used.has(wanted) ? wanted : (PALETTE.find((p) => !used.has(p)) ?? '#6b7280')
+    used.add(color)
+    out.set(c.name, color)
+  }
+  return out
+}
+
+/** 10×10 grid, 1 cell = 1% of the window, cells colored by category share. */
+function buildGrid(data: ContextBreakdown, colors: Map<string, string>): string[] {
+  const cells: string[] = []
+  for (const c of data.categories) {
+    if (c.tokens <= 0 || /free/i.test(c.name)) continue
+    const n = Math.max(1, Math.round((c.tokens / data.maxTokens) * 100))
+    for (let i = 0; i < n && cells.length < 100; i++) cells.push(colors.get(c.name) ?? '#6b7280')
+  }
+  while (cells.length < 100) cells.push(FREE_CELL)
+  return cells
 }
 
 /** What's filling the context window, straight from the CLI — makes it obvious
@@ -45,6 +89,11 @@ export function ContextPopover({
       else setData(result)
     })
   }, [tabId])
+
+  const sorted = (data?.categories ?? [])
+    .filter((c) => c.tokens > 0)
+    .sort((a, b) => b.tokens - a.tokens)
+  const colors = assignColors(sorted)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-8" onClick={onClose}>
@@ -76,18 +125,14 @@ export function ContextPopover({
                   </span>
                   <span className="text-text-dim">{data.percentage.toFixed(0)}%</span>
                 </div>
-                {data.grid.length > 0 ? (
-                  <div className="flex flex-col gap-[3px] pt-1">
-                    {data.grid.map((row, ri) => (
-                      <div key={ri} className="flex gap-[3px]">
-                        {row.map((cell, ci) => (
-                          <span
-                            key={ci}
-                            className="h-2.5 w-2.5 flex-1 rounded-[3px]"
-                            style={{ backgroundColor: cellColor(cell.color, cell.filled) }}
-                          />
-                        ))}
-                      </div>
+                {sorted.length > 0 ? (
+                  <div className="grid grid-cols-10 gap-[3px] pt-1">
+                    {buildGrid(data, colors).map((color, i) => (
+                      <span
+                        key={i}
+                        className="aspect-square w-full rounded-[3px]"
+                        style={{ backgroundColor: color }}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -102,19 +147,21 @@ export function ContextPopover({
               </div>
 
               <div className="space-y-1 border-t border-border/60 pt-2">
-                {data.categories
-                  .filter((c) => c.tokens > 0)
-                  .sort((a, b) => b.tokens - a.tokens)
-                  .map((c) => (
-                    <div key={c.name} className="flex items-center gap-2 text-xs">
-                      <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
-                        style={{ backgroundColor: cellColor(c.color, true) }}
-                      />
-                      <span className="capitalize text-text-dim">{c.name}</span>
-                      <span className="ml-auto tabular-nums">{fmt(c.tokens)}</span>
-                    </div>
-                  ))}
+                {sorted.map((c) => (
+                  <div key={c.name} className="flex items-center gap-2 text-xs">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+                      style={{ backgroundColor: colors.get(c.name) }}
+                    />
+                    <span className="capitalize text-text-dim">{c.name}</span>
+                    <span className="ml-auto tabular-nums">
+                      {fmt(c.tokens)}
+                      <span className="pl-1 text-text-dim/50">
+                        {((c.tokens / data.maxTokens) * 100).toFixed(1)}%
+                      </span>
+                    </span>
+                  </div>
+                ))}
               </div>
 
               {data.mcpServers.length > 0 && (

@@ -178,7 +178,11 @@ function HowItWorks({ tabId }: { tabId: string }): React.JSX.Element {
           {generating ? 'Asking Claude…' : 'Explain how it works'}
         </button>
         {!generating && (
-          <p className="pt-1.5 text-[10px] text-text-dim/60">One Claude call, then cached.</p>
+          <p className="pt-1.5 text-[10px] text-text-dim/60">
+            One Claude call. After that it stays current on its own — regenerating when the
+            project changes — and is saved to this project&apos;s memory, so new sessions start
+            already knowing how it works.
+          </p>
         )}
       </div>
     )
@@ -227,7 +231,8 @@ function HowItWorks({ tabId }: { tabId: string }): React.JSX.Element {
 
       <p className="flex items-center gap-2 text-[10px] text-text-dim/50">
         {error && <span className="text-red-400">{error}</span>}
-        Written by Claude · {new Date(explanation.generatedAt).toLocaleDateString()}
+        Written by Claude · {new Date(explanation.generatedAt).toLocaleDateString()} ·
+        auto-updates as the project changes · saved to project memory
         <button
           onClick={() => void generate()}
           disabled={generating}

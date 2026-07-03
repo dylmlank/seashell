@@ -227,8 +227,6 @@ export interface ContextBreakdown {
   percentage: number
   model: string
   categories: { name: string; tokens: number; color: string }[]
-  /** The /context-style square grid, one cell per slice of the window. */
-  grid: { color: string; filled: boolean }[][]
   /** Token cost per MCP server (summed over its tools). */
   mcpServers: { name: string; tokens: number }[]
 }
@@ -262,6 +260,9 @@ export interface ProjectExplanation {
   /** What makes this project different from typical alternatives. */
   different: string[]
   generatedAt: number
+  /** Hash of the project map it was generated from — regeneration is skipped
+   *  while the project's shape is unchanged. */
+  fingerprint?: string
 }
 
 /** A project folder with a generated visual preview. */

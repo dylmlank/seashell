@@ -13,6 +13,7 @@ import { AsyncQueue } from './async-queue'
 import { loadDesktopMcpServers } from './desktop-mcp'
 import { notifyIfUnfocused } from './notify'
 import { OPENROUTER_BASE_URL } from './openrouter'
+import { projectExplain } from './project-explain'
 import { RETRO_PROMPT } from './retrospective'
 import { secrets } from './secrets'
 import { settingsStore } from './settings-store'
@@ -78,6 +79,9 @@ class SessionHandle {
   private turnConfirmedOut = 0
   private turnStreamChars = 0
   private lastStreamPush = 0
+  /** Real window size from the last getContextUsage — lets mid-turn per-call
+   *  usage update the gauge live instead of waiting for the turn result. */
+  private lastMaxTokens = 0
   private usage: UsageTotals = {
     inputTokens: 0,
     outputTokens: 0,
@@ -303,11 +307,34 @@ class SessionHandle {
         if (!msg.parent_tool_use_id) {
           // An API message finished — fold its real output tokens into the
           // live counter and drop the char-based estimate for it.
-          const out = (msg.message as { usage?: { output_tokens?: number } }).usage?.output_tokens
-          if (typeof out === 'number') {
-            this.turnConfirmedOut += out
+          const u = (
+            msg.message as {
+              usage?: {
+                output_tokens?: number
+                input_tokens?: number
+                cache_read_input_tokens?: number
+                cache_creation_input_tokens?: number
+              }
+            }
+          ).usage
+          if (typeof u?.output_tokens === 'number') {
+            this.turnConfirmedOut += u.output_tokens
             this.turnStreamChars = 0
             this.send({ kind: 'stream_tokens', outputTokens: this.turnConfirmedOut })
+          }
+          // Context of THIS call = its prompt side (never summed across calls —
+          // cache reads repeat every call). Updates the gauge live mid-turn.
+          const ctx =
+            (u?.input_tokens ?? 0) +
+            (u?.cache_read_input_tokens ?? 0) +
+            (u?.cache_creation_input_tokens ?? 0)
+          if (ctx > 0 && this.lastMaxTokens > 0) {
+            this.send({
+              kind: 'context_usage',
+              totalTokens: ctx,
+              maxTokens: this.lastMaxTokens,
+              percentage: (ctx / this.lastMaxTokens) * 100
+            })
           }
         }
         const blocks = msg.message.content
@@ -465,6 +492,11 @@ class SessionHandle {
             'Claude finished',
             msg.subtype === 'success' ? msg.result.slice(0, 140) : `Turn ended: ${msg.subtype}`
           )
+          if (this.turnHadMutations && !this.chatOnly) {
+            // Project changed — keep the Workflow overview (and the copy in
+            // project memory) current. Fingerprint + throttle gated inside.
+            void projectExplain.maybeRefresh(this.cwd)
+          }
         }
         // Token-free control requests: exact context fill for the gauge, and a
         // throttled plan-limits refresh for the usage bars.
@@ -480,6 +512,7 @@ class SessionHandle {
   async pushContextUsage(): Promise<void> {
     try {
       const cu = await this.q.getContextUsage()
+      this.lastMaxTokens = cu.maxTokens
       this.send({
         kind: 'context_usage',
         totalTokens: cu.totalTokens,
@@ -508,9 +541,6 @@ class SessionHandle {
           tokens: c.tokens,
           color: c.color
         })),
-        grid: (cu.gridRows ?? [])
-          .slice(0, 50)
-          .map((row) => row.map((cell) => ({ color: cell.color, filled: cell.isFilled }))),
         mcpServers: [...byServer.entries()]
           .map(([name, tokens]) => ({ name, tokens }))
           .sort((a, b) => b.tokens - a.tokens)

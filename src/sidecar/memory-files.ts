@@ -8,7 +8,7 @@ function mungeCwd(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, '-')
 }
 
-function memoryDir(cwd: string): string {
+export function memoryDir(cwd: string): string {
   return join(homedir(), '.claude', 'projects', mungeCwd(cwd), 'memory')
 }
 

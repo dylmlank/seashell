@@ -29240,6 +29240,61 @@ function readGrounding(cwd) {
   }
   return "(no README)";
 }
+function fingerprintOf(map) {
+  const shape = JSON.stringify({
+    stack: map.stack,
+    modules: map.modules.map((m) => [m.name, Math.round(m.lines / 250)]),
+    edges: map.edges.map((e) => `${e.from}\u2192${e.to}`),
+    externals: map.externals.map((e) => e.host)
+  });
+  return createHash2("sha1").update(shape).digest("hex");
+}
+function writeOverviewMemory(cwd, e) {
+  const dir = memoryDir(cwd);
+  mkdirSync4(dir, { recursive: true });
+  const body = `---
+name: project-overview
+description: How this project works \u2014 kept current automatically by Claude Shell
+metadata:
+  type: project
+---
+
+# Project overview
+
+${e.summary}
+
+## How it works, step by step
+${e.flow.map((s, i) => `${i + 1}. **${s.title}** \u2014 ${s.detail}`).join(`
+`)}
+
+## The moving parts
+${e.parts.map((p) => `- **${p.name}** \u2014 ${p.role}`).join(`
+`)}
+
+## What makes it different
+${e.different.map((d) => `- ${d}`).join(`
+`)}
+
+_Auto-updated by Claude Shell: ${new Date(e.generatedAt).toISOString().slice(0, 10)}_
+`;
+  writeFileSync4(join14(dir, "project-overview.md"), body, "utf8");
+  const indexPath = join14(dir, "MEMORY.md");
+  const line = "- [Project Overview](project-overview.md) \u2014 how this project works, auto-updated by Claude Shell";
+  let index;
+  try {
+    index = readFileSync7(indexPath, "utf8");
+  } catch {
+    index = `# Memory Index
+`;
+  }
+  if (!index.includes("project-overview.md")) {
+    writeFileSync4(indexPath, `${index.trimEnd()}
+${line}
+`, "utf8");
+  }
+}
+var inFlight = new Set;
+var MIN_REFRESH_MS = 30 * 60000;
 function isExplanation(v7) {
   const e = v7;
   return typeof e?.summary === "string" && Array.isArray(e.flow) && e.flow.every((s) => typeof s?.title === "string" && typeof s?.detail === "string") && Array.isArray(e.parts) && e.parts.every((p) => typeof p?.name === "string" && typeof p?.role === "string") && Array.isArray(e.different) && e.different.every((d) => typeof d === "string");
@@ -29253,8 +29308,33 @@ var projectExplain = {
       return null;
     }
   },
-  async generate(cwd) {
-    const map = await analyzeProject(cwd);
+  async maybeRefresh(cwd) {
+    if (inFlight.has(cwd))
+      return;
+    try {
+      const cache3 = this.cached(cwd);
+      if (cache3 && Date.now() - cache3.generatedAt < MIN_REFRESH_MS)
+        return;
+      const map = await analyzeProject(cwd);
+      if (map.totalFiles === 0)
+        return;
+      if (cache3?.fingerprint === fingerprintOf(map))
+        return;
+      await this.generate(cwd, map);
+    } catch {}
+  },
+  async generate(cwd, knownMap) {
+    if (inFlight.has(cwd))
+      return { error: "Already generating" };
+    inFlight.add(cwd);
+    try {
+      return await this.generateInner(cwd, knownMap);
+    } finally {
+      inFlight.delete(cwd);
+    }
+  },
+  async generateInner(cwd, knownMap) {
+    const map = knownMap ?? await analyzeProject(cwd);
     const prompt = `You are explaining a software project to its owner in plain, everyday language (no jargon; when a technical term is unavoidable, say what it means).
 
 Here is what static analysis found:
@@ -29307,8 +29387,13 @@ Rules: flow = 4 to 7 steps tracing what happens end to end when the project is u
       const parsed = JSON.parse(text.slice(start, end + 1));
       if (!isExplanation(parsed))
         return { error: "Claude returned an unexpected shape" };
-      const explanation = { ...parsed, generatedAt: Date.now() };
+      const explanation = {
+        ...parsed,
+        generatedAt: Date.now(),
+        fingerprint: fingerprintOf(map)
+      };
       writeFileSync4(cachePath(cwd), JSON.stringify(explanation, null, 2), "utf8");
+      writeOverviewMemory(cwd, explanation);
       return explanation;
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -29447,6 +29532,7 @@ class SessionHandle {
   turnConfirmedOut = 0;
   turnStreamChars = 0;
   lastStreamPush = 0;
+  lastMaxTokens = 0;
   usage = {
     inputTokens: 0,
     outputTokens: 0,
@@ -29631,11 +29717,20 @@ class SessionHandle {
           auth.notifyLoggedOut(msg.error);
         }
         if (!msg.parent_tool_use_id) {
-          const out = msg.message.usage?.output_tokens;
-          if (typeof out === "number") {
-            this.turnConfirmedOut += out;
+          const u = msg.message.usage;
+          if (typeof u?.output_tokens === "number") {
+            this.turnConfirmedOut += u.output_tokens;
             this.turnStreamChars = 0;
             this.send({ kind: "stream_tokens", outputTokens: this.turnConfirmedOut });
+          }
+          const ctx = (u?.input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0);
+          if (ctx > 0 && this.lastMaxTokens > 0) {
+            this.send({
+              kind: "context_usage",
+              totalTokens: ctx,
+              maxTokens: this.lastMaxTokens,
+              percentage: ctx / this.lastMaxTokens * 100
+            });
           }
         }
         const blocks = msg.message.content;
@@ -29783,6 +29878,9 @@ class SessionHandle {
         if (!continued) {
           broadcast4("session:status", { tabId: this.tabId, status: "idle" });
           notifyIfUnfocused("Claude finished", msg.subtype === "success" ? msg.result.slice(0, 140) : `Turn ended: ${msg.subtype}`);
+          if (this.turnHadMutations && !this.chatOnly) {
+            projectExplain.maybeRefresh(this.cwd);
+          }
         }
         this.pushContextUsage();
         refreshPlanLimits(this);
@@ -29793,6 +29891,7 @@ class SessionHandle {
   async pushContextUsage() {
     try {
       const cu = await this.q.getContextUsage();
+      this.lastMaxTokens = cu.maxTokens;
       this.send({
         kind: "context_usage",
         totalTokens: cu.totalTokens,
@@ -29818,7 +29917,6 @@ class SessionHandle {
           tokens: c.tokens,
           color: c.color
         })),
-        grid: (cu.gridRows ?? []).slice(0, 50).map((row) => row.map((cell) => ({ color: cell.color, filled: cell.isFilled }))),
         mcpServers: [...byServer.entries()].map(([name, tokens]) => ({ name, tokens })).sort((a, b) => b.tokens - a.tokens)
       };
     } catch (err) {
