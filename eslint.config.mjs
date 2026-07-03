@@ -28,7 +28,11 @@ export default defineConfig(
     rules: {
       ...eslintPluginReactHooks.configs.recommended.rules,
       ...eslintPluginReactRefresh.configs.vite.rules,
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // Loading IPC data into state on mount IS "syncing with an external
+      // system" — the rule can't see through the awaits and flags all of it.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-refresh/only-export-components': 'off'
     }
   },
   eslintConfigPrettier

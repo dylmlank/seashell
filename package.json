@@ -12,7 +12,9 @@
     "dev": "tauri dev",
     "dev:renderer": "vite",
     "build:renderer": "vite build",
+    "build:sidecar": "bun build src/sidecar/index.ts --target=bun --outfile=src-tauri/resources/sidecar/sidecar.js",
     "build": "tauri build",
+    "test": "bun test tests/",
     "sidecar": "bun run src/sidecar/index.ts",
     "tauri": "tauri"
   },

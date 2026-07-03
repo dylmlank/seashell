@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "bun run dev:renderer",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "bun run build:renderer",
+    "beforeBuildCommand": "bun run build:renderer && bun run build:sidecar",
     "frontendDist": "../out/renderer"
   },
   "app": {
@@ -17,17 +17,20 @@
         "height": 840,
         "minWidth": 800,
         "minHeight": 500,
-        "dragDropEnabled": false,
+        "dragDropEnabled": true,
         "backgroundColor": "#0a0a0a"
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws://127.0.0.1:* ipc: http://ipc.localhost"
     }
   },
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "icon": ["icons/icon.ico"]
+    "icon": ["icons/icon.ico"],
+    "resources": {
+      "resources/sidecar/": "sidecar/"
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUp, FileText, Mic, Square, Paperclip, X } from 'lucide-react'
 import type { ImageAttachment } from '@shared/types'
 import { ModelSelector } from './ModelSelector'
@@ -86,10 +86,9 @@ export function Composer({
     }
   }
 
-  // Native picker — the webview's <input type=file> can't reveal disk paths.
-  const attachViaDialog = async (): Promise<void> => {
-    const paths = await window.api.pickFiles()
-    if (!paths) return
+  // Attach files by absolute path — from the native picker or a Tauri drop.
+  // Images inline as base64; everything else becomes a path chip Claude reads.
+  const addPaths = useCallback(async (paths: string[]): Promise<void> => {
     for (const path of paths) {
       const name = path.split(/[\\/]/).pop() ?? path
       if (/\.(png|jpe?g|gif|webp)$/i.test(name)) {
@@ -108,7 +107,23 @@ export function Composer({
           : [...prev, { id: crypto.randomUUID(), path, name }]
       )
     }
+  }, [])
+
+  const attachViaDialog = async (): Promise<void> => {
+    const paths = await window.api.pickFiles()
+    if (paths) void addPaths(paths)
   }
+
+  // Files dropped anywhere on the window land in the main composer (side
+  // chats are read-only, so they don't take attachments).
+  useEffect(() => {
+    if (hideModeControls) return
+    const onDrop = (e: Event): void => {
+      void addPaths((e as CustomEvent<string[]>).detail)
+    }
+    window.addEventListener('shell-file-drop', onDrop)
+    return () => window.removeEventListener('shell-file-drop', onDrop)
+  }, [hideModeControls, addPaths])
 
   const dictate = async (): Promise<void> => {
     areaRef.current?.focus()
@@ -117,14 +132,7 @@ export function Composer({
   }
 
   return (
-    <div
-      className="px-6 pb-4 pt-2"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault()
-        void addAttachments(e.dataTransfer.files)
-      }}
-    >
+    <div className="px-6 pb-4 pt-2">
       <div className="mx-auto w-full max-w-3xl">
         {(images.length > 0 || files.length > 0) && (
           <div className="mb-2 flex flex-wrap items-center gap-2">

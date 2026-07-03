@@ -110,7 +110,7 @@ function reduceEvent(items: ChatItem[], event: UiEvent): ChatItem[] {
       return [...items, { kind: 'assistant', id: nextId(), text: event.text, streaming: true }]
     }
     case 'assistant_message': {
-      let next = [...items]
+      const next = [...items]
       const last = next[next.length - 1]
       if (last?.kind === 'assistant' && last.streaming) {
         // Finalize the streamed item with the authoritative text.

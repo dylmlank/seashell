@@ -6,8 +6,10 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::process::{Child as StdChild, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State, UserAttentionType};
 
 struct PtyEntry {
     writer: Box<dyn Write + Send>,
@@ -19,6 +21,7 @@ struct AppState {
     sidecar: Mutex<Option<StdChild>>,
     sidecar_port: Mutex<u16>,
     secret: String,
+    exiting: AtomicBool,
     ptys: Mutex<HashMap<String, PtyEntry>>,
     pty_counter: Mutex<u64>,
 }
@@ -168,22 +171,44 @@ fn save_text_file(path: String, contents: String) -> Result<(), String> {
     std::fs::write(path, contents).map_err(|e| e.to_string())
 }
 
+/// Taskbar attention when a notification fires while the window is unfocused.
+#[tauri::command]
+fn flash_window(app: AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.request_user_attention(Some(UserAttentionType::Informational));
+    }
+}
+
 fn project_root() -> PathBuf {
-    // Dev + local use: the repo root next to src-tauri. (Bundled installs would
-    // ship the sidecar as a resource — not wired up yet.)
+    // Dev: the repo root next to src-tauri.
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("src-tauri has a parent")
         .to_path_buf()
 }
 
-fn spawn_sidecar(app: AppHandle) {
-    let state = app.state::<AppState>();
-    let secret = state.secret.clone();
+/// Packaged builds ship the sidecar as a bundled resource; dev runs it
+/// straight from the repo. Both need bun on PATH.
+fn sidecar_command(app: &AppHandle, secret: &str) -> Command {
+    let bundled = app
+        .path()
+        .resource_dir()
+        .ok()
+        .map(|dir| dir.join("sidecar").join("sidecar.js"))
+        .filter(|p| p.exists());
+
     let mut cmd = Command::new("bun");
-    cmd.args(["run", "src/sidecar/index.ts"])
-        .current_dir(project_root())
-        .env("SIDECAR_SECRET", &secret)
+    match bundled {
+        Some(bundle) => {
+            let dir = bundle.parent().expect("bundle has a dir").to_path_buf();
+            cmd.arg("run").arg(&bundle).current_dir(dir);
+        }
+        None => {
+            cmd.args(["run", "src/sidecar/index.ts"])
+                .current_dir(project_root());
+        }
+    }
+    cmd.env("SIDECAR_SECRET", secret)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     #[cfg(windows)]
@@ -191,36 +216,70 @@ fn spawn_sidecar(app: AppHandle) {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     }
-    let mut child = match cmd.spawn() {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("[sidecar] failed to spawn bun: {e}");
-            return;
-        }
-    };
+    cmd
+}
 
-    if let Some(stdout) = child.stdout.take() {
-        let app2 = app.clone();
-        std::thread::spawn(move || {
-            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-                if let Some(port) = line.strip_prefix("SIDECAR_PORT=") {
-                    if let Ok(port) = port.trim().parse::<u16>() {
-                        *app2.state::<AppState>().sidecar_port.lock().unwrap() = port;
-                        let _ = app2.emit("sidecar-ready", port);
+/// Keeps the sidecar alive for the app's lifetime — if the Bun process dies,
+/// the port resets (so the frontend's reconnect loop waits) and it respawns.
+fn supervise_sidecar(app: AppHandle) {
+    std::thread::spawn(move || loop {
+        let state = app.state::<AppState>();
+        if state.exiting.load(Ordering::SeqCst) {
+            break;
+        }
+
+        let mut child = match sidecar_command(&app, &state.secret).spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("[sidecar] failed to spawn bun: {e}");
+                std::thread::sleep(Duration::from_secs(3));
+                continue;
+            }
+        };
+
+        if let Some(stdout) = child.stdout.take() {
+            let app2 = app.clone();
+            std::thread::spawn(move || {
+                for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                    if let Some(port) = line.strip_prefix("SIDECAR_PORT=") {
+                        if let Ok(port) = port.trim().parse::<u16>() {
+                            *app2.state::<AppState>().sidecar_port.lock().unwrap() = port;
+                            let _ = app2.emit("sidecar-ready", port);
+                        }
                     }
+                    println!("[sidecar] {line}");
                 }
-                println!("[sidecar] {line}");
+            });
+        }
+        if let Some(stderr) = child.stderr.take() {
+            std::thread::spawn(move || {
+                for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                    eprintln!("[sidecar] {line}");
+                }
+            });
+        }
+        *state.sidecar.lock().unwrap() = Some(child);
+
+        // Poll for exit without holding the lock (RunEvent::Exit needs it to kill).
+        loop {
+            std::thread::sleep(Duration::from_millis(500));
+            if state.exiting.load(Ordering::SeqCst) {
+                return;
             }
-        });
-    }
-    if let Some(stderr) = child.stderr.take() {
-        std::thread::spawn(move || {
-            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                eprintln!("[sidecar] {line}");
+            let mut guard = state.sidecar.lock().unwrap();
+            match guard.as_mut().map(|c| c.try_wait()) {
+                Some(Ok(None)) => {} // still running
+                _ => {
+                    guard.take();
+                    break;
+                }
             }
-        });
-    }
-    *state.sidecar.lock().unwrap() = Some(child);
+        }
+
+        *state.sidecar_port.lock().unwrap() = 0;
+        eprintln!("[sidecar] exited — restarting in 1.5s");
+        std::thread::sleep(Duration::from_millis(1500));
+    });
 }
 
 pub fn run() {
@@ -238,11 +297,12 @@ pub fn run() {
             sidecar: Mutex::new(None),
             sidecar_port: Mutex::new(0),
             secret,
+            exiting: AtomicBool::new(false),
             ptys: Mutex::new(HashMap::new()),
             pty_counter: Mutex::new(0),
         })
         .setup(|app| {
-            spawn_sidecar(app.handle().clone());
+            supervise_sidecar(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -253,13 +313,15 @@ pub fn run() {
             pty_kill,
             open_terminal,
             open_external,
-            save_text_file
+            save_text_file,
+            flash_window
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
             if let RunEvent::Exit = event {
                 let state = app.state::<AppState>();
+                state.exiting.store(true, Ordering::SeqCst);
                 // Sessions and terminals die with their owners.
                 if let Some(mut child) = state.sidecar.lock().unwrap().take() {
                     let _ = child.kill();

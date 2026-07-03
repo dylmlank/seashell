@@ -6,7 +6,6 @@ import { userDataDir } from './paths'
 const file = (): string => join(userDataDir(), 'usage.json')
 
 let cache: Record<string, UsageTotals> | null = null
-let saveTimer: NodeJS.Timeout | null = null
 
 function load(): Record<string, UsageTotals> {
   if (cache) return cache
@@ -18,24 +17,18 @@ function load(): Record<string, UsageTotals> {
   return cache
 }
 
-function scheduleSave(): void {
-  if (saveTimer) return
-  saveTimer = setTimeout(() => {
-    saveTimer = null
-    try {
-      writeFileSync(file(), JSON.stringify(cache ?? {}))
-    } catch (err) {
-      console.error('usage-store save failed:', err)
-    }
-  }, 2000)
-}
-
 export const usageStore = {
-  /** Replace the running totals for a session (totals are cumulative per session). */
+  /** Replace the running totals for a session (totals are cumulative per session).
+   *  Write-through: at most once per turn, and the supervisor may hard-kill us
+   *  on quit, so there's no safe window to debounce across. */
   set(sessionId: string, totals: UsageTotals): void {
     const data = load()
     data[sessionId] = totals
-    scheduleSave()
+    try {
+      writeFileSync(file(), JSON.stringify(data))
+    } catch (err) {
+      console.error('usage-store save failed:', err)
+    }
   },
 
   getAll(): Record<string, UsageTotals> {
@@ -43,14 +36,6 @@ export const usageStore = {
   },
 
   flush(): void {
-    if (saveTimer) {
-      clearTimeout(saveTimer)
-      saveTimer = null
-    }
-    try {
-      writeFileSync(file(), JSON.stringify(cache ?? {}))
-    } catch {
-      // best effort on shutdown
-    }
+    // Writes are synchronous now — nothing pending to flush.
   }
 }

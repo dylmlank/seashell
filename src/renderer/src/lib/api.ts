@@ -2,6 +2,7 @@
 // exposed, now backed by a WebSocket to the Bun sidecar (sessions, files,
 // history…) plus native Tauri commands/plugins for dialogs and notifications.
 import { invoke as tauriInvoke } from '@tauri-apps/api/core'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import {
   isPermissionGranted,
@@ -119,10 +120,20 @@ window.api = api
 api.on('notify', ({ title, body }) => {
   void (async () => {
     if (document.hasFocus()) return
+    // Taskbar flash always works, even where toasts don't (unpackaged dev builds).
+    void tauriInvoke('flash_window')
     let granted = await isPermissionGranted()
     if (!granted) granted = (await requestPermission()) === 'granted'
     if (granted) sendNotification({ title, body })
   })()
+})
+
+// Tauri owns drag-drop (that's how we get real file paths in a webview) —
+// re-broadcast drops as a DOM event the composer picks up.
+void getCurrentWebview().onDragDropEvent((event) => {
+  if (event.payload.type === 'drop' && event.payload.paths.length) {
+    window.dispatchEvent(new CustomEvent('shell-file-drop', { detail: event.payload.paths }))
+  }
 })
 
 // External links in chat markdown open in the default browser, not the webview.
