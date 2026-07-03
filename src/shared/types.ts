@@ -1,0 +1,174 @@
+// UI-facing types. The renderer never imports SDK types directly — the main
+// process maps SDK messages into these shapes (see session-manager sanitize()).
+
+export type PermissionMode = 'default' | 'acceptEdits' | 'plan' | 'bypassPermissions'
+
+/** Which backend a session talks to. Anthropic = your Claude subscription;
+ *  OpenRouter = pay-per-token credits billed by OpenRouter. */
+export type Provider = 'anthropic' | 'openrouter'
+
+export type SessionStatus = 'starting' | 'idle' | 'streaming' | 'awaitingApproval' | 'error'
+
+/** Events the renderer reduces into chat items. */
+export type UiEvent =
+  | {
+      kind: 'init'
+      sessionId: string
+      model: string
+      cwd: string
+      tools: string[]
+      slashCommands: string[]
+      mcpServers: { name: string; status: string }[]
+      skills: string[]
+      plugins: string[]
+      agents: string[]
+    }
+  | { kind: 'user_message'; text: string }
+  | { kind: 'user_uuid'; uuid: string }
+  | { kind: 'assistant_delta'; text: string }
+  | { kind: 'assistant_message'; id: string; text: string; toolUses: UiToolUse[] }
+  | { kind: 'tool_result'; toolUseId: string; text: string; isError: boolean }
+  | { kind: 'todos'; todos: TodoItem[] }
+  | { kind: 'subagent'; parentToolUseId: string; text: string }
+  | { kind: 'turn_result'; usage: UsageTotals; costUsd: number; isError: boolean; errorText?: string }
+  | { kind: 'status_text'; text: string }
+
+export interface TodoItem {
+  content: string
+  status: 'pending' | 'in_progress' | 'completed'
+  activeForm?: string
+}
+
+export interface ImageAttachment {
+  /** e.g. image/png */
+  mediaType: string
+  /** base64 data */
+  data: string
+}
+
+export interface ChangedFile {
+  path: string
+  /** git porcelain status, e.g. "M", "A", "??" */
+  status: string
+}
+
+export interface AppSettings {
+  defaultModel: string | null
+  defaultPermissionMode: PermissionMode
+  /** Backend for new sessions. OpenRouter requires an API key (Settings → Providers). */
+  defaultProvider: Provider
+  /** Model id for new OpenRouter sessions (e.g. "anthropic/claude-sonnet-4.5"). */
+  openrouterModel: string | null
+  notifications: boolean
+  /** Append a system prompt letting Claude create project skills/commands for itself. */
+  allowSelfSkills: boolean
+  /** Run /compact automatically after each answer (when context is large enough to matter). */
+  autoCompact: boolean
+  /** Only auto-compact once the context exceeds this many tokens — compacting
+   *  itself costs a call over the whole context, so higher = cheaper. */
+  compactThreshold: number
+  /** Run the shell-retrospective skill after each answer to capture lessons into memory. */
+  autoRetrospective: boolean
+  /** Skip the retrospective on read-only turns (nothing changed → nothing to remember). */
+  retroOnlyAfterEdits: boolean
+  /** Load MCP connectors from Claude Desktop's config into every session. */
+  importDesktopMcp: boolean
+  fontSize: 'sm' | 'md' | 'lg'
+  reducedMotion: boolean
+}
+
+export interface UiToolUse {
+  toolUseId: string
+  toolName: string
+  input: Record<string, unknown>
+}
+
+export interface UsageTotals {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
+  costUsd: number
+  turns: number
+  /** Tokens actually in the context window on the latest call (for the fill gauge). */
+  lastContextTokens: number
+  model?: string
+}
+
+export interface ModelInfo {
+  id: string
+  displayName: string
+}
+
+export interface DirEntry {
+  name: string
+  isDir: boolean
+}
+
+/** A connector found in Claude Desktop's config/extensions, and whether it syncs. */
+export interface DesktopConnector {
+  name: string
+  source: 'config' | 'extension'
+  imported: boolean
+  note?: string
+}
+
+export interface BranchInfo {
+  current: string
+  branches: string[]
+}
+
+export interface AuthState {
+  state: 'unknown' | 'loggedOut' | 'token' | 'apiKey'
+  detail?: string
+}
+
+export interface ApprovalRequest {
+  requestId: string
+  tabId: string
+  toolUseId: string
+  toolName: string
+  input: Record<string, unknown>
+  /** Full prompt sentence from the SDK when present ("Claude wants to ..."). */
+  promptText?: string
+  decisionReason?: string
+}
+
+export interface SessionSummary {
+  sessionId: string
+  title: string
+  firstPrompt?: string
+  cwd?: string
+  lastModified: number
+  createdAt?: number
+  gitBranch?: string
+}
+
+export interface ProjectSummary {
+  realPath: string
+  sessionCount: number
+  lastActive: number
+}
+
+/** A full-text match inside a past session's transcript. */
+export interface SearchHit {
+  sessionId: string
+  cwd?: string
+  role: 'user' | 'assistant'
+  snippet: string
+  lastModified: number
+}
+
+/** A file in Claude's persistent memory directory for a project. */
+export interface MemoryFile {
+  name: string
+  size: number
+  modified: number
+}
+
+/** A TCP port listening on localhost and the process that owns it. */
+export interface PortInfo {
+  port: number
+  pid: number
+  process: string
+}

@@ -1,0 +1,162 @@
+import { useState } from 'react'
+import {
+  Plus,
+  X,
+  Loader2,
+  GitBranch,
+  BarChart3,
+  Settings2,
+  FolderOpen
+} from 'lucide-react'
+import clsx from 'clsx'
+import { closeTab, createTab, useSessions } from '../stores/sessions'
+import { SessionList } from './SessionSidebar'
+
+function basename(p: string): string {
+  return p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
+}
+
+export function Sidebar({
+  changesOpen,
+  onToggleChanges,
+  onShowUsage,
+  onShowSettings
+}: {
+  changesOpen: boolean
+  onToggleChanges: () => void
+  onShowUsage: () => void
+  onShowSettings: () => void
+}): React.JSX.Element {
+  const allTabs = useSessions((s) => s.tabs)
+  const tabs = allTabs.filter((t) => !t.side)
+  const activeTabId = useSessions((s) => s.activeTabId)
+  const setActive = useSessions((s) => s.setActive)
+  const [opening, setOpening] = useState(false)
+
+  const newSession = async (): Promise<void> => {
+    const cwd = await window.api.invoke('dialog:pickFolder')
+    if (!cwd) return
+    setOpening(true)
+    try {
+      await createTab(cwd)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err))
+    } finally {
+      setOpening(false)
+    }
+  }
+
+  return (
+    <div className="flex w-64 shrink-0 flex-col border-r border-border/60 bg-[#0d0d0d]">
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-sm text-accent">
+          ✳
+        </span>
+        <span className="text-sm font-semibold tracking-tight">Claude Shell</span>
+      </div>
+
+      {/* New session */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={() => void newSession()}
+          disabled={opening}
+          title="New session (pick a folder)"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2 text-sm font-medium text-white shadow-lg shadow-accent/10 hover:bg-accent-dim disabled:opacity-50"
+        >
+          {opening ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : (
+            <Plus size={15} />
+          )}
+          New session
+        </button>
+      </div>
+
+      {/* Open sessions */}
+      {tabs.length > 0 && (
+        <div className="px-3 pt-2">
+          <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-text-dim/70">
+            Open
+          </div>
+          <div className="space-y-0.5">
+            {tabs.map((tab) => {
+              const active = tab.tabId === activeTabId
+              const busy = tab.status === 'streaming' || tab.status === 'awaitingApproval'
+              return (
+                <div
+                  key={tab.tabId}
+                  data-testid="tab"
+                  onClick={() => setActive(tab.tabId)}
+                  title={tab.cwd}
+                  className={clsx(
+                    'group flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
+                    active
+                      ? 'bg-surface-2 text-text'
+                      : 'text-text-dim hover:bg-surface hover:text-text'
+                  )}
+                >
+                  {busy ? (
+                    <Loader2 size={12} className="shrink-0 animate-spin text-accent" />
+                  ) : (
+                    <FolderOpen size={12} className="shrink-0 opacity-60" />
+                  )}
+                  <span className="truncate">{basename(tab.cwd)}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closeTab(tab.tabId)
+                    }}
+                    title="Close session"
+                    className="ml-auto rounded p-0.5 opacity-0 hover:bg-border group-hover:opacity-100"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Recent history */}
+      <div className="mt-3 flex min-h-0 flex-1 flex-col px-1.5">
+        <div className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-text-dim/70">
+          Recent sessions
+        </div>
+        <SessionList compact />
+      </div>
+
+      {/* Footer actions */}
+      <div className="flex items-center gap-1 border-t border-border/60 px-2 py-1.5">
+        <button
+          onClick={onToggleChanges}
+          title="File changes (git)"
+          className={clsx(
+            'flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[10px] hover:bg-surface',
+            changesOpen ? 'text-accent' : 'text-text-dim hover:text-text'
+          )}
+        >
+          <GitBranch size={15} />
+          Changes
+        </button>
+        <button
+          onClick={onShowUsage}
+          title="Usage & cost"
+          className="flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[10px] text-text-dim hover:bg-surface hover:text-text"
+        >
+          <BarChart3 size={15} />
+          Usage
+        </button>
+        <button
+          onClick={onShowSettings}
+          title="Settings"
+          className="flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[10px] text-text-dim hover:bg-surface hover:text-text"
+        >
+          <Settings2 size={15} />
+          Settings
+        </button>
+      </div>
+    </div>
+  )
+}
