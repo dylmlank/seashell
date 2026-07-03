@@ -33,7 +33,7 @@ export function SmoothText({
   text: string
   streaming: boolean
 }): React.JSX.Element {
-  const reducedMotion = useSettings((s) => s.settings.reducedMotion)
+  const reducedMotion = useSettings((s) => s.settings.reducedMotion || !s.settings.smoothStreaming)
   const [revealed, setRevealed] = useState(0)
 
   const blocks = splitBlocks(text)

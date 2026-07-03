@@ -28070,6 +28070,7 @@ Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resour
 });
 
 // src/sidecar/ipc.ts
+import { spawn as spawn4 } from "child_process";
 import { rmSync as rmSync3 } from "fs";
 import { readdir as readdir4, readFile as readFile6, writeFile as writeFile3 } from "fs/promises";
 import { extname, join as join15, resolve as resolve2 } from "path";
@@ -28113,7 +28114,13 @@ var DEFAULTS = {
   importDesktopMcp: true,
   autoScreenshots: true,
   fontSize: "md",
-  reducedMotion: false
+  reducedMotion: false,
+  accent: "#14b8a6",
+  terminalShell: "cmd",
+  terminalFontSize: 13,
+  editorFontSize: 13,
+  smoothStreaming: true,
+  reopenLastProject: false
 };
 var file = () => join2(userDataDir(), "settings.json");
 var cache = null;
@@ -28129,12 +28136,12 @@ var settingsStore = {
     return cache;
   },
   set(patch) {
-    cache = { ...this.get(), ...patch };
+    let onDisk = {};
     try {
-      writeFileSync(file(), JSON.stringify(cache, null, 2));
-    } catch (err) {
-      console.error("settings save failed:", err);
-    }
+      onDisk = JSON.parse(readFileSync(file(), "utf8"));
+    } catch {}
+    cache = { ...DEFAULTS, ...onDisk, ...patch };
+    writeFileSync(file(), JSON.stringify(cache, null, 2));
     return cache;
   }
 };
@@ -30025,6 +30032,17 @@ var handlers = {
       return { error: "Path outside project" };
     try {
       await writeFile3(target, a.content, "utf8");
+      return { ok: true };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+  "app:openDataFolder": () => {
+    spawn4("explorer.exe", [userDataDir()], { detached: true, stdio: "ignore" }).unref();
+  },
+  "previews:clearCache": () => {
+    try {
+      rmSync3(join15(userDataDir(), "previews"), { recursive: true, force: true });
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };

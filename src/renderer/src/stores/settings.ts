@@ -21,7 +21,13 @@ export const useSettings = create<SettingsStore>(() => ({
     importDesktopMcp: true,
     autoScreenshots: true,
     fontSize: 'md',
-    reducedMotion: false
+    reducedMotion: false,
+    accent: '#14b8a6',
+    terminalShell: 'cmd',
+    terminalFontSize: 13,
+    editorFontSize: 13,
+    smoothStreaming: true,
+    reopenLastProject: false
   },
   loaded: false
 }))
@@ -30,6 +36,8 @@ function applyToDocument(s: AppSettings): void {
   const root = document.documentElement
   root.style.fontSize = s.fontSize === 'sm' ? '14px' : s.fontSize === 'lg' ? '18px' : '16px'
   root.classList.toggle('reduced-motion', s.reducedMotion)
+  // The whole theme derives from this one variable (dim/glows via color-mix).
+  root.style.setProperty('--color-accent', s.accent)
 }
 
 declare global {
@@ -47,7 +55,14 @@ if (!window.__settingsWired) {
 }
 
 export async function updateSettings(patch: Partial<AppSettings>): Promise<void> {
-  const settings = await window.api.invoke('settings:set', patch)
-  useSettings.setState({ settings })
-  applyToDocument(settings)
+  try {
+    const settings = await window.api.invoke('settings:set', patch)
+    useSettings.setState({ settings })
+    applyToDocument(settings)
+  } catch (err) {
+    const { alertDialog } = await import('../lib/dialogs')
+    void alertDialog(
+      `Could not save settings: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
 }

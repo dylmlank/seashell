@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
+import { useSettings } from '../stores/settings'
 
 // Terminals live OUTSIDE React so they survive panel toggles and session
 // switches — each keeps its xterm instance (scrollback included) attached to a
@@ -76,15 +77,16 @@ function wire(): void {
 export async function createTerm(tabId: string, cwd: string): Promise<TermEntry> {
   wire()
   const tab = getTab(tabId)
+  const settings = useSettings.getState().settings
   const el = document.createElement('div')
   el.className = 'h-full w-full'
   const term = new Terminal({
     fontFamily: "'Cascadia Code', Consolas, monospace",
-    fontSize: 13,
+    fontSize: settings.terminalFontSize,
     theme: {
       background: '#0a0a0a',
       foreground: '#ededed',
-      cursor: '#14b8a6',
+      cursor: settings.accent,
       selectionBackground: '#0e3c36'
     }
   })
@@ -98,7 +100,7 @@ export async function createTerm(tabId: string, cwd: string): Promise<TermEntry>
   emit()
 
   try {
-    entry.termId = await invoke<string>('pty_create', { cwd })
+    entry.termId = await invoke<string>('pty_create', { cwd, shell: settings.terminalShell })
   } catch {
     entry.failed = true
     emit()

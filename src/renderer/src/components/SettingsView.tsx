@@ -411,6 +411,112 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
                 onChange={(v) => void updateSettings({ reducedMotion: v })}
               />
             </Row>
+            <Row label="Smooth streaming" hint="Reveal answers block by block with the word fade. Off = text appears as fast as it arrives.">
+              <Toggle
+                checked={settings.smoothStreaming}
+                onChange={(v) => void updateSettings({ smoothStreaming: v })}
+              />
+            </Row>
+            <Row label="Accent color" hint="The whole theme follows this — buttons, glows, gauges.">
+              <div className="flex gap-1.5">
+                {['#14b8a6', '#d97757', '#7c3aed', '#3b82f6', '#ec4899', '#22c55e', '#eab308'].map(
+                  (color) => (
+                    <button
+                      key={color}
+                      onClick={() => void updateSettings({ accent: color })}
+                      title={color}
+                      style={{ backgroundColor: color }}
+                      className={
+                        'h-6 w-6 rounded-full transition-transform hover:scale-110 ' +
+                        (settings.accent === color
+                          ? 'ring-2 ring-white ring-offset-2 ring-offset-surface'
+                          : '')
+                      }
+                    />
+                  )
+                )}
+              </div>
+            </Row>
+            <Row label="Editor font size">
+              <select
+                value={String(settings.editorFontSize)}
+                onChange={(e) => void updateSettings({ editorFontSize: Number(e.target.value) })}
+                className="rounded-lg border border-border bg-surface-2 px-2 py-1 text-sm outline-none"
+              >
+                {[11, 12, 13, 14, 16, 18].map((n) => (
+                  <option key={n} value={n}>
+                    {n}px
+                  </option>
+                ))}
+              </select>
+            </Row>
+            <Row label="Terminal shell" hint="New terminals use this shell.">
+              <select
+                value={settings.terminalShell}
+                onChange={(e) =>
+                  void updateSettings({
+                    terminalShell: e.target.value as 'cmd' | 'powershell' | 'pwsh'
+                  })
+                }
+                className="rounded-lg border border-border bg-surface-2 px-2 py-1 text-sm outline-none"
+              >
+                <option value="cmd">Command Prompt</option>
+                <option value="powershell">Windows PowerShell</option>
+                <option value="pwsh">PowerShell 7 (pwsh)</option>
+              </select>
+            </Row>
+            <Row label="Terminal font size">
+              <select
+                value={String(settings.terminalFontSize)}
+                onChange={(e) =>
+                  void updateSettings({ terminalFontSize: Number(e.target.value) })
+                }
+                className="rounded-lg border border-border bg-surface-2 px-2 py-1 text-sm outline-none"
+              >
+                {[11, 12, 13, 14, 16, 18].map((n) => (
+                  <option key={n} value={n}>
+                    {n}px
+                  </option>
+                ))}
+              </select>
+            </Row>
+            <Row
+              label="Reopen last project on launch"
+              hint="Skip the welcome screen and jump straight back into what you were doing."
+            >
+              <Toggle
+                checked={settings.reopenLastProject}
+                onChange={(v) => void updateSettings({ reopenLastProject: v })}
+              />
+            </Row>
+          </div>
+
+          <div>
+            <div className="pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-text-dim">
+              Data
+            </div>
+            <Row
+              label="App data folder"
+              hint="Settings, usage history, secrets (encrypted), and preview caches."
+            >
+              <button
+                onClick={() => void window.api.invoke('app:openDataFolder')}
+                className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm hover:bg-border"
+              >
+                Open folder
+              </button>
+            </Row>
+            <Row
+              label="Preview cache"
+              hint="Project cover screenshots and turn captures. Safe to clear — they regenerate."
+            >
+              <button
+                onClick={() => void window.api.invoke('previews:clearCache')}
+                className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm hover:bg-border"
+              >
+                Clear cache
+              </button>
+            </Row>
           </div>
 
           <AccountSection />

@@ -53,7 +53,12 @@ fn sidecar_info(state: State<AppState>) -> SidecarInfo {
 }
 
 #[tauri::command]
-fn pty_create(app: AppHandle, state: State<AppState>, cwd: String) -> Result<String, String> {
+fn pty_create(
+    app: AppHandle,
+    state: State<AppState>,
+    cwd: String,
+    shell: Option<String>,
+) -> Result<String, String> {
     let pty = native_pty_system()
         .openpty(PtySize {
             rows: 24,
@@ -63,8 +68,12 @@ fn pty_create(app: AppHandle, state: State<AppState>, cwd: String) -> Result<Str
         })
         .map_err(|e| e.to_string())?;
 
-    let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".into());
-    let mut cmd = CommandBuilder::new(shell);
+    let shell_exe = match shell.as_deref() {
+        Some("powershell") => "powershell.exe".to_string(),
+        Some("pwsh") => "pwsh.exe".to_string(),
+        _ => std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".into()),
+    };
+    let mut cmd = CommandBuilder::new(shell_exe);
     cmd.cwd(cwd);
     let child = pty.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pty.slave);
@@ -383,6 +392,15 @@ pub fn run() {
     };
 
     tauri::Builder::default()
+        // Second launches focus the existing window — two instances would
+        // fight over settings, terminals, and the sidecar.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.show();
+                let _ = win.unminimize();
+                let _ = win.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .manage(AppState {

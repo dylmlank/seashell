@@ -58,6 +58,9 @@ export interface Invokes {
   'dialog:pickFolder': () => string | null
   'fs:readFile': (a: { path: string }) => { content: string } | { error: string }
 
+  'app:openDataFolder': () => void
+  'previews:clearCache': () => { ok: true } | { error: string }
+
   'auth:getState': () => AuthState
   'auth:saveManualToken': (a: { token: string }) => { ok: boolean; error?: string }
   'auth:openTerminalLogin': () => void

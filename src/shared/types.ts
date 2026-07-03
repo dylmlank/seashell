@@ -94,6 +94,16 @@ export interface AppSettings {
   autoScreenshots: boolean
   fontSize: 'sm' | 'md' | 'lg'
   reducedMotion: boolean
+  /** Accent color (hex) — drives the whole theme. */
+  accent: string
+  /** Shell for the integrated terminal. */
+  terminalShell: 'cmd' | 'powershell' | 'pwsh'
+  terminalFontSize: number
+  editorFontSize: number
+  /** Word-by-word fade streaming; off = text appears instantly. */
+  smoothStreaming: boolean
+  /** Reopen the last project automatically on launch. */
+  reopenLastProject: boolean
 }
 
 export interface UiToolUse {

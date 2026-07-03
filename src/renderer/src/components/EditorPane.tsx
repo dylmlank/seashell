@@ -9,6 +9,7 @@ import { EditorState, type Extension } from '@codemirror/state'
 import { Code2, FolderTree, GitCompare, Loader2, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useEditor, type FileBuf } from '../stores/editor'
+import { useSettings } from '../stores/settings'
 import { FileExplorer } from './FileExplorer'
 import { confirmDialog } from '../lib/dialogs'
 
@@ -95,6 +96,7 @@ function DiffPane({
 /** The code editor pane: open-file tabs, CodeMirror, Ctrl+S, diff review. */
 export function EditorPane({ tabId }: { tabId: string }): React.JSX.Element {
   const tab = useEditor((s) => s.byTab[tabId])
+  const editorFontSize = useSettings((s) => s.settings.editorFontSize)
   const { setText, save, closeFile, setActive, toggleDiff } = useEditor.getState()
   const [saveError, setSaveError] = useState<string | null>(null)
   const [treeOpen, setTreeOpen] = useState(false)
@@ -227,7 +229,7 @@ export function EditorPane({ tabId }: { tabId: string }): React.JSX.Element {
                 extensions={langFor(active.rel)}
                 onChange={(value) => setText(tabId, active.rel, value)}
                 height="100%"
-                style={{ height: '100%' }}
+                style={{ height: '100%', fontSize: `${editorFontSize}px` }}
                 basicSetup={{ foldGutter: true, highlightActiveLine: true }}
               />
             </div>

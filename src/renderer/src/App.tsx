@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FolderOpen, Loader2 } from 'lucide-react'
 import { useAuth } from './stores/auth'
-import './stores/settings'
+import { useSettings } from './stores/settings'
 import { createTab, useSessions } from './stores/sessions'
 import { ApprovalModal } from './components/ApprovalModal'
 import { ChangesPanel } from './components/ChangesPanel'
@@ -66,6 +66,18 @@ export default function App(): React.JSX.Element {
   const [changesOpen, setChangesOpen] = useState(false)
   const [usageOpen, setUsageOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsLoaded = useSettings((s) => s.loaded)
+  const reopenLast = useSettings((s) => s.settings.reopenLastProject)
+  const reopened = useRef(false)
+
+  // Optional: jump straight back into the last project on launch.
+  useEffect(() => {
+    if (reopened.current || !settingsLoaded || !reopenLast) return
+    reopened.current = true
+    if (tabs.length > 0) return
+    const last = localStorage.getItem('last-project')
+    if (last) void createTab(last).catch(() => {})
+  }, [settingsLoaded, reopenLast, tabs.length])
 
   if (authState.state === 'loggedOut') {
     return <OnboardingView reason={authState.detail} />

@@ -1,3 +1,4 @@
+import { spawn } from 'child_process'
 import { rmSync } from 'fs'
 import { readdir, readFile, writeFile } from 'fs/promises'
 import { extname, join, resolve } from 'path'
@@ -228,6 +229,18 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
     if (!target.startsWith(resolve(h.cwd))) return { error: 'Path outside project' }
     try {
       await writeFile(target, a.content, 'utf8')
+      return { ok: true }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) }
+    }
+  },
+
+  'app:openDataFolder': () => {
+    spawn('explorer.exe', [userDataDir()], { detached: true, stdio: 'ignore' }).unref()
+  },
+  'previews:clearCache': () => {
+    try {
+      rmSync(join(userDataDir(), 'previews'), { recursive: true, force: true })
       return { ok: true }
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) }

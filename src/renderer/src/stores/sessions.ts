@@ -372,6 +372,7 @@ export async function createTab(cwd: string, resume?: string, side?: boolean): P
   if (!result.ok) {
     throw new Error(result.error)
   }
+  if (!side) localStorage.setItem('last-project', cwd)
   useSessions.getState().addTab({
     tabId,
     cwd,
