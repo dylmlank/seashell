@@ -73,6 +73,11 @@ class SessionHandle {
   /** Whether the current turn changed anything (files/commands). Read-only turns
    *  have nothing worth remembering, so the retrospective call can be skipped. */
   private turnHadMutations = false
+  /** Live output-token tracking for the streaming counter: confirmed tokens
+   *  from finished API messages + a chars/4 estimate of the one in flight. */
+  private turnConfirmedOut = 0
+  private turnStreamChars = 0
+  private lastStreamPush = 0
   private usage: UsageTotals = {
     inputTokens: 0,
     outputTokens: 0,
@@ -244,7 +249,7 @@ class SessionHandle {
     switch (msg.type) {
       case 'system': {
         if (msg.subtype === 'compact_boundary') {
-          this.send({ kind: 'status_text', text: 'context compacted' })
+          this.send({ kind: 'status_text', text: 'compacted' })
           break
         }
         if (msg.subtype === 'init') {
@@ -270,12 +275,33 @@ class SessionHandle {
         const ev = msg.event
         if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta') {
           this.send({ kind: 'assistant_delta', text: ev.delta.text })
+          this.turnStreamChars += ev.delta.text.length
+          // Throttled live counter: ~4 chars/token estimate for the in-flight
+          // message, recalibrated to real usage when each API message lands.
+          const now = Date.now()
+          if (now - this.lastStreamPush > 250) {
+            this.lastStreamPush = now
+            this.send({
+              kind: 'stream_tokens',
+              outputTokens: this.turnConfirmedOut + Math.round(this.turnStreamChars / 4)
+            })
+          }
         }
         break
       }
       case 'assistant': {
         if (msg.error === 'authentication_failed' || msg.error === 'billing_error') {
           auth.notifyLoggedOut(msg.error)
+        }
+        if (!msg.parent_tool_use_id) {
+          // An API message finished — fold its real output tokens into the
+          // live counter and drop the char-based estimate for it.
+          const out = (msg.message as { usage?: { output_tokens?: number } }).usage?.output_tokens
+          if (typeof out === 'number') {
+            this.turnConfirmedOut += out
+            this.turnStreamChars = 0
+            this.send({ kind: 'stream_tokens', outputTokens: this.turnConfirmedOut })
+          }
         }
         const blocks = msg.message.content
         if (msg.parent_tool_use_id) {
@@ -333,6 +359,7 @@ class SessionHandle {
             if (/^(Write|Edit|MultiEdit|NotebookEdit|Bash)$/.test(block.name)) {
               this.turnHadMutations = true
             }
+
             toolUses.push({
               toolUseId: block.id,
               toolName: block.name,
@@ -405,8 +432,11 @@ class SessionHandle {
           usage: { ...this.usage },
           costUsd: msg.total_cost_usd,
           isError: msg.subtype !== 'success',
-          errorText: msg.subtype !== 'success' ? msg.subtype : undefined
+          errorText: msg.subtype !== 'success' ? msg.subtype : undefined,
+          turnTokens: { output: u.output_tokens, context: this.usage.lastContextTokens }
         })
+        this.turnConfirmedOut = 0
+        this.turnStreamChars = 0
         if (this.sdkSessionId) {
           usageStore.set(this.sdkSessionId, { ...this.usage })
           broadcast('usage:update', {
@@ -506,22 +536,20 @@ class SessionHandle {
     if (this.turnPhase === 'user') {
       if (settings.autoRetrospective && (!settings.retroOnlyAfterEdits || this.turnHadMutations)) {
         this.turnPhase = 'retro'
-        this.send({ kind: 'status_text', text: 'auto-retrospective' })
         this.pushText(RETRO_PROMPT)
         return true
       }
       if (this.shouldAutoCompact(settings.autoCompact)) {
         this.turnPhase = 'compact'
-        this.send({ kind: 'status_text', text: 'auto-compact' })
         this.pushText('/compact')
         return true
       }
       return false
     }
     if (this.turnPhase === 'retro') {
+      this.send({ kind: 'status_text', text: 'retrospective complete' })
       if (this.shouldAutoCompact(settings.autoCompact)) {
         this.turnPhase = 'compact'
-        this.send({ kind: 'status_text', text: 'auto-compact' })
         this.pushText('/compact')
         return true
       }
@@ -553,6 +581,8 @@ class SessionHandle {
   sendUserMessage(text: string, images?: ImageAttachment[]): void {
     this.turnPhase = 'user' // a real user message restarts the auto follow-up cycle
     this.turnHadMutations = false
+    this.turnConfirmedOut = 0
+    this.turnStreamChars = 0
     broadcast('session:status', { tabId: this.tabId, status: 'streaming' })
     const content: Array<
       | { type: 'text'; text: string }

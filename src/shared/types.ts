@@ -30,8 +30,18 @@ export type UiEvent =
   | { kind: 'tool_result'; toolUseId: string; text: string; isError: boolean }
   | { kind: 'todos'; todos: TodoItem[] }
   | { kind: 'subagent'; parentToolUseId: string; text: string }
-  | { kind: 'turn_result'; usage: UsageTotals; costUsd: number; isError: boolean; errorText?: string }
+  | {
+      kind: 'turn_result'
+      usage: UsageTotals
+      costUsd: number
+      isError: boolean
+      errorText?: string
+      /** What this specific turn cost: output tokens + context size it ran at. */
+      turnTokens: { output: number; context: number }
+    }
   | { kind: 'status_text'; text: string }
+  /** Live output-token count while streaming (recalibrated per API message). */
+  | { kind: 'stream_tokens'; outputTokens: number }
   /** Authoritative context-window fill from the CLI (per-model window sizes). */
   | { kind: 'context_usage'; totalTokens: number; maxTokens: number; percentage: number }
 

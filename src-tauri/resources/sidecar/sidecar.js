@@ -28954,6 +28954,9 @@ class SessionHandle {
   turnPhase = "user";
   static COMPACT_MIN_CONTEXT = 30000;
   turnHadMutations = false;
+  turnConfirmedOut = 0;
+  turnStreamChars = 0;
+  lastStreamPush = 0;
   usage = {
     inputTokens: 0,
     outputTokens: 0,
@@ -29089,7 +29092,7 @@ class SessionHandle {
     switch (msg.type) {
       case "system": {
         if (msg.subtype === "compact_boundary") {
-          this.send({ kind: "status_text", text: "context compacted" });
+          this.send({ kind: "status_text", text: "compacted" });
           break;
         }
         if (msg.subtype === "init") {
@@ -29116,12 +29119,29 @@ class SessionHandle {
         const ev2 = msg.event;
         if (ev2.type === "content_block_delta" && ev2.delta.type === "text_delta") {
           this.send({ kind: "assistant_delta", text: ev2.delta.text });
+          this.turnStreamChars += ev2.delta.text.length;
+          const now = Date.now();
+          if (now - this.lastStreamPush > 250) {
+            this.lastStreamPush = now;
+            this.send({
+              kind: "stream_tokens",
+              outputTokens: this.turnConfirmedOut + Math.round(this.turnStreamChars / 4)
+            });
+          }
         }
         break;
       }
       case "assistant": {
         if (msg.error === "authentication_failed" || msg.error === "billing_error") {
           auth.notifyLoggedOut(msg.error);
+        }
+        if (!msg.parent_tool_use_id) {
+          const out = msg.message.usage?.output_tokens;
+          if (typeof out === "number") {
+            this.turnConfirmedOut += out;
+            this.turnStreamChars = 0;
+            this.send({ kind: "stream_tokens", outputTokens: this.turnConfirmedOut });
+          }
         }
         const blocks = msg.message.content;
         if (msg.parent_tool_use_id) {
@@ -29245,8 +29265,11 @@ class SessionHandle {
           usage: { ...this.usage },
           costUsd: msg.total_cost_usd,
           isError: msg.subtype !== "success",
-          errorText: msg.subtype !== "success" ? msg.subtype : undefined
+          errorText: msg.subtype !== "success" ? msg.subtype : undefined,
+          turnTokens: { output: u.output_tokens, context: this.usage.lastContextTokens }
         });
+        this.turnConfirmedOut = 0;
+        this.turnStreamChars = 0;
         if (this.sdkSessionId) {
           usageStore.set(this.sdkSessionId, { ...this.usage });
           broadcast4("usage:update", {
@@ -29323,22 +29346,20 @@ class SessionHandle {
     if (this.turnPhase === "user") {
       if (settings.autoRetrospective && (!settings.retroOnlyAfterEdits || this.turnHadMutations)) {
         this.turnPhase = "retro";
-        this.send({ kind: "status_text", text: "auto-retrospective" });
         this.pushText(RETRO_PROMPT);
         return true;
       }
       if (this.shouldAutoCompact(settings.autoCompact)) {
         this.turnPhase = "compact";
-        this.send({ kind: "status_text", text: "auto-compact" });
         this.pushText("/compact");
         return true;
       }
       return false;
     }
     if (this.turnPhase === "retro") {
+      this.send({ kind: "status_text", text: "retrospective complete" });
       if (this.shouldAutoCompact(settings.autoCompact)) {
         this.turnPhase = "compact";
-        this.send({ kind: "status_text", text: "auto-compact" });
         this.pushText("/compact");
         return true;
       }
@@ -29363,6 +29384,8 @@ class SessionHandle {
   sendUserMessage(text, images) {
     this.turnPhase = "user";
     this.turnHadMutations = false;
+    this.turnConfirmedOut = 0;
+    this.turnStreamChars = 0;
     broadcast4("session:status", { tabId: this.tabId, status: "streaming" });
     const content = [];
     for (const img of images ?? []) {

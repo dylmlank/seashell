@@ -134,6 +134,11 @@ const MessageBubble = memo(function MessageBubble({
           <div className="min-w-0">
             <Markdown text={item.text} />
             {item.streaming && <span className="cursor-blink inline-block h-4 w-2 bg-accent" />}
+            {!item.streaming && item.tokens !== undefined && (
+              <div className="pt-1 text-[10px] tabular-nums text-text-dim/50" title="Output tokens this turn generated">
+                {item.tokens >= 1000 ? `${(item.tokens / 1000).toFixed(1)}k` : item.tokens} tokens
+              </div>
+            )}
           </div>
         </div>
       )

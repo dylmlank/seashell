@@ -11,7 +11,7 @@ import type {
 
 export type ChatItem =
   | { kind: 'user'; id: string; text: string; uuid?: string; imageCount?: number }
-  | { kind: 'assistant'; id: string; text: string; streaming: boolean }
+  | { kind: 'assistant'; id: string; text: string; streaming: boolean; tokens?: number }
   | { kind: 'plan'; id: string; todos: TodoItem[] }
   | { kind: 'status'; id: string; text: string }
   | {
@@ -41,6 +41,8 @@ export interface TabState {
   lastArtifact?: string
   /** Exact context fill from the CLI (knows the real per-model window). */
   contextUsage?: { totalTokens: number; maxTokens: number; percentage: number }
+  /** Output tokens generated so far in the in-flight turn (live counter). */
+  liveTokens?: number
   items: ChatItem[]
   usage?: UsageTotals
   slashCommands: string[]
@@ -150,10 +152,24 @@ function reduceEvent(items: ChatItem[], event: UiEvent): ChatItem[] {
       )
     }
     case 'turn_result': {
-      // Close out any dangling streaming bubble.
-      return items.map((item) =>
-        item.kind === 'assistant' && item.streaming ? { ...item, streaming: false } : item
+      // Close out any dangling streaming bubble and stamp the turn's token cost
+      // on the answer it belongs to.
+      const next = items.map((item) =>
+        item.kind === 'assistant' && item.streaming
+          ? { ...item, streaming: false as const }
+          : item
       )
+      if (event.turnTokens.output > 0) {
+        for (let i = next.length - 1; i >= 0; i--) {
+          const item = next[i]
+          if (item.kind === 'assistant') {
+            next[i] = { ...item, tokens: event.turnTokens.output }
+            break
+          }
+          if (item.kind === 'user') break
+        }
+      }
+      return next
     }
     default:
       return items
@@ -199,6 +215,10 @@ export const useSessions = create<SessionsStore>((set) => ({
         }
         if (event.kind === 'turn_result') {
           patch.usage = event.usage
+          patch.liveTokens = undefined
+        }
+        if (event.kind === 'stream_tokens') {
+          patch.liveTokens = event.outputTokens
         }
         if (event.kind === 'context_usage') {
           patch.contextUsage = {

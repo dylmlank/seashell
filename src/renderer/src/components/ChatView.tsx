@@ -60,6 +60,12 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
           <Folder size={13} />
           <span className="max-w-48 truncate font-mono">{basename(tab.cwd)}</span>
         </span>
+        {busy && tab.liveTokens !== undefined && (
+          <span className="tabular-nums text-accent" title="Output tokens generated so far this turn">
+            {tab.liveTokens >= 1000 ? `${(tab.liveTokens / 1000).toFixed(1)}k` : tab.liveTokens}{' '}
+            tokens
+          </span>
+        )}
         {tab.provider === 'openrouter' && (
           <span
             title="This session runs through OpenRouter and bills your OpenRouter credits, not your Claude subscription."
