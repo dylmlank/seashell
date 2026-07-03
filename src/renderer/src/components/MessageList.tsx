@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { rewindTo, sendMessage, useSessions, type ChatItem } from '../stores/sessions'
 import { Markdown } from './Markdown'
+import { SmoothText } from './SmoothText'
 import { PlanCard } from './PlanCard'
 import { ToolCallCard, summarizeInput } from './ToolCallCard'
 import { confirmDialog } from '../lib/dialogs'
@@ -176,8 +177,7 @@ const MessageBubble = memo(function MessageBubble({
             ✳
           </span>
           <div className="min-w-0">
-            <Markdown text={item.text} />
-            {item.streaming && <span className="cursor-blink inline-block h-4 w-2 bg-accent" />}
+            <SmoothText text={item.text} streaming={item.streaming} />
             {!item.streaming && item.tokens !== undefined && (
               <div className="pt-1 text-[10px] tabular-nums text-text-dim/50" title="Output tokens this turn generated">
                 {item.tokens >= 1000 ? `${(item.tokens / 1000).toFixed(1)}k` : item.tokens} tokens
