@@ -8,8 +8,8 @@ import { Markdown } from './Markdown'
 // at a time on a steady cadence — each new block fades in (see .smooth-stream
 // in index.css). When the turn ends, the remainder drains quickly.
 
-const REVEAL_MS = 150
-const DRAIN_MS = 50
+const REVEAL_MS = 230
+const DRAIN_MS = 90
 
 /** Split into paragraph blocks, keeping unbalanced code fences glued together
  *  so a reveal boundary never lands inside a ``` block. */

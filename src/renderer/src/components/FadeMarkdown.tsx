@@ -16,8 +16,8 @@ interface HastElement {
 }
 type HastNode = HastText | HastElement | { type: string; children?: HastNode[] }
 
-const STAGGER_MS = 24
-const MAX_DELAY_MS = 1200
+const STAGGER_MS = 36
+const MAX_DELAY_MS = 1800
 
 /** Rehype plugin: wrap every word in a span with an incrementing fade delay,
  *  so revealed text melts in word by word instead of popping. Code blocks are
