@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSettings } from '../stores/settings'
+import { FadeMarkdown } from './FadeMarkdown'
 import { Markdown } from './Markdown'
 
 // Streaming text arrives in ragged chunks. Instead of painting every chunk
@@ -56,9 +57,20 @@ export function SmoothText({
   const count = Math.min(revealed, ready)
   const settled = !streaming && count >= blocks.length
 
+  if (reducedMotion) {
+    return (
+      <div>
+        {count > 0 && <Markdown text={blocks.slice(0, count).join('\n\n')} />}
+        {!settled && <span className="cursor-blink inline-block h-4 w-2 bg-accent" />}
+      </div>
+    )
+  }
+
+  // Settled blocks render plain; the newest one fades in word by word.
   return (
-    <div className={settled ? undefined : 'smooth-stream'}>
-      {count > 0 && <Markdown text={blocks.slice(0, count).join('\n\n')} />}
+    <div>
+      {count > 1 && <Markdown text={blocks.slice(0, count - 1).join('\n\n')} />}
+      {count > 0 && <FadeMarkdown key={count - 1} text={blocks[count - 1]} />}
       {!settled && <span className="cursor-blink inline-block h-4 w-2 bg-accent" />}
     </div>
   )

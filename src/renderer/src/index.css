@@ -245,17 +245,30 @@ textarea {
   background: transparent;
 }
 
-/* Streaming reveal: each newly released block fades in (see SmoothText.tsx). */
-@keyframes line-in {
+/* Streaming reveal (SmoothText/FadeMarkdown): the newest block's words melt
+   in one after another; code blocks, images, and tables fade as one unit. */
+@keyframes word-in {
   from {
     opacity: 0;
-    transform: translateY(5px);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
-.smooth-stream .md > :last-child {
-  animation: line-in 0.3s ease both;
+.fade-md .w {
+  opacity: 0;
+  animation: word-in 0.5s ease forwards;
+  animation-delay: var(--d, 0ms);
+}
+.fade-md pre,
+.fade-md img,
+.fade-md table {
+  opacity: 0;
+  animation: word-in 0.6s ease forwards;
+}
+.reduced-motion .fade-md .w,
+.reduced-motion .fade-md pre,
+.reduced-motion .fade-md img,
+.reduced-motion .fade-md table {
+  animation-delay: 0ms !important;
 }
