@@ -370,6 +370,15 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
               />
             </Row>
             <Row
+              label="Auto-screenshot visual changes"
+              hint="When a turn edits pages, styles, or components, capture the result (dev server or the written HTML) with headless Edge and paste before/after frames into the chat."
+            >
+              <Toggle
+                checked={settings.autoScreenshots}
+                onChange={(v) => void updateSettings({ autoScreenshots: v })}
+              />
+            </Row>
+            <Row
               label="Use Claude Desktop connectors"
               hint="Loads the MCP connectors from your Claude Desktop config (Blender, studiokit, etc.) into every new session, alongside your Claude Code plugins and skills."
             >

@@ -1,3 +1,4 @@
+import { rmSync } from 'fs'
 import { readdir, readFile, writeFile } from 'fs/promises'
 import { extname, join, resolve } from 'path'
 import type { Invokes } from '../shared/ipc-contract'
@@ -11,8 +12,9 @@ import { instructions } from './instructions'
 import { listDesktopMcp } from './desktop-mcp'
 import { listOpenRouterModels } from './openrouter'
 import { memoryFiles } from './memory-files'
+import { userDataDir } from './paths'
 import { ports } from './ports'
-import { previews } from './previews'
+import { captureShot, previews } from './previews'
 import { secrets } from './secrets'
 import { sessionManager } from './session-manager'
 import { settingsStore } from './settings-store'
@@ -181,6 +183,19 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
 
   'previews:cards': () => previews.cards(),
   'previews:capture': (a) => previews.capture(a.cwd, a.url),
+  'shots:captureFile': async (a) => {
+    const tmp = join(userDataDir(), 'previews', `file-shot-${process.pid}-${Math.random().toString(36).slice(2)}.png`)
+    const ok = await captureShot(
+      `file:///${a.path.replace(/\\/g, '/')}`,
+      tmp,
+      a.width ?? 1280,
+      a.height ?? 800
+    )
+    if (!ok) return { error: 'File capture failed' }
+    const data = (await readFile(tmp)).toString('base64')
+    rmSync(tmp, { force: true })
+    return { data }
+  },
 
   'ports:list': () => ports.list(),
   'ports:kill': (a) => ports.kill(a.pid),

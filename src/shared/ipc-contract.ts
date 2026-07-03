@@ -130,6 +130,12 @@ export interface Invokes {
 
   'previews:cards': () => ProjectPreview[]
   'previews:capture': (a: { cwd: string; url: string }) => { ok: true } | { error: string }
+  /** Headless capture of a local file (HTML/SVG) → base64 PNG. */
+  'shots:captureFile': (a: {
+    path: string
+    width?: number
+    height?: number
+  }) => { data: string } | { error: string }
 
   'ports:list': () => PortInfo[] | { error: string }
   'ports:kill': (a: { pid: number }) => { ok: true } | { error: string }

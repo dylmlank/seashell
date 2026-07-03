@@ -90,6 +90,8 @@ export interface AppSettings {
   retroOnlyAfterEdits: boolean
   /** Load MCP connectors from Claude Desktop's config into every session. */
   importDesktopMcp: boolean
+  /** After turns that change visual files, auto-capture screenshots into the chat. */
+  autoScreenshots: boolean
   fontSize: 'sm' | 'md' | 'lg'
   reducedMotion: boolean
 }

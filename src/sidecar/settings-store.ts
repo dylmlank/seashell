@@ -15,6 +15,7 @@ const DEFAULTS: AppSettings = {
   autoRetrospective: false,
   retroOnlyAfterEdits: true,
   importDesktopMcp: true,
+  autoScreenshots: true,
   fontSize: 'md',
   reducedMotion: false
 }

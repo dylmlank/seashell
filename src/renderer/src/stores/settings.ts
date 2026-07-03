@@ -19,6 +19,7 @@ export const useSettings = create<SettingsStore>(() => ({
     autoRetrospective: false,
     retroOnlyAfterEdits: true,
     importDesktopMcp: true,
+    autoScreenshots: true,
     fontSize: 'md',
     reducedMotion: false
   },

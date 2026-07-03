@@ -19,6 +19,70 @@ import { confirmDialog } from '../lib/dialogs'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 type AsideItem = Extract<ChatItem, { kind: 'aside' }>
+type ShotsItem = Extract<ChatItem, { kind: 'shots' }>
+
+/** Auto-captured screenshots of what a turn changed: a small filmstrip that
+ *  cycles through its frames (before/after/mobile) like a gif; click to zoom. */
+function ShotsCard({ item }: { item: ShotsItem }): React.JSX.Element {
+  const [index, setIndex] = useState(item.frames.length - 1)
+  const [paused, setPaused] = useState(false)
+  const [zoom, setZoom] = useState(false)
+
+  useEffect(() => {
+    if (item.frames.length < 2 || paused || zoom) return
+    const timer = setInterval(() => setIndex((i) => (i + 1) % item.frames.length), 1500)
+    return () => clearInterval(timer)
+  }, [item.frames.length, paused, zoom])
+
+  const frame = item.frames[index]
+
+  return (
+    <div
+      className="ml-8 max-w-lg overflow-hidden rounded-xl border border-border bg-surface anim-in"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-text-dim">
+        <ImageIcon size={12} className="text-accent" />
+        <span className="truncate font-mono">{item.title}</span>
+        <span className="ml-auto flex gap-1">
+          {item.frames.map((f, i) => (
+            <button
+              key={f.label}
+              onClick={() => setIndex(i)}
+              className={
+                'rounded-md px-1.5 py-0.5 text-[10px] capitalize ' +
+                (i === index ? 'bg-accent/20 text-accent' : 'hover:bg-surface-2')
+              }
+            >
+              {f.label}
+            </button>
+          ))}
+        </span>
+      </div>
+      <button onClick={() => setZoom(true)} className="block w-full" title="Click to enlarge">
+        <img
+          src={`data:image/png;base64,${frame.data}`}
+          alt={`${item.title} — ${frame.label}`}
+          className="max-h-72 w-full border-t border-border/60 object-cover object-top"
+        />
+      </button>
+      <p className="px-3 py-1 text-[10px] text-text-dim/50">captured automatically after this turn</p>
+      {zoom && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
+          onClick={() => setZoom(false)}
+        >
+          <img
+            src={`data:image/png;base64,${frame.data}`}
+            alt={item.title}
+            className="max-h-full max-w-full rounded-xl border border-border shadow-2xl"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
 
 /** Retrospective/compaction output — housekeeping, not conversation. Rendered
  *  as a dimmed collapsible card so it never blends into the answers. */
@@ -188,6 +252,8 @@ const MessageBubble = memo(function MessageBubble({
       )
     case 'aside':
       return <AsideCard item={item} />
+    case 'shots':
+      return <ShotsCard item={item} />
     case 'plan':
       return <PlanCard todos={item.todos} />
     case 'status':

@@ -25,6 +25,14 @@ export type ChatItem =
     }
   | { kind: 'plan'; id: string; todos: TodoItem[] }
   | { kind: 'status'; id: string; text: string }
+  /** Auto-captured screenshots showing what the turn changed. */
+  | {
+      kind: 'shots'
+      id: string
+      title: string
+      url: string
+      frames: { label: string; data: string }[]
+    }
   | {
       kind: 'tool'
       id: string
@@ -314,10 +322,31 @@ declare global {
 
 window.__sessions = useSessions
 
+/** Append a locally-generated chat item (e.g. auto-captured screenshots). */
+export function appendItem(tabId: string, item: Omit<ChatItem, 'id'>): void {
+  const store = useSessions.getState()
+  const tab = store.tabs.find((t) => t.tabId === tabId)
+  if (!tab) return
+  store.update(tabId, { items: [...tab.items, { ...item, id: nextId() } as ChatItem] })
+}
+
 if (!window.__sessionsWired) {
   window.__sessionsWired = true
   window.api.on('session:event', ({ tabId, event }) => {
     useSessions.getState().applyEvent(tabId, event)
+    // Successful real turns (not retro/compact) may deserve visual proof.
+    if (event.kind === 'turn_result' && !event.isError) {
+      const tab = useSessions.getState().tabs.find((t) => t.tabId === tabId)
+      if (tab && !tab.side && !tab.cyclePhase) {
+        void Promise.all([import('../lib/auto-shots'), import('./settings')]).then(
+          ([shots, settings]) => {
+            if (settings.useSettings.getState().settings.autoScreenshots) {
+              void shots.finishTurn(tab, (item) => appendItem(tabId, item))
+            }
+          }
+        )
+      }
+    }
   })
   window.api.on('session:status', ({ tabId, status, error }) => {
     useSessions.getState().update(tabId, { status, error })
@@ -373,6 +402,14 @@ export function sendMessage(tabId: string, text: string, images?: ImageAttachmen
     status: 'streaming'
   })
   void window.api.invoke('session:send', { tabId, text, images })
+  // Snap a "before" frame now so visual turns can show a real diff.
+  if (!tab.side) {
+    void Promise.all([import('../lib/auto-shots'), import('./settings')]).then(
+      ([shots, settings]) => {
+        if (settings.useSettings.getState().settings.autoScreenshots) void shots.beginTurn(tab)
+      }
+    )
+  }
 }
 
 export async function rewindTo(tabId: string, uuid: string): Promise<{ ok: boolean; detail: string }> {

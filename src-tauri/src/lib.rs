@@ -171,6 +171,98 @@ fn save_text_file(path: String, contents: String) -> Result<(), String> {
     std::fs::write(path, contents).map_err(|e| e.to_string())
 }
 
+/// Screenshot a URL by loading it in a hidden webview and asking the DevTools
+/// protocol for a capture. Uses the app's own WebView2, so it sees the same
+/// network the app does (headless browsers are blocked by some VPN filters).
+/// Returns base64 PNG.
+#[tauri::command]
+async fn capture_url(
+    app: AppHandle,
+    url: String,
+    width: f64,
+    height: f64,
+) -> Result<String, String> {
+    let parsed: tauri::Url = url.parse().map_err(|e| format!("bad url: {e}"))?;
+    let label = format!(
+        "capture-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    );
+    let window = tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::External(parsed))
+        .visible(false)
+        .skip_taskbar(true)
+        .inner_size(width, height)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // Give the page time to load and settle (fonts, first paint, dev-server HMR).
+    let _ = tauri::async_runtime::spawn_blocking(|| {
+        std::thread::sleep(Duration::from_millis(3000));
+    })
+    .await;
+
+    let (tx, rx) = std::sync::mpsc::channel::<Result<String, String>>();
+    #[cfg(windows)]
+    {
+        let tx2 = tx.clone();
+        window
+            .with_webview(move |webview| unsafe {
+                use webview2_com::CallDevToolsProtocolMethodCompletedHandler;
+                use windows_core::{HSTRING, PCWSTR};
+                let controller = webview.controller();
+                let core = match controller.CoreWebView2() {
+                    Ok(c) => c,
+                    Err(e) => {
+                        let _ = tx2.send(Err(format!("no CoreWebView2: {e}")));
+                        return;
+                    }
+                };
+                let tx3 = tx2.clone();
+                let handler = CallDevToolsProtocolMethodCompletedHandler::create(Box::new(
+                    move |code, json| {
+                        if code.is_ok() {
+                            let _ = tx3.send(Ok(json));
+                        } else {
+                            let _ = tx3.send(Err(format!("CDP capture failed: {code:?}")));
+                        }
+                        Ok(())
+                    },
+                ));
+                let method = HSTRING::from("Page.captureScreenshot");
+                let params = HSTRING::from("{\"format\":\"png\"}");
+                if let Err(e) = core.CallDevToolsProtocolMethod(
+                    PCWSTR(method.as_ptr()),
+                    PCWSTR(params.as_ptr()),
+                    &handler,
+                ) {
+                    let _ = tx2.send(Err(format!("CDP call failed: {e}")));
+                }
+            })
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = tx.send(Err("capture only implemented on Windows".into()));
+    }
+
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        rx.recv_timeout(Duration::from_secs(12))
+            .map_err(|_| "capture timed out".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let _ = window.close();
+
+    let json = result??;
+    let value: serde_json::Value = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+    value["data"]
+        .as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "no image data in CDP response".to_string())
+}
+
 /// Taskbar attention when a notification fires while the window is unfocused.
 #[tauri::command]
 fn flash_window(app: AppHandle) {
@@ -314,6 +406,7 @@ pub fn run() {
             open_terminal,
             open_external,
             save_text_file,
+            capture_url,
             flash_window
         ])
         .build(tauri::generate_context!())

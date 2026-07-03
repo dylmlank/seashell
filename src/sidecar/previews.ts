@@ -117,7 +117,7 @@ async function projectCard(cwd: string, name: string): Promise<string> {
 </svg>`
 }
 
-function findEdge(): string | null {
+export function findEdge(): string | null {
   for (const p of [
     'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
     'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
@@ -125,6 +125,38 @@ function findEdge(): string | null {
     if (existsSync(p)) return p
   }
   return null
+}
+
+/** One headless-Edge screenshot of a URL (http(s) or file://) to a PNG path.
+ *  Needs its own profile dir — with the user's default profile (usually locked
+ *  by a running Edge) headless exits silently without writing anything. */
+export function captureShot(
+  url: string,
+  outPath: string,
+  width = 1280,
+  height = 800
+): Promise<boolean> {
+  const edge = findEdge()
+  if (!edge) return Promise.resolve(false)
+  const profile = join(userDataDir(), 'previews', 'edge-profile')
+  mkdirSync(profile, { recursive: true })
+  return new Promise((resolve) => {
+    execFile(
+      edge,
+      [
+        '--headless=new',
+        '--disable-gpu',
+        '--no-first-run',
+        `--user-data-dir=${profile}`,
+        '--hide-scrollbars',
+        `--window-size=${width},${height}`,
+        `--screenshot=${outPath}`,
+        url
+      ],
+      { timeout: 25000, windowsHide: true },
+      (err) => resolve(!err && existsSync(outPath))
+    )
+  })
 }
 
 export const previews = {
@@ -156,31 +188,10 @@ export const previews = {
 
   /** Screenshot a URL with headless Edge (already on every Win11 box) and file
    *  it as the project's preview image. */
-  capture(cwd: string, url: string): Promise<{ ok: true } | { error: string }> {
-    if (!/^https?:\/\//.test(url)) return Promise.resolve({ error: 'URL must start with http(s)://' })
-    const edge = findEdge()
-    if (!edge) return Promise.resolve({ error: 'Microsoft Edge not found for headless capture' })
-    const out = shotPath(cwd)
-    return new Promise((resolve) => {
-      execFile(
-        edge,
-        [
-          '--headless=new',
-          '--disable-gpu',
-          '--hide-scrollbars',
-          '--window-size=1280,800',
-          `--screenshot=${out}`,
-          url
-        ],
-        { timeout: 25000, windowsHide: true },
-        (err) => {
-          if (err || !existsSync(out)) {
-            resolve({ error: err ? err.message : 'Capture produced no image' })
-          } else {
-            resolve({ ok: true })
-          }
-        }
-      )
-    })
+  async capture(cwd: string, url: string): Promise<{ ok: true } | { error: string }> {
+    if (!/^https?:\/\//.test(url)) return { error: 'URL must start with http(s)://' }
+    if (!findEdge()) return { error: 'Microsoft Edge not found for headless capture' }
+    const ok = await captureShot(url, shotPath(cwd))
+    return ok ? { ok: true } : { error: 'Capture produced no image' }
   }
 }

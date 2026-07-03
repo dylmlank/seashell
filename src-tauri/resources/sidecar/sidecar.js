@@ -28070,6 +28070,7 @@ Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resour
 });
 
 // src/sidecar/ipc.ts
+import { rmSync as rmSync3 } from "fs";
 import { readdir as readdir4, readFile as readFile6, writeFile as writeFile3 } from "fs/promises";
 import { extname, join as join15, resolve as resolve2 } from "path";
 
@@ -28110,6 +28111,7 @@ var DEFAULTS = {
   autoRetrospective: false,
   retroOnlyAfterEdits: true,
   importDesktopMcp: true,
+  autoScreenshots: true,
   fontSize: "md",
   reducedMotion: false
 };
@@ -28932,6 +28934,25 @@ function findEdge() {
   }
   return null;
 }
+function captureShot(url, outPath, width = 1280, height = 800) {
+  const edge = findEdge();
+  if (!edge)
+    return Promise.resolve(false);
+  const profile = join11(userDataDir(), "previews", "edge-profile");
+  mkdirSync3(profile, { recursive: true });
+  return new Promise((resolve2) => {
+    execFile2(edge, [
+      "--headless=new",
+      "--disable-gpu",
+      "--no-first-run",
+      `--user-data-dir=${profile}`,
+      "--hide-scrollbars",
+      `--window-size=${width},${height}`,
+      `--screenshot=${outPath}`,
+      url
+    ], { timeout: 25000, windowsHide: true }, (err) => resolve2(!err && existsSync5(outPath)));
+  });
+}
 var previews = {
   async cards() {
     const projects = (await history.listProjects()).slice(0, 8);
@@ -28953,29 +28974,13 @@ var previews = {
       };
     }));
   },
-  capture(cwd, url) {
+  async capture(cwd, url) {
     if (!/^https?:\/\//.test(url))
-      return Promise.resolve({ error: "URL must start with http(s)://" });
-    const edge = findEdge();
-    if (!edge)
-      return Promise.resolve({ error: "Microsoft Edge not found for headless capture" });
-    const out = shotPath(cwd);
-    return new Promise((resolve2) => {
-      execFile2(edge, [
-        "--headless=new",
-        "--disable-gpu",
-        "--hide-scrollbars",
-        "--window-size=1280,800",
-        `--screenshot=${out}`,
-        url
-      ], { timeout: 25000, windowsHide: true }, (err) => {
-        if (err || !existsSync5(out)) {
-          resolve2({ error: err ? err.message : "Capture produced no image" });
-        } else {
-          resolve2({ ok: true });
-        }
-      });
-    });
+      return { error: "URL must start with http(s)://" };
+    if (!findEdge())
+      return { error: "Microsoft Edge not found for headless capture" };
+    const ok = await captureShot(url, shotPath(cwd));
+    return ok ? { ok: true } : { error: "Capture produced no image" };
   }
 };
 
@@ -29978,6 +29983,15 @@ var handlers = {
   "dictation:start": () => startDictation(),
   "previews:cards": () => previews.cards(),
   "previews:capture": (a) => previews.capture(a.cwd, a.url),
+  "shots:captureFile": async (a) => {
+    const tmp = join15(userDataDir(), "previews", `file-shot-${process.pid}-${Math.random().toString(36).slice(2)}.png`);
+    const ok = await captureShot(`file:///${a.path.replace(/\\/g, "/")}`, tmp, a.width ?? 1280, a.height ?? 800);
+    if (!ok)
+      return { error: "File capture failed" };
+    const data = (await readFile6(tmp)).toString("base64");
+    rmSync3(tmp, { force: true });
+    return { data };
+  },
   "ports:list": () => ports.list(),
   "ports:kill": (a) => ports.kill(a.pid),
   "ports:open": (a) => ports.open(a.port),
