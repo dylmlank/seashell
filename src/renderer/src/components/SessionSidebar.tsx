@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Folder,
+  ChevronRight,
   History,
   MessageSquare,
   Loader2,
@@ -88,6 +88,14 @@ export function SessionList({
   const [pinned, setPinned] = useState<string[]>([])
   const [resuming, setResuming] = useState<string | null>(null)
   const [creating, setCreating] = useState<string | null>(null)
+  const [collapsed, setCollapsed] = useState<string[]>(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('collapsed-projects') ?? '[]') as unknown
+      return Array.isArray(raw) ? raw.filter((c): c is string => typeof c === 'string') : []
+    } catch {
+      return []
+    }
+  })
   const [renaming, setRenaming] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [hits, setHits] = useState<SearchHit[] | null>(null)
@@ -192,6 +200,14 @@ export function SessionList({
   }
   const sections: [string, SessionSummary[]][] = compact ? [...groups.entries()] : [['', unpinned]]
 
+  const toggleCollapse = (cwd: string): void => {
+    setCollapsed((prev) => {
+      const next = prev.includes(cwd) ? prev.filter((c) => c !== cwd) : [...prev, cwd]
+      localStorage.setItem('collapsed-projects', JSON.stringify(next))
+      return next
+    })
+  }
+
   const newInProject = async (cwd: string): Promise<void> => {
     if (creating) return
     setCreating(cwd)
@@ -212,17 +228,17 @@ export function SessionList({
         onClick={() => void resume(s)}
         title={s.firstPrompt}
         className={
-          'group block w-full cursor-pointer rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-surface-2 ' +
+          'group block w-full cursor-pointer rounded-lg px-2 py-1 text-left transition-colors hover:bg-surface-2 ' +
           (isOpen || !s.cwd ? 'opacity-50' : '')
         }
       >
-        <div className="flex items-start gap-1.5">
+        <div className="flex items-center gap-1.5">
           {resuming === s.sessionId ? (
-            <Loader2 size={12} className="mt-0.5 shrink-0 animate-spin text-accent" />
+            <Loader2 size={11} className="shrink-0 animate-spin text-accent" />
           ) : isPinned ? (
-            <Pin size={12} className="mt-0.5 shrink-0 text-accent" />
+            <Pin size={11} className="shrink-0 text-accent" />
           ) : (
-            <MessageSquare size={12} className="mt-0.5 shrink-0 text-text-dim" />
+            <MessageSquare size={11} className="shrink-0 text-text-dim" />
           )}
           {renaming === s.sessionId ? (
             <RenameInput
@@ -234,21 +250,22 @@ export function SessionList({
             />
           ) : (
             <>
-              <span
-                className={
-                  'min-w-0 text-[13px] leading-snug ' + (compact ? 'line-clamp-2' : 'truncate')
-                }
-              >
+              <span className="min-w-0 flex-1 truncate text-xs leading-tight">
                 {s.title || '(untitled)'}
               </span>
-              <span className="ml-auto flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
+              {/* time makes way for the action buttons on hover */}
+              <span className="flex shrink-0 items-center gap-1 text-[10px] text-text-dim/60 group-hover:hidden">
+                {isOpen && <span className="h-1.5 w-1.5 rounded-full bg-accent" title="open now" />}
+                {timeAgo(s.lastModified)}
+              </span>
+              <span className="hidden shrink-0 gap-0.5 group-hover:flex">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     void togglePin(s)
                   }}
                   title={isPinned ? 'Unpin' : 'Pin to top'}
-                  className="rounded p-1 text-text-dim hover:bg-border hover:text-accent"
+                  className="rounded p-0.5 text-text-dim hover:bg-border hover:text-accent"
                 >
                   {isPinned ? <PinOff size={11} /> : <Pin size={11} />}
                 </button>
@@ -258,7 +275,7 @@ export function SessionList({
                     setRenaming(s.sessionId)
                   }}
                   title="Rename"
-                  className="rounded p-1 text-text-dim hover:bg-border hover:text-text"
+                  className="rounded p-0.5 text-text-dim hover:bg-border hover:text-text"
                 >
                   <Pencil size={11} />
                 </button>
@@ -268,7 +285,7 @@ export function SessionList({
                     void exportSession(s.sessionId)
                   }}
                   title="Export as Markdown"
-                  className="rounded p-1 text-text-dim hover:bg-border hover:text-text"
+                  className="rounded p-0.5 text-text-dim hover:bg-border hover:text-text"
                 >
                   <Download size={11} />
                 </button>
@@ -278,7 +295,7 @@ export function SessionList({
                     void remove(s)
                   }}
                   title="Delete"
-                  className="rounded p-1 text-text-dim hover:bg-border hover:text-red-400"
+                  className="rounded p-0.5 text-text-dim hover:bg-border hover:text-red-400"
                 >
                   <Trash2 size={11} />
                 </button>
@@ -286,11 +303,9 @@ export function SessionList({
             </>
           )}
         </div>
-        <div className="ml-[18px] flex gap-2 text-[11px] text-text-dim/70">
-          <span>{timeAgo(s.lastModified)}</span>
-          {!compact && s.cwd && <span className="truncate font-mono">{s.cwd}</span>}
-          {isOpen && <span className="text-accent">open</span>}
-        </div>
+        {!compact && s.cwd && (
+          <p className="ml-[17px] truncate font-mono text-[10px] text-text-dim/60">{s.cwd}</p>
+        )}
       </div>
     )
   }
@@ -364,19 +379,34 @@ export function SessionList({
               {pinnedSessions.map(renderRow)}
             </div>
           )}
-          {sections.map(([cwd, list]) =>
-            list.length === 0 ? null : (
+          {sections.map(([cwd, list]) => {
+            if (list.length === 0) return null
+            // Searching expands everything so matches never hide.
+            const isCollapsed = compact && !search.trim() && !!cwd && collapsed.includes(cwd)
+            return (
               <div key={cwd || 'all'}>
                 {compact && (
-                  <div className={`group/project ${SECTION_HEADER}`} title={cwd || undefined}>
-                    <Folder size={11} className="shrink-0" />
+                  <div
+                    className={`group/project ${SECTION_HEADER} cursor-pointer select-none hover:text-text-dim`}
+                    title={cwd || undefined}
+                    onClick={() => cwd && toggleCollapse(cwd)}
+                  >
+                    <ChevronRight
+                      size={11}
+                      className={
+                        'shrink-0 transition-transform ' + (isCollapsed ? '' : 'rotate-90')
+                      }
+                    />
                     <span className="truncate">
                       {cwd ? cwd.split(/[\\/]/).filter(Boolean).pop() || cwd : 'unknown folder'}
                     </span>
                     <span className="font-normal text-text-dim/40">{list.length}</span>
                     {cwd && (
                       <button
-                        onClick={() => void newInProject(cwd)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void newInProject(cwd)
+                        }}
                         title={`New session in ${cwd}`}
                         className="ml-auto rounded p-0.5 text-text-dim opacity-0 hover:bg-border hover:text-accent group-hover/project:opacity-100"
                       >
@@ -389,10 +419,10 @@ export function SessionList({
                     )}
                   </div>
                 )}
-                {list.map(renderRow)}
+                {!isCollapsed && list.map(renderRow)}
               </div>
             )
-          )}
+          })}
         </div>
       )}
     </div>
