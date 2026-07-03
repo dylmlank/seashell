@@ -29098,6 +29098,7 @@ class SessionHandle {
         if (msg.subtype === "init") {
           this.sdkSessionId = msg.session_id;
           this.usage.model = msg.model;
+          this.pushContextUsage();
           this.send({
             kind: "init",
             sessionId: msg.session_id,
@@ -29118,7 +29119,11 @@ class SessionHandle {
           break;
         const ev2 = msg.event;
         if (ev2.type === "content_block_delta" && ev2.delta.type === "text_delta") {
-          this.send({ kind: "assistant_delta", text: ev2.delta.text });
+          this.send({
+            kind: "assistant_delta",
+            text: ev2.delta.text,
+            ...this.turnPhase !== "user" ? { phase: this.turnPhase } : {}
+          });
           this.turnStreamChars += ev2.delta.text.length;
           const now = Date.now();
           if (now - this.lastStreamPush > 250) {
@@ -29206,7 +29211,13 @@ class SessionHandle {
             });
           }
         }
-        this.send({ kind: "assistant_message", id: msg.uuid, text, toolUses });
+        this.send({
+          kind: "assistant_message",
+          id: msg.uuid,
+          text,
+          toolUses,
+          ...this.turnPhase !== "user" ? { phase: this.turnPhase } : {}
+        });
         break;
       }
       case "user": {
@@ -29340,17 +29351,21 @@ class SessionHandle {
   advanceTurnCycle(success) {
     const settings = settingsStore.get();
     if (!success || this.chatOnly) {
+      if (this.turnPhase !== "user")
+        this.send({ kind: "cycle", phase: null });
       this.turnPhase = "user";
       return false;
     }
     if (this.turnPhase === "user") {
       if (settings.autoRetrospective && (!settings.retroOnlyAfterEdits || this.turnHadMutations)) {
         this.turnPhase = "retro";
+        this.send({ kind: "cycle", phase: "retro" });
         this.pushText(RETRO_PROMPT);
         return true;
       }
       if (this.shouldAutoCompact(settings.autoCompact)) {
         this.turnPhase = "compact";
+        this.send({ kind: "cycle", phase: "compact" });
         this.pushText("/compact");
         return true;
       }
@@ -29360,13 +29375,16 @@ class SessionHandle {
       this.send({ kind: "status_text", text: "retrospective complete" });
       if (this.shouldAutoCompact(settings.autoCompact)) {
         this.turnPhase = "compact";
+        this.send({ kind: "cycle", phase: "compact" });
         this.pushText("/compact");
         return true;
       }
       this.turnPhase = "user";
+      this.send({ kind: "cycle", phase: null });
       return false;
     }
     this.turnPhase = "user";
+    this.send({ kind: "cycle", phase: null });
     return false;
   }
   shouldAutoCompact(enabled) {
@@ -29382,6 +29400,8 @@ class SessionHandle {
     });
   }
   sendUserMessage(text, images) {
+    if (this.turnPhase !== "user")
+      this.send({ kind: "cycle", phase: null });
     this.turnPhase = "user";
     this.turnHadMutations = false;
     this.turnConfirmedOut = 0;

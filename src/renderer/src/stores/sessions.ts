@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type {
+  CyclePhase,
   ImageAttachment,
   PermissionMode,
   Provider,
@@ -12,6 +13,16 @@ import type {
 export type ChatItem =
   | { kind: 'user'; id: string; text: string; uuid?: string; imageCount?: number }
   | { kind: 'assistant'; id: string; text: string; streaming: boolean; tokens?: number }
+  /** Automatic follow-up output (retrospective/compaction) — kept out of the
+   *  conversation flow, rendered as a separate collapsed card. */
+  | {
+      kind: 'aside'
+      id: string
+      phase: CyclePhase
+      text: string
+      streaming: boolean
+      toolCount: number
+    }
   | { kind: 'plan'; id: string; todos: TodoItem[] }
   | { kind: 'status'; id: string; text: string }
   | {
@@ -43,6 +54,8 @@ export interface TabState {
   contextUsage?: { totalTokens: number; maxTokens: number; percentage: number }
   /** Output tokens generated so far in the in-flight turn (live counter). */
   liveTokens?: number
+  /** Automatic follow-up turn currently running (retro/compact indicator). */
+  cyclePhase?: CyclePhase | null
   items: ChatItem[]
   usage?: UsageTotals
   slashCommands: string[]
@@ -108,6 +121,23 @@ function reduceEvent(items: ChatItem[], event: UiEvent): ChatItem[] {
     }
     case 'assistant_delta': {
       const last = items[items.length - 1]
+      if (event.phase) {
+        // Retro/compact output accumulates in its own aside card.
+        if (last?.kind === 'aside' && last.streaming && last.phase === event.phase) {
+          return [...items.slice(0, -1), { ...last, text: last.text + event.text }]
+        }
+        return [
+          ...items,
+          {
+            kind: 'aside',
+            id: nextId(),
+            phase: event.phase,
+            text: event.text,
+            streaming: true,
+            toolCount: 0
+          }
+        ]
+      }
       if (last?.kind === 'assistant' && last.streaming) {
         return [...items.slice(0, -1), { ...last, text: last.text + event.text }]
       }
@@ -116,6 +146,27 @@ function reduceEvent(items: ChatItem[], event: UiEvent): ChatItem[] {
     case 'assistant_message': {
       const next = [...items]
       const last = next[next.length - 1]
+      if (event.phase) {
+        // Fold retro/compact turns into the aside — their tool calls (memory
+        // writes) become a counter instead of chat cards.
+        if (last?.kind === 'aside' && last.streaming && last.phase === event.phase) {
+          next[next.length - 1] = {
+            ...last,
+            text: event.text || last.text,
+            toolCount: last.toolCount + event.toolUses.length
+          }
+        } else if (event.text.trim() || event.toolUses.length) {
+          next.push({
+            kind: 'aside',
+            id: nextId(),
+            phase: event.phase,
+            text: event.text,
+            streaming: true,
+            toolCount: event.toolUses.length
+          })
+        }
+        return next
+      }
       if (last?.kind === 'assistant' && last.streaming) {
         // Finalize the streamed item with the authoritative text.
         next[next.length - 1] = {
@@ -155,7 +206,7 @@ function reduceEvent(items: ChatItem[], event: UiEvent): ChatItem[] {
       // Close out any dangling streaming bubble and stamp the turn's token cost
       // on the answer it belongs to.
       const next = items.map((item) =>
-        item.kind === 'assistant' && item.streaming
+        (item.kind === 'assistant' || item.kind === 'aside') && item.streaming
           ? { ...item, streaming: false as const }
           : item
       )
@@ -219,6 +270,9 @@ export const useSessions = create<SessionsStore>((set) => ({
         }
         if (event.kind === 'stream_tokens') {
           patch.liveTokens = event.outputTokens
+        }
+        if (event.kind === 'cycle') {
+          patch.cyclePhase = event.phase
         }
         if (event.kind === 'context_usage') {
           patch.contextUsage = {

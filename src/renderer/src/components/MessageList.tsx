@@ -6,15 +6,59 @@ import {
   ChevronDown,
   ChevronRight,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Brain,
+  Minimize2
 } from 'lucide-react'
-import { rewindTo, sendMessage, type ChatItem } from '../stores/sessions'
+import { rewindTo, sendMessage, useSessions, type ChatItem } from '../stores/sessions'
 import { Markdown } from './Markdown'
 import { PlanCard } from './PlanCard'
 import { ToolCallCard, summarizeInput } from './ToolCallCard'
 import { confirmDialog } from '../lib/dialogs'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
+type AsideItem = Extract<ChatItem, { kind: 'aside' }>
+
+/** Retrospective/compaction output — housekeeping, not conversation. Rendered
+ *  as a dimmed collapsible card so it never blends into the answers. */
+function AsideCard({ item }: { item: AsideItem }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const label = item.phase === 'retro' ? 'Retrospective' : 'Compaction'
+  return (
+    <div className="mx-4 rounded-xl border border-border/50 bg-surface/50 anim-in">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-text-dim hover:text-text"
+      >
+        {item.phase === 'retro' ? (
+          <Brain size={13} className={item.streaming ? 'pulse-dot text-accent' : 'text-accent/60'} />
+        ) : (
+          <Minimize2 size={13} className={item.streaming ? 'pulse-dot text-accent' : 'text-accent/60'} />
+        )}
+        {item.streaming ? (
+          <span className="shimmer-text">
+            {item.phase === 'retro' ? 'Writing retrospective…' : 'Compacting…'}
+          </span>
+        ) : (
+          <span>{label}</span>
+        )}
+        {item.toolCount > 0 && !item.streaming && (
+          <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px]">
+            {item.toolCount} memory update{item.toolCount > 1 ? 's' : ''}
+          </span>
+        )}
+        <span className="ml-auto">
+          {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+        </span>
+      </button>
+      {open && item.text.trim() && (
+        <div className="border-t border-border/50 px-3 py-2 text-sm opacity-70">
+          <Markdown text={item.text} />
+        </div>
+      )}
+    </div>
+  )
+}
 
 function RewindButton({ tabId, uuid }: { tabId: string; uuid: string }): React.JSX.Element {
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle')
@@ -142,6 +186,8 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         </div>
       )
+    case 'aside':
+      return <AsideCard item={item} />
     case 'plan':
       return <PlanCard todos={item.todos} />
     case 'status':
@@ -256,8 +302,38 @@ export function MessageList({
             <MessageBubble key={entry.item.id} item={entry.item} tabId={tabId} />
           )
         )}
+        <TurnIndicator items={items} tabId={tabId} />
         <div ref={bottomRef} />
       </div>
+    </div>
+  )
+}
+
+/** Animated state line under the transcript: thinking / compacting. Tool runs
+ *  and retro asides carry their own spinners, so this fills the gaps. */
+function TurnIndicator({ items, tabId }: { items: ChatItem[]; tabId: string }): React.JSX.Element | null {
+  const status = useSessions((s) => s.tabs.find((t) => t.tabId === tabId)?.status)
+  const cyclePhase = useSessions((s) => s.tabs.find((t) => t.tabId === tabId)?.cyclePhase)
+
+  if (cyclePhase === 'compact') {
+    return (
+      <div className="flex items-center gap-2 px-1 text-xs text-text-dim anim-in">
+        <Minimize2 size={13} className="pulse-dot text-accent" />
+        <span className="shimmer-text">Compacting context…</span>
+      </div>
+    )
+  }
+  if (status !== 'streaming' || cyclePhase) return null
+  const last = items[items.length - 1]
+  // A streaming text bubble has its own cursor; a running tool has a spinner.
+  if (last?.kind === 'assistant' && last.streaming && last.text.trim()) return null
+  if (last?.kind === 'tool' && last.status === 'running') return null
+  return (
+    <div className="flex items-center gap-2 px-1 text-xs text-text-dim anim-in">
+      <span className="pulse-dot inline-block h-4 w-4 select-none rounded bg-accent/15 text-center text-[10px] leading-4 text-accent">
+        ✳
+      </span>
+      <span className="shimmer-text">Thinking…</span>
     </div>
   )
 }

@@ -9,6 +9,9 @@ export type Provider = 'anthropic' | 'openrouter'
 
 export type SessionStatus = 'starting' | 'idle' | 'streaming' | 'awaitingApproval' | 'error'
 
+/** Automatic follow-up turns that shouldn't read as part of the conversation. */
+export type CyclePhase = 'retro' | 'compact'
+
 /** Events the renderer reduces into chat items. */
 export type UiEvent =
   | {
@@ -25,8 +28,10 @@ export type UiEvent =
     }
   | { kind: 'user_message'; text: string }
   | { kind: 'user_uuid'; uuid: string }
-  | { kind: 'assistant_delta'; text: string }
-  | { kind: 'assistant_message'; id: string; text: string; toolUses: UiToolUse[] }
+  | { kind: 'assistant_delta'; text: string; phase?: CyclePhase }
+  | { kind: 'assistant_message'; id: string; text: string; toolUses: UiToolUse[]; phase?: CyclePhase }
+  /** Automatic follow-up turn in progress (retro/compact) or back to idle. */
+  | { kind: 'cycle'; phase: CyclePhase | null }
   | { kind: 'tool_result'; toolUseId: string; text: string; isError: boolean }
   | { kind: 'todos'; todos: TodoItem[] }
   | { kind: 'subagent'; parentToolUseId: string; text: string }

@@ -255,6 +255,9 @@ class SessionHandle {
         if (msg.subtype === 'init') {
           this.sdkSessionId = msg.session_id
           this.usage.model = msg.model
+          // Show the true context baseline (system prompt, tools, connectors)
+          // as soon as the session is live — before any tokens are spent.
+          void this.pushContextUsage()
           this.send({
             kind: 'init',
             sessionId: msg.session_id,
@@ -274,7 +277,11 @@ class SessionHandle {
         if (msg.parent_tool_use_id) break // subagent stream — skip for now
         const ev = msg.event
         if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta') {
-          this.send({ kind: 'assistant_delta', text: ev.delta.text })
+          this.send({
+            kind: 'assistant_delta',
+            text: ev.delta.text,
+            ...(this.turnPhase !== 'user' ? { phase: this.turnPhase } : {})
+          })
           this.turnStreamChars += ev.delta.text.length
           // Throttled live counter: ~4 chars/token estimate for the in-flight
           // message, recalibrated to real usage when each API message lands.
@@ -367,7 +374,13 @@ class SessionHandle {
             })
           }
         }
-        this.send({ kind: 'assistant_message', id: msg.uuid, text, toolUses })
+        this.send({
+          kind: 'assistant_message',
+          id: msg.uuid,
+          text,
+          toolUses,
+          ...(this.turnPhase !== 'user' ? { phase: this.turnPhase } : {})
+        })
         break
       }
       case 'user': {
@@ -530,17 +543,20 @@ class SessionHandle {
     if (!success || this.chatOnly) {
       // Side chats skip auto-retro/compact — retro writes memory (a file write),
       // and burning extra turns on a quick-question chat wastes quota.
+      if (this.turnPhase !== 'user') this.send({ kind: 'cycle', phase: null })
       this.turnPhase = 'user'
       return false
     }
     if (this.turnPhase === 'user') {
       if (settings.autoRetrospective && (!settings.retroOnlyAfterEdits || this.turnHadMutations)) {
         this.turnPhase = 'retro'
+        this.send({ kind: 'cycle', phase: 'retro' })
         this.pushText(RETRO_PROMPT)
         return true
       }
       if (this.shouldAutoCompact(settings.autoCompact)) {
         this.turnPhase = 'compact'
+        this.send({ kind: 'cycle', phase: 'compact' })
         this.pushText('/compact')
         return true
       }
@@ -550,14 +566,17 @@ class SessionHandle {
       this.send({ kind: 'status_text', text: 'retrospective complete' })
       if (this.shouldAutoCompact(settings.autoCompact)) {
         this.turnPhase = 'compact'
+        this.send({ kind: 'cycle', phase: 'compact' })
         this.pushText('/compact')
         return true
       }
       this.turnPhase = 'user'
+      this.send({ kind: 'cycle', phase: null })
       return false
     }
     // compact finished
     this.turnPhase = 'user'
+    this.send({ kind: 'cycle', phase: null })
     return false
   }
 
@@ -579,6 +598,7 @@ class SessionHandle {
   }
 
   sendUserMessage(text: string, images?: ImageAttachment[]): void {
+    if (this.turnPhase !== 'user') this.send({ kind: 'cycle', phase: null })
     this.turnPhase = 'user' // a real user message restarts the auto follow-up cycle
     this.turnHadMutations = false
     this.turnConfirmedOut = 0

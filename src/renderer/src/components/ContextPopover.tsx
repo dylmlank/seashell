@@ -88,9 +88,8 @@ export function ContextPopover({
                     ))}
                   </div>
                   <p className="pt-2 text-[11px] leading-snug text-text-dim/70">
-                    Connectors cost this on every session, before you type anything. Turn off
-                    &quot;Use Claude Desktop connectors&quot; in Settings if a session doesn&apos;t
-                    need them.
+                    Most connector tools are deferred — they only enter the context when Claude
+                    first uses them, so they usually cost nothing on simple questions.
                   </p>
                 </div>
               )}
