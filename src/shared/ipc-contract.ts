@@ -66,7 +66,7 @@ export interface Invokes {
   'history:search': (a: { query: string }) => SearchHit[]
   'history:export': (a: {
     sessionId: string
-  }) => { ok: true; path: string } | { canceled: true } | { error: string }
+  }) => { markdown: string; suggestedName: string } | { error: string }
 
   'usage:getAll': () => Record<string, UsageTotals>
 
@@ -92,6 +92,9 @@ export interface Invokes {
 
   'fs:listDir': (a: { tabId: string; rel: string }) => { entries: DirEntry[] } | { error: string }
   'fs:listFiles': (a: { tabId: string }) => { files: string[] } | { error: string }
+  'fs:readFileBase64': (a: {
+    path: string
+  }) => { data: string; mediaType: string } | { error: string }
   'fs:writeFile': (a: {
     tabId: string
     rel: string
@@ -123,11 +126,6 @@ export interface Invokes {
   'ports:kill': (a: { pid: number }) => { ok: true } | { error: string }
   'ports:open': (a: { port: number }) => void
 
-  'term:create': (a: { tabId: string }) => { termId: string } | { error: string }
-  'term:input': (a: { termId: string; data: string }) => void
-  'term:resize': (a: { termId: string; cols: number; rows: number }) => void
-  'term:kill': (a: { termId: string }) => void
-  'term:openExternal': (a: { tabId: string }) => void
 }
 
 // ---- main -> renderer (webContents.send / window.api.on) ----
@@ -139,8 +137,8 @@ export interface Events {
   'approval:cancelled': { requestId: string }
   'auth:state': AuthState
   'usage:update': { tabId: string; sessionId: string; totals: UsageTotals }
-  'term:data': { termId: string; data: string }
-  'term:exit': { termId: string }
+  /** Sidecar asks the frontend to show an OS notification (focus-checked there). */
+  'notify': { title: string; body: string }
 }
 
 export type InvokeChannel = keyof Invokes
@@ -153,6 +151,5 @@ export const EVENT_CHANNELS: EventChannel[] = [
   'approval:cancelled',
   'auth:state',
   'usage:update',
-  'term:data',
-  'term:exit'
+  'notify'
 ]

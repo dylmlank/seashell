@@ -1,8 +1,18 @@
 {
-  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
-  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"],
+  "include": ["src/sidecar/**/*", "src/shared/**/*", "vite.config.ts"],
   "compilerOptions": {
     "composite": true,
-    "types": ["electron-vite/node"]
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023"],
+    "types": ["bun-types", "node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "outDir": "out/tsc-node"
   }
 }

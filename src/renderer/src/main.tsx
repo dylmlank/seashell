@@ -1,3 +1,4 @@
+import './lib/api' // installs window.api before any store wires its listeners
 import './index.css'
 import 'highlight.js/styles/github-dark.css'
 

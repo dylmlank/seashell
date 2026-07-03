@@ -119,7 +119,7 @@ function ScriptsMenu({ tabId, cwd, onRun }: { tabId: string; cwd: string; onRun:
               onClick={() => {
                 setOpen(false)
                 onRun()
-                void terms.runInTerminal(tabId, `npm run ${name}`)
+                void terms.runInTerminal(tabId, cwd, `npm run ${name}`)
               }}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left font-mono text-xs text-text hover:bg-accent-dim/30 hover:text-accent"
             >
@@ -145,34 +145,18 @@ export function TerminalPanel({ tabId, cwd }: { tabId: string; cwd: string }): R
 
   // First open for this session → spawn the initial shell.
   useEffect(() => {
-    if (terms.getTab(tabId).entries.length === 0) void terms.createTerm(tabId)
-  }, [tabId])
+    if (terms.getTab(tabId).entries.length === 0) void terms.createTerm(tabId, cwd)
+  }, [tabId, cwd])
 
   // Adopt the active terminal's DOM node (it survives unmounts detached).
   useEffect(() => {
     const host = hostRef.current
     if (!host || view !== 'term' || !active) return
     host.replaceChildren(active.el)
-    active.fit.fit()
-    if (active.termId) {
-      void window.api.invoke('term:resize', {
-        termId: active.termId,
-        cols: active.term.cols,
-        rows: active.term.rows
-      })
-    }
+    terms.resizeTerm(active)
     active.term.focus()
 
-    const observer = new ResizeObserver(() => {
-      active.fit.fit()
-      if (active.termId) {
-        void window.api.invoke('term:resize', {
-          termId: active.termId,
-          cols: active.term.cols,
-          rows: active.term.rows
-        })
-      }
-    })
+    const observer = new ResizeObserver(() => terms.resizeTerm(active))
     observer.observe(host)
     return () => {
       observer.disconnect()
@@ -215,7 +199,7 @@ export function TerminalPanel({ tabId, cwd }: { tabId: string; cwd: string }): R
         <button
           onClick={() => {
             setView('term')
-            void terms.createTerm(tabId)
+            void terms.createTerm(tabId, cwd)
           }}
           title="New terminal"
           className="rounded-lg p-1 text-text-dim hover:bg-surface-2 hover:text-text"
@@ -246,7 +230,7 @@ export function TerminalPanel({ tabId, cwd }: { tabId: string; cwd: string }): R
             The embedded terminal isn&apos;t available on this machine.
           </p>
           <button
-            onClick={() => void window.api.invoke('term:openExternal', { tabId })}
+            onClick={() => terms.openExternalTerminal(cwd)}
             className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dim"
           >
             <ExternalLink size={14} />

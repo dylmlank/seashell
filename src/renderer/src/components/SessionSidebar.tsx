@@ -130,7 +130,11 @@ export function SessionList({
 
   const exportSession = async (sessionId: string): Promise<void> => {
     const result = await window.api.invoke('history:export', { sessionId })
-    if ('error' in result) alert(`Export failed: ${result.error}`)
+    if ('error' in result) {
+      alert(`Export failed: ${result.error}`)
+      return
+    }
+    await window.api.saveTextFile(result.suggestedName, result.markdown)
   }
 
   const resumeHit = async (hit: SearchHit): Promise<void> => {

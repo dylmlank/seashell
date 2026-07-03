@@ -1,10 +1,13 @@
+import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 
 // Terminals live OUTSIDE React so they survive panel toggles and session
 // switches — each keeps its xterm instance (scrollback included) attached to a
-// detached DOM node that the panel re-adopts on mount.
+// detached DOM node that the panel re-adopts on mount. The pty itself lives in
+// the Rust shell (portable-pty); data flows over Tauri events.
 
 export interface TermEntry {
   key: number
@@ -45,29 +48,32 @@ export function getTab(tabId: string): TabTerms {
   return tab
 }
 
+function findEntry(termId: string): TermEntry | undefined {
+  for (const tab of byTab.values()) {
+    const entry = tab.entries.find((e) => e.termId === termId)
+    if (entry) return entry
+  }
+  return undefined
+}
+
 let wired = false
 function wire(): void {
   if (wired) return
   wired = true
-  window.api.on('term:data', ({ termId, data }) => {
-    for (const tab of byTab.values()) {
-      const entry = tab.entries.find((e) => e.termId === termId)
-      if (entry) entry.term.write(data)
-    }
+  void listen<{ id: string; data: string }>('pty-data', ({ payload }) => {
+    findEntry(payload.id)?.term.write(payload.data)
   })
-  window.api.on('term:exit', ({ termId }) => {
-    for (const tab of byTab.values()) {
-      const entry = tab.entries.find((e) => e.termId === termId)
-      if (entry && !entry.exited) {
-        entry.exited = true
-        entry.term.writeln('\r\n\x1b[90m[process exited]\x1b[0m')
-        emit()
-      }
+  void listen<{ id: string }>('pty-exit', ({ payload }) => {
+    const entry = findEntry(payload.id)
+    if (entry && !entry.exited) {
+      entry.exited = true
+      entry.term.writeln('\r\n\x1b[90m[process exited]\x1b[0m')
+      emit()
     }
   })
 }
 
-export async function createTerm(tabId: string): Promise<TermEntry> {
+export async function createTerm(tabId: string, cwd: string): Promise<TermEntry> {
   wire()
   const tab = getTab(tabId)
   const el = document.createElement('div')
@@ -91,21 +97,28 @@ export async function createTerm(tabId: string): Promise<TermEntry> {
   tab.active = tab.entries.length - 1
   emit()
 
-  const result = await window.api.invoke('term:create', { tabId })
-  if ('error' in result) {
+  try {
+    entry.termId = await invoke<string>('pty_create', { cwd })
+  } catch {
     entry.failed = true
     emit()
     return entry
   }
-  entry.termId = result.termId
   term.onData((data) => {
     if (entry.termId && !entry.exited) {
-      void window.api.invoke('term:input', { termId: entry.termId, data })
+      void invoke('pty_write', { id: entry.termId, data })
     }
   })
-  void window.api.invoke('term:resize', { termId: entry.termId, cols: term.cols, rows: term.rows })
+  void invoke('pty_resize', { id: entry.termId, cols: term.cols, rows: term.rows })
   emit()
   return entry
+}
+
+export function resizeTerm(entry: TermEntry): void {
+  entry.fit.fit()
+  if (entry.termId && !entry.exited) {
+    void invoke('pty_resize', { id: entry.termId, cols: entry.term.cols, rows: entry.term.rows })
+  }
 }
 
 export function setActive(tabId: string, index: number): void {
@@ -118,7 +131,7 @@ export function closeTerm(tabId: string, index: number): void {
   const tab = getTab(tabId)
   const entry = tab.entries[index]
   if (!entry) return
-  if (entry.termId) void window.api.invoke('term:kill', { termId: entry.termId })
+  if (entry.termId) void invoke('pty_kill', { id: entry.termId })
   entry.term.dispose()
   tab.entries.splice(index, 1)
   tab.active = Math.min(tab.active, tab.entries.length - 1)
@@ -130,7 +143,7 @@ export function disposeAll(tabId: string): void {
   const tab = byTab.get(tabId)
   if (!tab) return
   for (const entry of tab.entries) {
-    if (entry.termId) void window.api.invoke('term:kill', { termId: entry.termId })
+    if (entry.termId) void invoke('pty_kill', { id: entry.termId })
     entry.term.dispose()
   }
   byTab.delete(tabId)
@@ -138,11 +151,16 @@ export function disposeAll(tabId: string): void {
 }
 
 /** Run a shell command in this tab's active terminal, creating one if needed. */
-export async function runInTerminal(tabId: string, command: string): Promise<void> {
+export async function runInTerminal(tabId: string, cwd: string, command: string): Promise<void> {
   const tab = getTab(tabId)
   let entry = tab.entries[tab.active]
-  if (!entry || entry.exited || entry.failed) entry = await createTerm(tabId)
+  if (!entry || entry.exited || entry.failed) entry = await createTerm(tabId, cwd)
   if (entry.termId && !entry.failed) {
-    void window.api.invoke('term:input', { termId: entry.termId, data: `${command}\r` })
+    void invoke('pty_write', { id: entry.termId, data: `${command}\r` })
   }
+}
+
+/** Fallback: pop a real console window in the folder. */
+export function openExternalTerminal(cwd: string): void {
+  void invoke('open_terminal', { cwd })
 }

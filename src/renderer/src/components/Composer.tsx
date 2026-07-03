@@ -37,7 +37,6 @@ export function Composer({
   const [files, setFiles] = useState<PendingFile[]>([])
   const [slashIndex, setSlashIndex] = useState(0)
   const areaRef = useRef<HTMLTextAreaElement>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
 
   // Slash autocomplete: active while the input is a single line starting with "/".
   const slashMatches = useMemo(() => {
@@ -84,6 +83,30 @@ export function Composer({
             : [...prev, { id: crypto.randomUUID(), path, name: file.name }]
         )
       }
+    }
+  }
+
+  // Native picker — the webview's <input type=file> can't reveal disk paths.
+  const attachViaDialog = async (): Promise<void> => {
+    const paths = await window.api.pickFiles()
+    if (!paths) return
+    for (const path of paths) {
+      const name = path.split(/[\\/]/).pop() ?? path
+      if (/\.(png|jpe?g|gif|webp)$/i.test(name)) {
+        const result = await window.api.invoke('fs:readFileBase64', { path })
+        if (!('error' in result)) {
+          setImages((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), mediaType: result.mediaType, data: result.data }
+          ])
+          continue
+        }
+      }
+      setFiles((prev) =>
+        prev.some((f) => f.path === path)
+          ? prev
+          : [...prev, { id: crypto.randomUUID(), path, name }]
+      )
     }
   }
 
@@ -222,16 +245,6 @@ export function Composer({
               <ModelSelector tabId={tabId} />
               {!hideModeControls && <PermissionModeSwitcher tabId={tabId} />}
               <span className="ml-auto" />
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files) void addAttachments(e.target.files)
-                  e.target.value = ''
-                }}
-              />
               <button
                 onClick={() => void dictate()}
                 title="Dictate with your voice (opens Windows dictation — or press Win+H)"
@@ -240,8 +253,8 @@ export function Composer({
                 <Mic size={15} />
               </button>
               <button
-                onClick={() => fileRef.current?.click()}
-                title="Attach files — images, PDFs, docs, code (or paste / drop)"
+                onClick={() => void attachViaDialog()}
+                title="Attach files — images, PDFs, docs, code (or paste an image)"
                 className="rounded-lg p-1.5 text-text-dim hover:bg-surface-2 hover:text-text"
               >
                 <Paperclip size={15} />

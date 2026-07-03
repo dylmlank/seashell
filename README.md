@@ -1,6 +1,6 @@
 # Claude Shell
 
-A Windows desktop app for Claude Code — like Claude Desktop, but it drives the real Claude Code agent in your own project folders, using your Claude subscription.
+A Windows desktop app for Claude Code — like Claude Desktop, but it drives the real Claude Code agent in your own project folders, using your Claude subscription. Built on **Tauri (Rust) + Bun** — the UI is a native WebView2 window, terminals are native ptys, and the Claude Agent SDK runs in a Bun sidecar.
 
 ## Features
 
@@ -13,41 +13,40 @@ A Windows desktop app for Claude Code — like Claude Desktop, but it drives the
 
 ## Requirements
 
-- Windows 11, Node 18+ (developed on Node 24)
+- Windows 11
+- [Bun](https://bun.sh) (runs the sidecar and the tooling)
+- Rust toolchain (stable-msvc, for the Tauri shell)
 - [Claude Code CLI](https://docs.claude.com/en/docs/claude-code) installed (`npm i -g @anthropic-ai/claude-code`) with a Claude Pro/Max subscription (or an API key)
 
 ## Run
 
 ```powershell
-npm install
-npm run dev        # development with hot reload
-npm run build:win  # package a Windows installer (electron-builder)
+bun install
+bun run dev      # tauri dev: vite + cargo + Bun sidecar, hot reload
+bun run build    # tauri build (NSIS installer; sidecar bundling not wired yet)
+bun run typecheck
 ```
-
-## Tests
-
-```powershell
-npm run typecheck
-npx playwright test   # E2E: drives the real app, needs a logged-in Claude account
-```
-
-Screenshots from test runs land in `tests/e2e/__screenshots__`.
 
 ## Architecture
 
 ```
-src/shared/ipc-contract.ts   All IPC channels + payload types (single source of truth)
-src/main/session-manager.ts  One streaming query() per tab via @anthropic-ai/claude-agent-sdk
-src/main/approvals.ts        canUseTool → renderer approval round-trip
-src/main/auth.ts             login detection, setup-token flow, DPAPI token storage
-src/main/history.ts          session enumeration via the SDK's listSessions()
-src/renderer/                React 19 + Tailwind v4 + zustand
+src-tauri/                   Rust shell: window, pty terminals (portable-pty),
+                             sidecar spawn/supervision, save/open commands
+src/sidecar/                 Bun sidecar: the Claude Agent SDK, sessions, history,
+                             transcripts, git, OpenRouter, Desktop-connector import —
+                             served to the UI over a localhost WebSocket
+src/shared/ipc-contract.ts   All channels + payload types (single source of truth)
+src/renderer/                React 19 + Tailwind v4 + zustand + CodeMirror + xterm
+src/renderer/src/lib/api.ts  window.api shim: WebSocket to the sidecar + Tauri
+                             commands/plugins for dialogs, saves, notifications
 ```
 
 Key design points:
 
-- The Agent SDK runs in Electron's **main process**; each tab owns a persistent streaming-input `query()` (required for the `canUseTool` permission callback and live `interrupt`/`setPermissionMode`/`setModel`).
-- The renderer never imports SDK types — main maps SDK messages into small `UiEvent`s over typed IPC, so SDK version drift is isolated (the SDK is pinned exact).
+- The Agent SDK runs in the **Bun sidecar**; each tab owns a persistent streaming-input `query()` (required for the `canUseTool` permission callback and live `interrupt`/`setPermissionMode`/`setModel`).
+- The renderer never imports SDK types — the sidecar maps SDK messages into small `UiEvent`s over the typed contract, so SDK version drift is isolated (the SDK is pinned exact).
+- The WebSocket is guarded by a per-launch secret the Rust shell generates and hands to both sides; tokens are DPAPI-encrypted on disk (same blobs the old Electron build wrote).
+- Terminals are Rust-side ptys streamed over Tauri events; xterm instances live outside React so they survive panel switches.
 - Resume uses `getSessionMessages()` to rebuild the transcript, then `resume:` for live context.
 
 ## Note on Claude-account login

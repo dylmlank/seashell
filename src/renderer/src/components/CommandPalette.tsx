@@ -146,7 +146,7 @@ export function CommandPalette({
           icon: <Play size={13} className="text-accent" />,
           run: () => {
             useUi.getState().setPanel(tabId, 'terminal')
-            void runInTerminal(tabId, `npm run ${name}`)
+            void runInTerminal(tabId, activeTab.cwd, `npm run ${name}`)
           }
         }))
       )
