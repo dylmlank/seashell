@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { SearchHit, SessionSummary } from '@shared/types'
 import { createTab, useSessions } from '../stores/sessions'
+import { alertDialog, confirmDialog } from '../lib/dialogs'
 
 function timeAgo(ms: number): string {
   const diff = Date.now() - ms
@@ -123,7 +124,7 @@ export function SessionList({
   }
 
   const remove = async (s: SessionSummary): Promise<void> => {
-    if (!confirm(`Delete "${s.title}"? This removes the session transcript permanently.`)) return
+    if (!(await confirmDialog(`Delete "${s.title}"? This removes the session transcript permanently.`))) return
     await window.api.invoke('history:delete', { sessionId: s.sessionId, dir: s.cwd })
     void refresh()
   }
@@ -131,7 +132,7 @@ export function SessionList({
   const exportSession = async (sessionId: string): Promise<void> => {
     const result = await window.api.invoke('history:export', { sessionId })
     if ('error' in result) {
-      alert(`Export failed: ${result.error}`)
+      void alertDialog(`Export failed: ${result.error}`)
       return
     }
     await window.api.saveTextFile(result.suggestedName, result.markdown)

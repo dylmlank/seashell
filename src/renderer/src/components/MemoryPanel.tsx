@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, Brain, Loader2, Trash2 } from 'lucide-react'
 import type { MemoryFile } from '@shared/types'
+import { confirmDialog } from '../lib/dialogs'
 
 function timeAgo(ms: number): string {
   const days = Math.floor((Date.now() - ms) / 86_400_000)
@@ -45,7 +46,7 @@ export function MemoryPanel({ tabId }: { tabId: string }): React.JSX.Element {
   }
 
   const remove = async (name: string): Promise<void> => {
-    if (!confirm(`Delete memory "${name}"? Claude will forget it permanently.`)) return
+    if (!(await confirmDialog(`Delete memory "${name}"? Claude will forget it permanently.`))) return
     await window.api.invoke('memory:delete', { tabId, name })
     if (open === name) setOpen(null)
     void refresh()

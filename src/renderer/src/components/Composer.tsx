@@ -3,6 +3,7 @@ import { ArrowUp, FileText, Mic, Square, Paperclip, X } from 'lucide-react'
 import type { ImageAttachment } from '@shared/types'
 import { ModelSelector } from './ModelSelector'
 import { PermissionModeSwitcher } from './PermissionModeSwitcher'
+import { alertDialog } from '../lib/dialogs'
 
 interface PendingImage extends ImageAttachment {
   id: string
@@ -128,7 +129,7 @@ export function Composer({
   const dictate = async (): Promise<void> => {
     areaRef.current?.focus()
     const result = await window.api.invoke('dictation:start')
-    if ('error' in result) alert(result.error)
+    if ('error' in result) void alertDialog(result.error)
   }
 
   return (

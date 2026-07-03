@@ -10,6 +10,7 @@ import { Code2, FolderTree, GitCompare, Loader2, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useEditor, type FileBuf } from '../stores/editor'
 import { FileExplorer } from './FileExplorer'
+import { confirmDialog } from '../lib/dialogs'
 
 // The langs registry is keyed by file extension (ts, tsx, py, rs, md, …).
 function langFor(rel: string): Extension[] {
@@ -154,13 +155,15 @@ export function EditorPane({ tabId }: { tabId: string }): React.JSX.Element {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (
-                    dirty &&
-                    !confirm(`"${name}" has unsaved changes. Close without saving?`)
-                  ) {
-                    return
-                  }
-                  closeFile(tabId, b.rel)
+                  void (async () => {
+                    if (
+                      dirty &&
+                      !(await confirmDialog(`"${name}" has unsaved changes. Close without saving?`))
+                    ) {
+                      return
+                    }
+                    closeFile(tabId, b.rel)
+                  })()
                 }}
                 className="rounded p-0.5 opacity-0 hover:bg-border group-hover:opacity-100"
               >

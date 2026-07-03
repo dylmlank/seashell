@@ -12,6 +12,7 @@ import {
 import clsx from 'clsx'
 import type { PortInfo } from '@shared/types'
 import * as terms from '../lib/terminals'
+import { confirmDialog } from '../lib/dialogs'
 
 /** Every TCP port listening on localhost — open in browser or kill the owner. */
 function PortsView(): React.JSX.Element {
@@ -64,9 +65,11 @@ function PortsView(): React.JSX.Element {
                 </button>
                 <button
                   onClick={() => {
-                    if (confirm(`Kill ${p.process} (pid ${p.pid})? This stops whatever it's serving.`)) {
-                      void window.api.invoke('ports:kill', { pid: p.pid }).then(() => void refresh())
-                    }
+                    void confirmDialog(
+                      `Kill ${p.process} (pid ${p.pid})? This stops whatever it's serving.`
+                    ).then((ok) => {
+                      if (ok) void window.api.invoke('ports:kill', { pid: p.pid }).then(() => void refresh())
+                    })
                   }}
                   title="Kill this process"
                   className="rounded p-1 text-text-dim hover:bg-border hover:text-red-400"

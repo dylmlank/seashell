@@ -1,5 +1,6 @@
 import type { PermissionMode } from '@shared/types'
 import { useSessions } from '../stores/sessions'
+import { alertDialog, confirmDialog } from '../lib/dialogs'
 
 const MODES: { value: PermissionMode; label: string; title: string }[] = [
   { value: 'default', label: 'Ask', title: 'Prompt before running tools' },
@@ -11,12 +12,12 @@ const MODES: { value: PermissionMode; label: string; title: string }[] = [
 export function PermissionModeSwitcher({ tabId }: { tabId: string }): React.JSX.Element {
   const mode = useSessions((s) => s.tabs.find((t) => t.tabId === tabId)?.permissionMode)
 
-  const setMode = (value: PermissionMode): void => {
+  const setMode = async (value: PermissionMode): Promise<void> => {
     if (
       value === 'bypassPermissions' &&
-      !confirm(
+      !(await confirmDialog(
         'Bypass mode runs every command and file edit without asking you first. Only use it in folders you trust. Enable?'
-      )
+      ))
     ) {
       return
     }
@@ -24,7 +25,7 @@ export function PermissionModeSwitcher({ tabId }: { tabId: string }): React.JSX.
     useSessions.getState().update(tabId, { permissionMode: value })
     window.api.invoke('session:setPermissionMode', { tabId, mode: value }).catch((err) => {
       console.error('setPermissionMode failed:', err)
-      alert(`Could not switch mode: ${err instanceof Error ? err.message : err}`)
+      void alertDialog(`Could not switch mode: ${err instanceof Error ? err.message : err}`)
       if (previous) useSessions.getState().update(tabId, { permissionMode: previous })
     })
   }
@@ -35,7 +36,7 @@ export function PermissionModeSwitcher({ tabId }: { tabId: string }): React.JSX.
         <button
           key={m.value}
           title={m.title}
-          onClick={() => setMode(m.value)}
+          onClick={() => void setMode(m.value)}
           className={
             'rounded-md px-2 py-0.5 transition-colors ' +
             (mode === m.value

@@ -12,6 +12,7 @@ import {
 import type { BranchInfo, ChangedFile } from '@shared/types'
 import { useSessions } from '../stores/sessions'
 import { DiffView } from './DiffView'
+import { alertDialog, confirmDialog } from '../lib/dialogs'
 
 function statusIcon(status: string): React.JSX.Element {
   if (status === '??' || status.includes('A')) return <FilePlus2 size={13} className="text-green-500" />
@@ -49,7 +50,7 @@ export function ChangesPanel({ tabId }: { tabId: string }): React.JSX.Element {
     setBusy(true)
     const result = await window.api.invoke('changes:checkout', { tabId, branch })
     setBusy(false)
-    if ('error' in result) alert(`Could not switch branch: ${result.error}`)
+    if ('error' in result) void alertDialog(`Could not switch branch: ${result.error}`)
     void refresh()
   }
 
@@ -93,7 +94,7 @@ export function ChangesPanel({ tabId }: { tabId: string }): React.JSX.Element {
   }, [tabId, selected, files])
 
   const revert = async (path: string): Promise<void> => {
-    if (!confirm(`Revert ${path} to its last committed state? This discards the changes.`)) return
+    if (!(await confirmDialog(`Revert ${path} to its last committed state? This discards the changes.`))) return
     setBusy(true)
     await window.api.invoke('changes:revert', { tabId, path })
     setBusy(false)

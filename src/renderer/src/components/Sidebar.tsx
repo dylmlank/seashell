@@ -11,6 +11,7 @@ import {
 import clsx from 'clsx'
 import { closeTab, createTab, useSessions } from '../stores/sessions'
 import { SessionList } from './SessionSidebar'
+import { alertDialog } from '../lib/dialogs'
 
 function basename(p: string): string {
   return p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
@@ -40,7 +41,7 @@ export function Sidebar({
     try {
       await createTab(cwd)
     } catch (err) {
-      alert(err instanceof Error ? err.message : String(err))
+      void alertDialog(err instanceof Error ? err.message : String(err))
     } finally {
       setOpening(false)
     }

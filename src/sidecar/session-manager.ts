@@ -130,7 +130,7 @@ class SessionHandle {
         if (this.turnPhase === 'retro' && (toolName === 'Write' || toolName === 'Edit')) {
           const filePath = String(input.file_path ?? '')
           if (filePath.replace(/\\/g, '/').includes('/.claude/')) {
-            return Promise.resolve({ behavior: 'allow' })
+            return Promise.resolve({ behavior: 'allow', updatedInput: input })
           }
         }
         return approvals.request(this.tabId, toolName, input, ctx)

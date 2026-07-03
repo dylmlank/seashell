@@ -13,6 +13,9 @@ export function setApprovalBroadcast(fn: Broadcast): void {
 interface Pending {
   resolve: (result: PermissionResult) => void
   tabId: string
+  /** Original tool input — allow responses must echo it as updatedInput
+   *  (the CLI's response schema requires a record there, not undefined). */
+  input: Record<string, unknown>
 }
 
 const pending = new Map<string, Pending>()
@@ -31,7 +34,7 @@ export const approvals = {
   ): Promise<PermissionResult> {
     const requestId = randomUUID()
     return new Promise<PermissionResult>((resolve) => {
-      pending.set(requestId, { resolve, tabId })
+      pending.set(requestId, { resolve, tabId, input })
       ctx.signal?.addEventListener('abort', () => {
         if (pending.delete(requestId)) {
           broadcast('approval:cancelled', { requestId })
@@ -67,7 +70,13 @@ export const approvals = {
     if (!entry) return
     pending.delete(requestId)
     broadcast('session:status', { tabId: entry.tabId, status: 'streaming' })
-    entry.resolve(result)
+    if (result.behavior === 'allow') {
+      // Plain allows echo the original input — the CLI's schema rejects
+      // { behavior: 'allow' } without a record updatedInput (ZodError).
+      entry.resolve({ behavior: 'allow', updatedInput: result.updatedInput ?? entry.input })
+    } else {
+      entry.resolve(result)
+    }
   },
 
   cancelAll(tabId: string): void {

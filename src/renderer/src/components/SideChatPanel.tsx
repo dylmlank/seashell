@@ -3,6 +3,7 @@ import { Loader2, MessagesSquare, Trash2 } from 'lucide-react'
 import { closeTab, createTab, interrupt, sendMessage, useSessions } from '../stores/sessions'
 import { Composer } from './Composer'
 import { MessageList } from './MessageList'
+import { confirmDialog } from '../lib/dialogs'
 
 /**
  * A second, independent conversation in the same folder — for quick questions
@@ -33,9 +34,9 @@ export function SideChatPanel({ cwd }: { cwd: string }): React.JSX.Element {
         {sideTab && (
           <button
             onClick={() => {
-              if (confirm('End this side chat? Its conversation is kept in history.')) {
-                closeTab(sideTab.tabId)
-              }
+              void confirmDialog('End this side chat? Its conversation is kept in history.').then(
+                (ok) => ok && closeTab(sideTab.tabId)
+              )
             }}
             title="End side chat"
             className="ml-auto rounded p-1 text-text-dim hover:bg-surface-2 hover:text-red-400"

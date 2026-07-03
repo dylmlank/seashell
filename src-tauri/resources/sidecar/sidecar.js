@@ -28158,7 +28158,7 @@ var approvals = {
   request(tabId, toolName, input, ctx) {
     const requestId = randomUUID();
     return new Promise((resolve) => {
-      pending.set(requestId, { resolve, tabId });
+      pending.set(requestId, { resolve, tabId, input });
       ctx.signal?.addEventListener("abort", () => {
         if (pending.delete(requestId)) {
           broadcast2("approval:cancelled", { requestId });
@@ -28189,7 +28189,11 @@ var approvals = {
       return;
     pending.delete(requestId);
     broadcast2("session:status", { tabId: entry.tabId, status: "streaming" });
-    entry.resolve(result);
+    if (result.behavior === "allow") {
+      entry.resolve({ behavior: "allow", updatedInput: result.updatedInput ?? entry.input });
+    } else {
+      entry.resolve(result);
+    }
   },
   cancelAll(tabId) {
     for (const [id, entry] of pending) {
@@ -28988,7 +28992,7 @@ class SessionHandle {
         if (this.turnPhase === "retro" && (toolName === "Write" || toolName === "Edit")) {
           const filePath = String(input.file_path ?? "");
           if (filePath.replace(/\\/g, "/").includes("/.claude/")) {
-            return Promise.resolve({ behavior: "allow" });
+            return Promise.resolve({ behavior: "allow", updatedInput: input });
           }
         }
         return approvals.request(this.tabId, toolName, input, ctx);

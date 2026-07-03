@@ -12,6 +12,7 @@ import { rewindTo, sendMessage, type ChatItem } from '../stores/sessions'
 import { Markdown } from './Markdown'
 import { PlanCard } from './PlanCard'
 import { ToolCallCard, summarizeInput } from './ToolCallCard'
+import { confirmDialog } from '../lib/dialogs'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -20,7 +21,7 @@ function RewindButton({ tabId, uuid }: { tabId: string; uuid: string }): React.J
   const [detail, setDetail] = useState('')
 
   const run = async (): Promise<void> => {
-    if (!confirm('Restore all files to their state at this message? The conversation itself is kept.'))
+    if (!(await confirmDialog('Restore all files to their state at this message? The conversation itself is kept.')))
       return
     setState('busy')
     const result = await rewindTo(tabId, uuid)
