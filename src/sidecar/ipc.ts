@@ -57,6 +57,10 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   'session:supportedModels': async (a) => {
     return (await sessionManager.get(a.tabId)?.supportedModels()) ?? []
   },
+  'session:contextUsage': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? h.contextBreakdown() : { error: 'Session not found' }
+  },
   'session:close': (a) => {
     sessionManager.close(a.tabId)
   },
@@ -103,6 +107,7 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   },
 
   'usage:getAll': () => usageStore.getAll(),
+  'usage:limits': () => sessionManager.limits(),
 
   'settings:get': () => settingsStore.get(),
   'settings:set': (a) => settingsStore.set(a),

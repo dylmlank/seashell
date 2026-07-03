@@ -19,6 +19,7 @@ function basename(p: string): string {
   return p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
 }
 import { Composer } from './Composer'
+import { ContextPopover } from './ContextPopover'
 import { EditorPane } from './EditorPane'
 import { FileExplorer } from './FileExplorer'
 import { InstructionsModal } from './InstructionsModal'
@@ -39,6 +40,7 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
     togglePanel(tab.tabId, p)
   const [infoOpen, setInfoOpen] = useState(false)
   const [instructionsOpen, setInstructionsOpen] = useState(false)
+  const [contextOpen, setContextOpen] = useState(false)
   const [seenArtifact, setSeenArtifact] = useState<string | undefined>()
 
   const statusDot =
@@ -67,20 +69,38 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
           </span>
         )}
         <span className="ml-auto flex items-center gap-1.5">
-          {tab.usage && (
-            <span className="mr-1.5 flex items-center gap-2" title="Context window fill">
+          {(tab.contextUsage ?? tab.usage) && (
+            <button
+              onClick={() => setContextOpen(true)}
+              title={
+                tab.contextUsage
+                  ? `Context: ${(tab.contextUsage.totalTokens / 1000).toFixed(0)}k of ${(tab.contextUsage.maxTokens / 1000).toFixed(0)}k (${tab.contextUsage.percentage.toFixed(0)}%) — click for the breakdown`
+                  : 'Context window fill — click for the breakdown'
+              }
+              className="mr-1.5 flex items-center gap-2 rounded-lg px-1 py-0.5 hover:bg-surface-2"
+            >
               <span className="h-1 w-16 overflow-hidden rounded-full bg-surface-2">
                 <span
                   className="block h-full rounded-full bg-accent transition-all duration-500"
                   style={{
-                    width: `${Math.min(100, (tab.usage.lastContextTokens / contextWindow(tab.model)) * 100)}%`
+                    width: `${Math.min(
+                      100,
+                      tab.contextUsage
+                        ? tab.contextUsage.percentage
+                        : ((tab.usage?.lastContextTokens ?? 0) / contextWindow(tab.model)) * 100
+                    )}%`
                   }}
                 />
               </span>
               <span className="tabular-nums">
-                {(tab.usage.lastContextTokens / 1000).toFixed(0)}k
+                {((tab.contextUsage?.totalTokens ?? tab.usage?.lastContextTokens ?? 0) / 1000).toFixed(0)}k
+                {tab.contextUsage && (
+                  <span className="text-text-dim/60">
+                    /{(tab.contextUsage.maxTokens / 1000).toFixed(0)}k
+                  </span>
+                )}
               </span>
-            </span>
+            </button>
           )}
           <button
             onClick={() => setPanel('files')}
@@ -211,6 +231,7 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
       {instructionsOpen && (
         <InstructionsModal tabId={tab.tabId} onClose={() => setInstructionsOpen(false)} />
       )}
+      {contextOpen && <ContextPopover tabId={tab.tabId} onClose={() => setContextOpen(false)} />}
     </div>
   )
 }

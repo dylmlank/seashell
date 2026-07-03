@@ -32,6 +32,8 @@ export type UiEvent =
   | { kind: 'subagent'; parentToolUseId: string; text: string }
   | { kind: 'turn_result'; usage: UsageTotals; costUsd: number; isError: boolean; errorText?: string }
   | { kind: 'status_text'; text: string }
+  /** Authoritative context-window fill from the CLI (per-model window sizes). */
+  | { kind: 'context_usage'; totalTokens: number; maxTokens: number; percentage: number }
 
 export interface TodoItem {
   content: string
@@ -171,4 +173,33 @@ export interface PortInfo {
   port: number
   pid: number
   process: string
+}
+
+/** One plan rate-limit window (like Claude Desktop's usage bars). */
+export interface LimitWindow {
+  /** Percentage of the window used, 0–100. */
+  utilization: number
+  /** Epoch ms when the window resets, if known. */
+  resetsAt?: number
+}
+
+/** Claude plan rate-limit state for the usage bars. */
+export interface PlanLimits {
+  available: boolean
+  subscriptionType?: string
+  fiveHour?: LimitWindow
+  sevenDay?: LimitWindow
+  /** Epoch ms when this snapshot was fetched. */
+  fetchedAt: number
+}
+
+/** What's occupying the context window, straight from the CLI. */
+export interface ContextBreakdown {
+  totalTokens: number
+  maxTokens: number
+  percentage: number
+  model: string
+  categories: { name: string; tokens: number }[]
+  /** Token cost per MCP server (summed over its tools). */
+  mcpServers: { name: string; tokens: number }[]
 }

@@ -39,6 +39,8 @@ export interface TabState {
   side?: boolean
   /** Path of the last previewable file (HTML/SVG/Markdown) Claude wrote. */
   lastArtifact?: string
+  /** Exact context fill from the CLI (knows the real per-model window). */
+  contextUsage?: { totalTokens: number; maxTokens: number; percentage: number }
   items: ChatItem[]
   usage?: UsageTotals
   slashCommands: string[]
@@ -197,6 +199,13 @@ export const useSessions = create<SessionsStore>((set) => ({
         }
         if (event.kind === 'turn_result') {
           patch.usage = event.usage
+        }
+        if (event.kind === 'context_usage') {
+          patch.contextUsage = {
+            totalTokens: event.totalTokens,
+            maxTokens: event.maxTokens,
+            percentage: event.percentage
+          }
         }
         if (event.kind === 'tool_result' && !event.isError) {
           const tool = t.items.find(

@@ -1,5 +1,6 @@
 import { X, BarChart3 } from 'lucide-react'
 import { useUsage } from '../stores/usage'
+import { LimitBars } from './LimitBars'
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -33,6 +34,17 @@ export function UsagePanel({ onClose }: { onClose: () => void }): React.JSX.Elem
           <button onClick={onClose} className="ml-auto rounded p-1 hover:bg-surface-2">
             <X size={16} />
           </button>
+        </div>
+
+        <div className="border-b border-border px-5 py-4">
+          <p className="pb-2 text-xs font-semibold uppercase tracking-wide text-text-dim">
+            Plan limits
+          </p>
+          <LimitBars detailed />
+          <p className="pt-2 text-[11px] text-text-dim/60">
+            These are your Claude plan&apos;s rate-limit windows — the same numbers Claude Desktop
+            shows. Needs an open session to refresh.
+          </p>
         </div>
 
         <div className="grid grid-cols-4 gap-3 border-b border-border px-5 py-4">

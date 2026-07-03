@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { closeTab, createTab, useSessions } from '../stores/sessions'
+import { LimitBars } from './LimitBars'
 import { SessionList } from './SessionSidebar'
 import { alertDialog } from '../lib/dialogs'
 
@@ -126,6 +127,11 @@ export function Sidebar({
           Recent sessions
         </div>
         <SessionList compact />
+      </div>
+
+      {/* Plan usage bars (5h / weekly), like Claude Desktop */}
+      <div className="border-t border-border/60 px-3 py-2">
+        <LimitBars />
       </div>
 
       {/* Footer actions */}

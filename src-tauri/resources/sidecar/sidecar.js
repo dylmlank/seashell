@@ -29260,9 +29260,59 @@ class SessionHandle {
           broadcast4("session:status", { tabId: this.tabId, status: "idle" });
           notifyIfUnfocused("Claude finished", msg.subtype === "success" ? msg.result.slice(0, 140) : `Turn ended: ${msg.subtype}`);
         }
+        this.pushContextUsage();
+        refreshPlanLimits(this);
         break;
       }
     }
+  }
+  async pushContextUsage() {
+    try {
+      const cu = await this.q.getContextUsage();
+      this.send({
+        kind: "context_usage",
+        totalTokens: cu.totalTokens,
+        maxTokens: cu.maxTokens,
+        percentage: cu.percentage
+      });
+    } catch {}
+  }
+  async contextBreakdown() {
+    try {
+      const cu = await this.q.getContextUsage();
+      const byServer = new Map;
+      for (const tool of cu.mcpTools ?? []) {
+        byServer.set(tool.serverName, (byServer.get(tool.serverName) ?? 0) + tool.tokens);
+      }
+      return {
+        totalTokens: cu.totalTokens,
+        maxTokens: cu.maxTokens,
+        percentage: cu.percentage,
+        model: cu.model,
+        categories: (cu.categories ?? []).map((c) => ({ name: c.name, tokens: c.tokens })),
+        mcpServers: [...byServer.entries()].map(([name, tokens]) => ({ name, tokens })).sort((a, b) => b.tokens - a.tokens)
+      };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+  async planLimits() {
+    const report = await this.q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET();
+    const window2 = (w) => {
+      if (!w || w.utilization === null)
+        return;
+      return {
+        utilization: w.utilization,
+        ...w.resets_at ? { resetsAt: Date.parse(w.resets_at) } : {}
+      };
+    };
+    return {
+      available: report.rate_limits_available,
+      subscriptionType: report.subscription_type ?? undefined,
+      fiveHour: window2(report.rate_limits?.five_hour),
+      sevenDay: window2(report.rate_limits?.seven_day),
+      fetchedAt: Date.now()
+    };
   }
   advanceTurnCycle(success) {
     const settings = settingsStore.get();
@@ -29388,8 +29438,27 @@ var sessionManager = {
     for (const h of handles.values())
       h.dispose();
     handles.clear();
+  },
+  async limits() {
+    const first = handles.values().next().value;
+    return first ? refreshPlanLimits(first) : lastLimits;
   }
 };
+var lastLimits = { available: false, fetchedAt: 0 };
+var limitsInFlight = false;
+var LIMITS_TTL = 60000;
+async function refreshPlanLimits(handle) {
+  if (limitsInFlight || Date.now() - lastLimits.fetchedAt < LIMITS_TTL)
+    return lastLimits;
+  limitsInFlight = true;
+  try {
+    lastLimits = await handle.planLimits();
+    broadcast4("limits:update", lastLimits);
+  } catch {} finally {
+    limitsInFlight = false;
+  }
+  return lastLimits;
+}
 
 // src/sidecar/transcript-search.ts
 import { readdir as readdir3, readFile as readFile4, stat as stat2 } from "fs/promises";
@@ -29594,6 +29663,10 @@ var handlers = {
   "session:supportedModels": async (a) => {
     return await sessionManager.get(a.tabId)?.supportedModels() ?? [];
   },
+  "session:contextUsage": (a) => {
+    const h = sessionManager.get(a.tabId);
+    return h ? h.contextBreakdown() : { error: "Session not found" };
+  },
   "session:close": (a) => {
     sessionManager.close(a.tabId);
   },
@@ -29638,6 +29711,7 @@ var handlers = {
     return { markdown, suggestedName: `claude-session-${a.sessionId.slice(0, 8)}.md` };
   },
   "usage:getAll": () => usageStore.getAll(),
+  "usage:limits": () => sessionManager.limits(),
   "settings:get": () => settingsStore.get(),
   "settings:set": (a) => settingsStore.set(a),
   "changes:list": (a) => {

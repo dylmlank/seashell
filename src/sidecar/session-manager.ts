@@ -19,9 +19,11 @@ import { settingsStore } from './settings-store'
 import { usageStore } from './usage-store'
 import type { Events } from '../shared/ipc-contract'
 import type {
+  ContextBreakdown,
   ImageAttachment,
   ModelInfo,
   PermissionMode,
+  PlanLimits,
   Provider,
   TodoItem,
   UiEvent,
@@ -421,8 +423,70 @@ class SessionHandle {
             msg.subtype === 'success' ? msg.result.slice(0, 140) : `Turn ended: ${msg.subtype}`
           )
         }
+        // Token-free control requests: exact context fill for the gauge, and a
+        // throttled plan-limits refresh for the usage bars.
+        void this.pushContextUsage()
+        void refreshPlanLimits(this)
         break
       }
+    }
+  }
+
+  /** Ask the CLI what's actually in the context window (it knows the model's
+   *  real window size — static tables get 1M-context models wrong). */
+  async pushContextUsage(): Promise<void> {
+    try {
+      const cu = await this.q.getContextUsage()
+      this.send({
+        kind: 'context_usage',
+        totalTokens: cu.totalTokens,
+        maxTokens: cu.maxTokens,
+        percentage: cu.percentage
+      })
+    } catch {
+      // older CLI without the control request — the static-table gauge stands
+    }
+  }
+
+  async contextBreakdown(): Promise<ContextBreakdown | { error: string }> {
+    try {
+      const cu = await this.q.getContextUsage()
+      const byServer = new Map<string, number>()
+      for (const tool of cu.mcpTools ?? []) {
+        byServer.set(tool.serverName, (byServer.get(tool.serverName) ?? 0) + tool.tokens)
+      }
+      return {
+        totalTokens: cu.totalTokens,
+        maxTokens: cu.maxTokens,
+        percentage: cu.percentage,
+        model: cu.model,
+        categories: (cu.categories ?? []).map((c) => ({ name: c.name, tokens: c.tokens })),
+        mcpServers: [...byServer.entries()]
+          .map(([name, tokens]) => ({ name, tokens }))
+          .sort((a, b) => b.tokens - a.tokens)
+      }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+
+  async planLimits(): Promise<PlanLimits> {
+    const report = await this.q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET()
+    const window = (
+      w: { utilization: number | null; resets_at: string | null } | null | undefined
+    ): { utilization: number; resetsAt?: number } | undefined => {
+      if (!w || w.utilization === null) return undefined
+      return {
+        utilization: w.utilization,
+        ...(w.resets_at ? { resetsAt: Date.parse(w.resets_at) } : {})
+      }
+    }
+    return {
+      available: report.rate_limits_available,
+      subscriptionType: report.subscription_type ?? undefined,
+      fiveHour: window(report.rate_limits?.five_hour),
+      sevenDay: window(report.rate_limits?.seven_day),
+      fetchedAt: Date.now()
     }
   }
 
@@ -574,5 +638,30 @@ export const sessionManager = {
   disposeAll(): void {
     for (const h of handles.values()) h.dispose()
     handles.clear()
+  },
+  /** Plan rate-limit windows, fetched through any live session (60s cache). */
+  async limits(): Promise<PlanLimits> {
+    const first = handles.values().next().value as SessionHandle | undefined
+    return first ? refreshPlanLimits(first) : lastLimits
   }
+}
+
+// ---- plan rate-limit state (shared across sessions — limits are per account) ----
+
+let lastLimits: PlanLimits = { available: false, fetchedAt: 0 }
+let limitsInFlight = false
+const LIMITS_TTL = 60_000
+
+async function refreshPlanLimits(handle: SessionHandle): Promise<PlanLimits> {
+  if (limitsInFlight || Date.now() - lastLimits.fetchedAt < LIMITS_TTL) return lastLimits
+  limitsInFlight = true
+  try {
+    lastLimits = await handle.planLimits()
+    broadcast('limits:update', lastLimits)
+  } catch {
+    // experimental endpoint unavailable — bars just stay hidden
+  } finally {
+    limitsInFlight = false
+  }
+  return lastLimits
 }

@@ -4,12 +4,14 @@ import type {
   AuthState,
   BranchInfo,
   ChangedFile,
+  ContextBreakdown,
   DesktopConnector,
   DirEntry,
   ImageAttachment,
   MemoryFile,
   ModelInfo,
   PermissionMode,
+  PlanLimits,
   PortInfo,
   ProjectSummary,
   Provider,
@@ -42,6 +44,7 @@ export interface Invokes {
   'session:setPermissionMode': (a: { tabId: string; mode: PermissionMode }) => void
   'session:setModel': (a: { tabId: string; model: string }) => void
   'session:supportedModels': (a: { tabId: string }) => ModelInfo[]
+  'session:contextUsage': (a: { tabId: string }) => ContextBreakdown | { error: string }
   'session:close': (a: { tabId: string }) => void
 
   'approval:respond': (
@@ -69,6 +72,8 @@ export interface Invokes {
   }) => { markdown: string; suggestedName: string } | { error: string }
 
   'usage:getAll': () => Record<string, UsageTotals>
+  /** Plan rate-limit windows (5h / weekly), fetched through any live session. */
+  'usage:limits': () => PlanLimits
 
   'settings:get': () => AppSettings
   'settings:set': (a: Partial<AppSettings>) => AppSettings
@@ -139,6 +144,8 @@ export interface Events {
   'usage:update': { tabId: string; sessionId: string; totals: UsageTotals }
   /** Sidecar asks the frontend to show an OS notification (focus-checked there). */
   'notify': { title: string; body: string }
+  /** Fresh plan rate-limit snapshot (from rate_limit_events or usage fetches). */
+  'limits:update': PlanLimits
 }
 
 export type InvokeChannel = keyof Invokes
@@ -151,5 +158,6 @@ export const EVENT_CHANNELS: EventChannel[] = [
   'approval:cancelled',
   'auth:state',
   'usage:update',
-  'notify'
+  'notify',
+  'limits:update'
 ]
