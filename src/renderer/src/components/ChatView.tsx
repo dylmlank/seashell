@@ -52,9 +52,18 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
       active ? 'text-accent' : 'text-text-dim hover:text-text'
     )
 
+  // The main workspace tabs — prominent, bordered, centered in the header.
+  const tabBtn = (active: boolean): string =>
+    clsx(
+      'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-all',
+      active
+        ? 'border-accent bg-accent/15 text-accent shadow-md shadow-accent/20'
+        : 'border-border bg-surface/70 text-text-dim hover:-translate-y-px hover:border-accent-dim/70 hover:text-text'
+    )
+
   return (
     <div className="chat-wash flex h-full flex-col">
-      <div className="flex items-center gap-3 border-b border-border/40 px-4 py-2 text-xs text-text-dim">
+      <div className="relative flex items-center gap-3 border-b border-border/40 px-4 py-2.5 text-xs text-text-dim">
         <span className="flex items-center gap-1.5" title={tab.cwd}>
           <span className={`h-2 w-2 rounded-full ${statusDot}`} />
           <Folder size={13} />
@@ -74,6 +83,58 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             OpenRouter
           </span>
         )}
+        {/* Workspace tabs — centered */}
+        <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2">
+          <button
+            onClick={() => setPanel('files')}
+            title="Project files (Ctrl+B)"
+            className={tabBtn(panel === 'files')}
+          >
+            <FolderTree size={14} />
+            Files
+          </button>
+          <button
+            onClick={() => setPanel('editor')}
+            title="Code editor — open files from the Files panel or Ctrl+P"
+            className={tabBtn(panel === 'editor')}
+          >
+            <Code2 size={14} />
+            Editor
+          </button>
+          <button
+            onClick={() => setPanel('terminal')}
+            title="Terminal in this folder (Ctrl+`)"
+            className={tabBtn(panel === 'terminal')}
+          >
+            <SquareTerminal size={14} />
+            Terminal
+          </button>
+          <button
+            onClick={() => setPanel('sidechat')}
+            title="Side chat — a separate conversation for quick questions"
+            className={tabBtn(panel === 'sidechat')}
+          >
+            <MessagesSquare size={14} />
+            Side chat
+          </button>
+          {tab.lastArtifact && (
+            <button
+              onClick={() => {
+                setSeenArtifact(tab.lastArtifact)
+                setPanel('preview')
+              }}
+              title={`Preview ${tab.lastArtifact}`}
+              className={clsx(tabBtn(panel === 'preview'), 'relative')}
+            >
+              <Eye size={14} />
+              Preview
+              {panel !== 'preview' && tab.lastArtifact !== seenArtifact && (
+                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
+              )}
+            </button>
+          )}
+        </div>
+
         <span className="ml-auto flex items-center gap-1.5">
           {(tab.contextUsage ?? tab.usage) && (
             <button
@@ -106,54 +167,6 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
                   </span>
                 )}
               </span>
-            </button>
-          )}
-          <button
-            onClick={() => setPanel('files')}
-            title="Project files (Ctrl+B)"
-            className={headerBtn(panel === 'files')}
-          >
-            <FolderTree size={14} />
-            Files
-          </button>
-          <button
-            onClick={() => setPanel('editor')}
-            title="Code editor — open files from the Files panel or Ctrl+P"
-            className={headerBtn(panel === 'editor')}
-          >
-            <Code2 size={14} />
-            Editor
-          </button>
-          <button
-            onClick={() => setPanel('terminal')}
-            title="Terminal in this folder (Ctrl+`)"
-            className={headerBtn(panel === 'terminal')}
-          >
-            <SquareTerminal size={14} />
-            Terminal
-          </button>
-          <button
-            onClick={() => setPanel('sidechat')}
-            title="Side chat — a separate conversation for quick questions"
-            className={headerBtn(panel === 'sidechat')}
-          >
-            <MessagesSquare size={14} />
-            Side chat
-          </button>
-          {tab.lastArtifact && (
-            <button
-              onClick={() => {
-                setSeenArtifact(tab.lastArtifact)
-                setPanel('preview')
-              }}
-              title={`Preview ${tab.lastArtifact}`}
-              className={clsx(headerBtn(panel === 'preview'), 'relative')}
-            >
-              <Eye size={14} />
-              Preview
-              {panel !== 'preview' && tab.lastArtifact !== seenArtifact && (
-                <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-accent" />
-              )}
             </button>
           )}
           <button
