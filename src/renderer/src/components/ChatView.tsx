@@ -8,7 +8,8 @@ import {
   Folder,
   FolderTree,
   MessagesSquare,
-  SquareTerminal
+  SquareTerminal,
+  Waypoints
 } from 'lucide-react'
 import clsx from 'clsx'
 import { contextWindow } from '../lib/models'
@@ -30,6 +31,7 @@ import { SidePanelShell } from './Resizable'
 import { SessionInfoPanel } from './SessionInfoPanel'
 import { SideChatPanel } from './SideChatPanel'
 import { TerminalPanel } from './TerminalPanel'
+import { WorkflowPanel } from './WorkflowPanel'
 
 export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
   const streaming = tab.status === 'streaming'
@@ -116,6 +118,14 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
           >
             <MessagesSquare size={14} />
             Side chat
+          </button>
+          <button
+            onClick={() => setPanel('workflow')}
+            title="How this project fits together — modules, API calls, composition"
+            className={tabBtn(panel === 'workflow')}
+          >
+            <Waypoints size={14} />
+            Workflow
           </button>
           {tab.lastArtifact && (
             <button
@@ -242,6 +252,11 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
         {panel === 'memory' && (
           <SidePanelShell storageKey="memory" defaultWidth={340}>
             <MemoryPanel tabId={tab.tabId} />
+          </SidePanelShell>
+        )}
+        {panel === 'workflow' && (
+          <SidePanelShell storageKey="workflow" defaultWidth={620}>
+            <WorkflowPanel tabId={tab.tabId} />
           </SidePanelShell>
         )}
       </div>

@@ -7,6 +7,7 @@ export type SidePanel =
   | 'preview'
   | 'memory'
   | 'editor'
+  | 'workflow'
   | null
 
 interface UiStore {

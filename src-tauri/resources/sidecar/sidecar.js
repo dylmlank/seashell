@@ -28072,8 +28072,8 @@ Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resour
 // src/sidecar/ipc.ts
 import { spawn as spawn4 } from "child_process";
 import { rmSync as rmSync3 } from "fs";
-import { readdir as readdir4, readFile as readFile6, writeFile as writeFile3 } from "fs/promises";
-import { extname, join as join15, resolve as resolve2 } from "path";
+import { readdir as readdir4, readFile as readFile7, writeFile as writeFile3 } from "fs/promises";
+import { extname, join as join16, resolve as resolve2 } from "path";
 
 // src/sidecar/approvals.ts
 import { randomUUID } from "crypto";
@@ -28991,6 +28991,211 @@ var previews = {
   }
 };
 
+// src/sidecar/project-map.ts
+import { readFile as readFile5 } from "fs/promises";
+import { existsSync as existsSync6, readFileSync as readFileSync5 } from "fs";
+import { join as join12 } from "path";
+var SOURCE_EXT = new Set([
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "mjs",
+  "cjs",
+  "rs",
+  "py",
+  "cs",
+  "lua",
+  "go",
+  "java",
+  "c",
+  "cpp",
+  "h",
+  "html",
+  "css",
+  "scss",
+  "vue",
+  "svelte",
+  "ps1",
+  "sh"
+]);
+var LANG_INFO = {
+  ts: ["#3178c6", "TypeScript"],
+  tsx: ["#3178c6", "TypeScript"],
+  js: ["#f1e05a", "JavaScript"],
+  jsx: ["#f1e05a", "JavaScript"],
+  mjs: ["#f1e05a", "JavaScript"],
+  cjs: ["#f1e05a", "JavaScript"],
+  rs: ["#dea584", "Rust"],
+  py: ["#3572a5", "Python"],
+  cs: ["#178600", "C#"],
+  lua: ["#000080", "Lua"],
+  go: ["#00add8", "Go"],
+  java: ["#b07219", "Java"],
+  c: ["#555555", "C"],
+  cpp: ["#f34b7d", "C++"],
+  h: ["#555555", "C"],
+  html: ["#e34c26", "HTML"],
+  css: ["#663399", "CSS"],
+  scss: ["#663399", "CSS"],
+  vue: ["#41b883", "Vue"],
+  svelte: ["#ff3e00", "Svelte"],
+  ps1: ["#012456", "PowerShell"],
+  sh: ["#89e051", "Shell"]
+};
+var MAX_FILES_READ = 400;
+var MAX_FILE_BYTES = 200000;
+function moduleOf(rel) {
+  const parts = rel.split("/");
+  if (parts.length === 1)
+    return "(root)";
+  if (parts[0] === "src" && parts.length > 2)
+    return `src/${parts[1]}`;
+  return parts[0];
+}
+function detectStack(cwd) {
+  const stack = [];
+  try {
+    const pkg = JSON.parse(readFileSync5(join12(cwd, "package.json"), "utf8"));
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    const known = [
+      ["react", "React"],
+      ["vue", "Vue"],
+      ["svelte", "Svelte"],
+      ["next", "Next.js"],
+      ["vite", "Vite"],
+      ["electron", "Electron"],
+      ["@tauri-apps/api", "Tauri"],
+      ["express", "Express"],
+      ["fastify", "Fastify"],
+      ["tailwindcss", "Tailwind"],
+      ["typescript", "TypeScript"],
+      ["zustand", "zustand"],
+      ["@anthropic-ai/claude-agent-sdk", "Claude Agent SDK"],
+      ["@anthropic-ai/sdk", "Claude API"]
+    ];
+    for (const [dep, label] of known)
+      if (deps[dep])
+        stack.push(label);
+  } catch {}
+  if (existsSync6(join12(cwd, "Cargo.toml")) || existsSync6(join12(cwd, "src-tauri", "Cargo.toml")))
+    stack.push("Rust");
+  if (existsSync6(join12(cwd, "requirements.txt")) || existsSync6(join12(cwd, "pyproject.toml")))
+    stack.push("Python");
+  if (existsSync6(join12(cwd, "bun.lock")) || existsSync6(join12(cwd, "bunfig.toml")))
+    stack.push("Bun");
+  if (existsSync6(join12(cwd, ".git")))
+    stack.push("git");
+  return [...new Set(stack)];
+}
+function loadAliases(cwd) {
+  const aliases = [];
+  for (const name of ["tsconfig.json", "tsconfig.web.json", "tsconfig.base.json"]) {
+    try {
+      const raw = readFileSync5(join12(cwd, name), "utf8").replace(/\/\/[^\n"]*$/gm, "");
+      const paths = JSON.parse(raw).compilerOptions?.paths;
+      for (const [key, targets] of Object.entries(paths ?? {})) {
+        if (!targets[0])
+          continue;
+        aliases.push([key.replace(/\*$/, ""), targets[0].replace(/^\.\//, "").replace(/\*$/, "")]);
+      }
+    } catch {}
+  }
+  aliases.push(["@/", "src/"]);
+  return aliases;
+}
+function resolveImportModule(fromRel, spec, aliases) {
+  for (const [prefix, target] of aliases) {
+    if (spec.startsWith(prefix))
+      return moduleOf(target + spec.slice(prefix.length));
+  }
+  if (!spec.startsWith("."))
+    return null;
+  const fromDir = fromRel.split("/").slice(0, -1);
+  const parts = [...fromDir];
+  for (const seg of spec.split("/")) {
+    if (seg === "." || seg === "")
+      continue;
+    else if (seg === "..")
+      parts.pop();
+    else
+      parts.push(seg);
+  }
+  return moduleOf(parts.join("/"));
+}
+var IMPORT_RE = /(?:import\s[^'"]*from\s*|import\s*\(\s*|require\s*\(\s*|export\s[^'"]*from\s*)['"]([^'"]+)['"]/g;
+var URL_RE = /(https?|wss?):\/\/([a-zA-Z0-9.-]+(?::\d+)?)/g;
+async function analyzeProject(cwd) {
+  const files = await listProjectFiles(cwd);
+  const aliases = loadAliases(cwd);
+  const langAgg = new Map;
+  const moduleAgg = new Map;
+  const edgeAgg = new Map;
+  const externalAgg = new Map;
+  let totalLines = 0;
+  let read = 0;
+  for (const rel of files) {
+    const ext = rel.split(".").pop()?.toLowerCase() ?? "";
+    if (!SOURCE_EXT.has(ext))
+      continue;
+    if (read >= MAX_FILES_READ)
+      break;
+    read++;
+    let text;
+    try {
+      const buf = await readFile5(join12(cwd, rel));
+      if (buf.length > MAX_FILE_BYTES)
+        continue;
+      text = buf.toString("utf8");
+    } catch {
+      continue;
+    }
+    const lines = text.split(`
+`).length;
+    totalLines += lines;
+    const [color, langName] = LANG_INFO[ext] ?? ["#6b7280", ext];
+    const lang = langAgg.get(langName) ?? { color, lines: 0, files: 0 };
+    lang.lines += lines;
+    lang.files++;
+    langAgg.set(langName, lang);
+    const mod = moduleOf(rel);
+    const m = moduleAgg.get(mod) ?? { files: 0, lines: 0 };
+    m.files++;
+    m.lines += lines;
+    moduleAgg.set(mod, m);
+    for (const match of text.matchAll(IMPORT_RE)) {
+      const target = resolveImportModule(rel, match[1], aliases);
+      if (target && target !== mod) {
+        const key = `${mod}\u2192${target}`;
+        edgeAgg.set(key, (edgeAgg.get(key) ?? 0) + 1);
+      }
+    }
+    for (const match of text.matchAll(URL_RE)) {
+      const host = match[2];
+      if (host === "www.w3.org" || host === "schema.tauri.app")
+        continue;
+      const kind = match[1].startsWith("ws") ? "ws" : "http";
+      const entry = externalAgg.get(host) ?? { kind, count: 0, files: new Set };
+      entry.count++;
+      if (entry.files.size < 5)
+        entry.files.add(rel);
+      externalAgg.set(host, entry);
+    }
+  }
+  return {
+    stack: detectStack(cwd),
+    languages: [...langAgg.entries()].map(([name, v7]) => ({ name, ...v7 })).sort((a, b) => b.lines - a.lines),
+    modules: [...moduleAgg.entries()].map(([name, v7]) => ({ name, ...v7 })).sort((a, b) => b.lines - a.lines).slice(0, 12),
+    edges: [...edgeAgg.entries()].map(([key, count]) => {
+      const [from, to2] = key.split("\u2192");
+      return { from, to: to2, count };
+    }).sort((a, b) => b.count - a.count).slice(0, 40),
+    externals: [...externalAgg.entries()].map(([host, v7]) => ({ host, kind: v7.kind, count: v7.count, files: [...v7.files] })).sort((a, b) => b.count - a.count).slice(0, 12),
+    totalFiles: files.length,
+    totalLines
+  };
+}
+
 // src/sidecar/session-manager.ts
 init_sdk();
 
@@ -29036,10 +29241,10 @@ class AsyncQueue {
 }
 
 // src/sidecar/retrospective.ts
-import { existsSync as existsSync6, mkdirSync as mkdirSync4, writeFileSync as writeFileSync3 } from "fs";
+import { existsSync as existsSync7, mkdirSync as mkdirSync4, writeFileSync as writeFileSync3 } from "fs";
 import { homedir as homedir5 } from "os";
-import { join as join12 } from "path";
-var SKILL_DIR = join12(homedir5(), ".claude", "skills", "shell-retrospective");
+import { join as join13 } from "path";
+var SKILL_DIR = join13(homedir5(), ".claude", "skills", "shell-retrospective");
 var SKILL_MD = `---
 name: shell-retrospective
 description: Brief end-of-turn retrospective \u2014 capture durable lessons from the exchange that just happened into persistent memory. Invoked automatically by Claude Shell when auto-retrospective is enabled.
@@ -29055,10 +29260,10 @@ Hard limits: no code changes, no file edits outside the memory directory, reply 
 `;
 function ensureRetrospectiveSkill() {
   try {
-    if (!existsSync6(SKILL_DIR))
+    if (!existsSync7(SKILL_DIR))
       mkdirSync4(SKILL_DIR, { recursive: true });
-    const file3 = join12(SKILL_DIR, "SKILL.md");
-    if (!existsSync6(file3))
+    const file3 = join13(SKILL_DIR, "SKILL.md");
+    if (!existsSync7(file3))
       writeFileSync3(file3, SKILL_MD);
   } catch (err) {
     console.error("failed to install shell-retrospective skill:", err);
@@ -29067,15 +29272,15 @@ function ensureRetrospectiveSkill() {
 var RETRO_PROMPT = "Run your shell-retrospective skill now for the exchange above. At most 3 short lines.";
 
 // src/sidecar/usage-store.ts
-import { readFileSync as readFileSync5, writeFileSync as writeFileSync4 } from "fs";
-import { join as join13 } from "path";
-var file3 = () => join13(userDataDir(), "usage.json");
+import { readFileSync as readFileSync6, writeFileSync as writeFileSync4 } from "fs";
+import { join as join14 } from "path";
+var file3 = () => join14(userDataDir(), "usage.json");
 var cache3 = null;
 function load() {
   if (cache3)
     return cache3;
   try {
-    cache3 = JSON.parse(readFileSync5(file3(), "utf8"));
+    cache3 = JSON.parse(readFileSync6(file3(), "utf8"));
   } catch {
     cache3 = {};
   }
@@ -29674,10 +29879,10 @@ async function refreshPlanLimits(handle) {
 }
 
 // src/sidecar/transcript-search.ts
-import { readdir as readdir3, readFile as readFile5, stat as stat2 } from "fs/promises";
+import { readdir as readdir3, readFile as readFile6, stat as stat2 } from "fs/promises";
 import { homedir as homedir6 } from "os";
-import { join as join14 } from "path";
-var projectsRoot = () => join14(homedir6(), ".claude", "projects");
+import { join as join15 } from "path";
+var projectsRoot = () => join15(homedir6(), ".claude", "projects");
 var cache4 = new Map;
 function extractText(content) {
   if (typeof content === "string")
@@ -29698,7 +29903,7 @@ async function parseFile(path, mtimeMs) {
     return cached;
   const entry = { mtimeMs, texts: [] };
   try {
-    const raw = await readFile5(path, "utf8");
+    const raw = await readFile6(path, "utf8");
     for (const line of raw.split(`
 `)) {
       if (!line.trim())
@@ -29735,7 +29940,7 @@ var transcriptSearch = {
     const root = projectsRoot();
     let projectDirs;
     try {
-      projectDirs = (await readdir3(root, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => join14(root, d.name));
+      projectDirs = (await readdir3(root, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => join15(root, d.name));
     } catch {
       return [];
     }
@@ -29745,7 +29950,7 @@ var transcriptSearch = {
         for (const f of await readdir3(dir)) {
           if (!f.endsWith(".jsonl"))
             continue;
-          const path = join14(dir, f);
+          const path = join15(dir, f);
           const st2 = await stat2(path);
           files.push({ path, sessionId: f.slice(0, -6), mtimeMs: st2.mtimeMs });
         }
@@ -29780,7 +29985,7 @@ var transcriptSearch = {
       for (const d of await readdir3(root, { withFileTypes: true })) {
         if (!d.isDirectory())
           continue;
-        const candidate = join14(root, d.name, `${sessionId}.jsonl`);
+        const candidate = join15(root, d.name, `${sessionId}.jsonl`);
         try {
           await stat2(candidate);
           found = candidate;
@@ -29794,7 +29999,7 @@ var transcriptSearch = {
       return null;
     const lines = [];
     let cwd;
-    const raw = await readFile5(found, "utf8");
+    const raw = await readFile6(found, "utf8");
     for (const line of raw.split(`
 `)) {
       if (!line.trim())
@@ -29889,7 +30094,7 @@ var handlers = {
   },
   "fs:readFile": async (a) => {
     try {
-      const content = await readFile6(a.path, "utf8");
+      const content = await readFile7(a.path, "utf8");
       return { content };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -29900,7 +30105,7 @@ var handlers = {
       const mediaType = IMAGE_MEDIA[extname(a.path).toLowerCase()];
       if (!mediaType)
         return { error: "Not a supported image type" };
-      const buf = await readFile6(a.path);
+      const buf = await readFile7(a.path);
       return { data: buf.toString("base64"), mediaType };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -29988,14 +30193,18 @@ var handlers = {
     return h ? memoryFiles.remove(h.cwd, a.name) : { error: "Session not found" };
   },
   "dictation:start": () => startDictation(),
+  "project:map": (a) => {
+    const h = sessionManager.get(a.tabId);
+    return h ? analyzeProject(h.cwd) : { error: "Session not found" };
+  },
   "previews:cards": () => previews.cards(),
   "previews:capture": (a) => previews.capture(a.cwd, a.url),
   "shots:captureFile": async (a) => {
-    const tmp = join15(userDataDir(), "previews", `file-shot-${process.pid}-${Math.random().toString(36).slice(2)}.png`);
+    const tmp = join16(userDataDir(), "previews", `file-shot-${process.pid}-${Math.random().toString(36).slice(2)}.png`);
     const ok = await captureShot(`file:///${a.path.replace(/\\/g, "/")}`, tmp, a.width ?? 1280, a.height ?? 800);
     if (!ok)
       return { error: "File capture failed" };
-    const data = (await readFile6(tmp)).toString("base64");
+    const data = (await readFile7(tmp)).toString("base64");
     rmSync3(tmp, { force: true });
     return { data };
   },
@@ -30006,7 +30215,7 @@ var handlers = {
     const h = sessionManager.get(a.tabId);
     if (!h)
       return { error: "Session not found" };
-    const target = resolve2(join15(h.cwd, a.rel));
+    const target = resolve2(join16(h.cwd, a.rel));
     if (!target.startsWith(resolve2(h.cwd)))
       return { error: "Path outside project" };
     try {
@@ -30027,7 +30236,7 @@ var handlers = {
     const h = sessionManager.get(a.tabId);
     if (!h)
       return { error: "Session not found" };
-    const target = resolve2(join15(h.cwd, a.rel));
+    const target = resolve2(join16(h.cwd, a.rel));
     if (!target.startsWith(resolve2(h.cwd)))
       return { error: "Path outside project" };
     try {
@@ -30042,7 +30251,7 @@ var handlers = {
   },
   "previews:clearCache": () => {
     try {
-      rmSync3(join15(userDataDir(), "previews"), { recursive: true, force: true });
+      rmSync3(join16(userDataDir(), "previews"), { recursive: true, force: true });
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };

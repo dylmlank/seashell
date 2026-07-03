@@ -16,6 +16,7 @@ import { memoryFiles } from './memory-files'
 import { userDataDir } from './paths'
 import { ports } from './ports'
 import { captureShot, previews } from './previews'
+import { analyzeProject } from './project-map'
 import { secrets } from './secrets'
 import { sessionManager } from './session-manager'
 import { settingsStore } from './settings-store'
@@ -181,6 +182,11 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   },
 
   'dictation:start': () => startDictation(),
+
+  'project:map': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? analyzeProject(h.cwd) : { error: 'Session not found' }
+  },
 
   'previews:cards': () => previews.cards(),
   'previews:capture': (a) => previews.capture(a.cwd, a.url),

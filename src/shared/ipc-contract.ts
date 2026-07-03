@@ -13,6 +13,7 @@ import type {
   PermissionMode,
   PlanLimits,
   PortInfo,
+  ProjectMap,
   ProjectPreview,
   ProjectSummary,
   Provider,
@@ -130,6 +131,8 @@ export interface Invokes {
   'memory:delete': (a: { tabId: string; name: string }) => { ok: true } | { error: string }
 
   'dictation:start': () => { ok: true } | { error: string }
+
+  'project:map': (a: { tabId: string }) => ProjectMap | { error: string }
 
   'previews:cards': () => ProjectPreview[]
   'previews:capture': (a: { cwd: string; url: string }) => { ok: true } | { error: string }

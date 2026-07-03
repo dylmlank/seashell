@@ -233,6 +233,23 @@ export interface ContextBreakdown {
   mcpServers: { name: string; tokens: number }[]
 }
 
+/** Static-analysis map of a project for the Workflow tab. */
+export interface ProjectMap {
+  /** Detected tech (frameworks, runtimes, tooling). */
+  stack: string[]
+  /** Language composition by lines of code. */
+  languages: { name: string; color: string; lines: number; files: number }[]
+  /** Top-level modules (directories) with size. */
+  modules: { name: string; files: number; lines: number }[]
+  /** Import edges between modules (who depends on whom). */
+  edges: { from: string; to: string; count: number }[]
+  /** External services the code calls (http/ws hosts). */
+  externals: { host: string; kind: 'http' | 'ws'; count: number; files: string[] }[]
+  /** Total files scanned. */
+  totalFiles: number
+  totalLines: number
+}
+
 /** A project folder with a generated visual preview. */
 export interface ProjectPreview {
   cwd: string
