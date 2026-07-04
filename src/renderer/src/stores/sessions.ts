@@ -319,6 +319,9 @@ export const useSessions = create<SessionsStore>((set) => ({
         if (event.kind === 'cycle') {
           patch.cyclePhase = event.phase
         }
+        if (event.kind === 'model') {
+          patch.model = event.model
+        }
         if (event.kind === 'context_usage') {
           patch.contextUsage = {
             totalTokens: event.totalTokens,
