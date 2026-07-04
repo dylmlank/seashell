@@ -663,8 +663,8 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
               </select>
             </Row>
             <Row
-              label="Reopen last project on launch"
-              hint="Skip the welcome screen and jump straight back into what you were doing."
+              label="Pick up where you left off"
+              hint="On launch, resume the sessions that were open when the app closed — conversations included."
             >
               <Toggle
                 checked={settings.reopenLastProject}

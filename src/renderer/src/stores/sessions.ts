@@ -63,6 +63,8 @@ export interface TabState {
   side?: boolean
   /** Set when this session runs in an isolated git worktree (merge-back UI). */
   worktree?: { branch: string }
+  /** Chat title — the first thing the user asked (Claude Desktop-style). */
+  title?: string
   /** Messages typed while a turn was running — sent automatically when idle. */
   queue?: { text: string; images?: ImageAttachment[] }[]
   /** Path of the last previewable file (HTML/SVG/Markdown) Claude wrote. */
@@ -346,6 +348,13 @@ export function appendItem(tabId: string, item: Omit<ChatItem, 'id'>): void {
 
 if (!window.__sessionsWired) {
   window.__sessionsWired = true
+  // Remember what's open so a restart can pick up where you left off.
+  useSessions.subscribe((state) => {
+    const open = state.tabs
+      .filter((t) => !t.side)
+      .map((t) => ({ cwd: t.cwd, sessionId: t.sdkSessionId, title: t.title }))
+    localStorage.setItem('open-tabs', JSON.stringify(open))
+  })
   window.api.on('session:event', ({ tabId, event }) => {
     useSessions.getState().applyEvent(tabId, event)
     // Successful real turns (not retro/compact) may deserve visual proof.
@@ -441,7 +450,9 @@ export function sendMessage(tabId: string, text: string, images?: ImageAttachmen
       ...tab.items,
       { kind: 'user', id: nextId(), text, imageCount: images?.length || undefined }
     ],
-    status: 'streaming'
+    status: 'streaming',
+    // First message names the chat, like Claude Desktop.
+    ...(tab.title ? {} : { title: text.trim().slice(0, 60) })
   })
   void window.api.invoke('session:send', { tabId, text, images })
   // Snap a "before" frame now so visual turns can show a real diff.

@@ -26,7 +26,7 @@ const DEFAULTS: AppSettings = {
   terminalFontSize: 13,
   editorFontSize: 13,
   smoothStreaming: true,
-  reopenLastProject: false,
+  reopenLastProject: true,
   chatWidth: 'wide',
   defaultThinkingLevel: 'high',
   smartThinking: true,

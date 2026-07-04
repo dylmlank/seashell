@@ -137,7 +137,16 @@ export function Sidebar({
                   )}
                 >
                   {meta.icon}
-                  <span className="min-w-0 flex-1 truncate">{basename(tab.cwd)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate leading-tight">
+                      {tab.title ?? basename(tab.cwd)}
+                    </span>
+                    {tab.title && (
+                      <span className="block truncate text-[10px] leading-tight text-text-dim/60">
+                        {basename(tab.cwd)}
+                      </span>
+                    )}
+                  </span>
                   {needsInput && (
                     <span className="shrink-0 rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 group-hover:hidden">
                       Needs you

@@ -177,14 +177,47 @@ export default function App(): React.JSX.Element {
   const reopenLast = useSettings((s) => s.settings.reopenLastProject)
   const reopened = useRef(false)
 
-  // Optional: jump straight back into the last project on launch.
+  // Pick up where you left off: resume the sessions that were open when the
+  // app last closed (falls back to just opening the last project).
   useEffect(() => {
     if (reopened.current || !settingsLoaded || !reopenLast) return
     reopened.current = true
     if (tabs.length > 0) return
+    try {
+      const saved = JSON.parse(localStorage.getItem('open-tabs') ?? 'null') as
+        | { cwd: string; sessionId?: string; title?: string }[]
+        | null
+      if (saved && saved.length > 0) {
+        for (const t of saved.slice(0, 6)) {
+          void createTab(t.cwd, t.sessionId)
+            .then((tabId) => {
+              if (t.title) useSessions.getState().update(tabId, { title: t.title })
+            })
+            .catch(() => {})
+        }
+        return
+      }
+      if (saved) return // user closed everything on purpose — respect it
+    } catch {
+      // corrupt snapshot — fall through to the last-project fallback
+    }
     const last = localStorage.getItem('last-project')
     if (last) void createTab(last).catch(() => {})
   }, [settingsLoaded, reopenLast, tabs.length])
+
+  // Ctrl+N: new chat in the current project, no folder picker (Desktop-style).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!e.ctrlKey || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'n') return
+      e.preventDefault()
+      const cwd =
+        useSessions.getState().tabs.find((t) => t.tabId === useSessions.getState().activeTabId)
+          ?.cwd ?? localStorage.getItem('last-project')
+      if (cwd) void createTab(cwd).catch(() => {})
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   if (authState.state === 'loggedOut') {
     return <OnboardingView reason={authState.detail} />
