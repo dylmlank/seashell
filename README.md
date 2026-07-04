@@ -1,6 +1,6 @@
-# Claude Shell
+# 🐚 Seashell
 
-A Windows desktop app for Claude Code — like Claude Desktop, but it drives the real Claude Code agent in your own project folders, using your Claude subscription. Built on **Tauri (Rust) + Bun** — the UI is a native WebView2 window, terminals are native ptys, and the Claude Agent SDK runs in a Bun sidecar.
+**Seashell** (sea-shell → C-shell → *Claude* shell) is a Windows desktop app for Claude Code — like Claude Desktop, but it drives the real Claude Code agent in your own project folders, using your Claude subscription. Built on **Tauri (Rust) + Bun** — the UI is a native WebView2 window, terminals are native ptys, and the Claude Agent SDK runs in a Bun sidecar.
 
 ## Features
 
@@ -15,6 +15,7 @@ A Windows desktop app for Claude Code — like Claude Desktop, but it drives the
 - **Session history** — browse and resume past Claude Code sessions (including ones from the terminal CLI); resumed chats rebuild their full transcript
 - **Usage dashboard** — per-session tokens, cache hits, cost, and a live context-window gauge
 - **Claude account login** — uses your existing `claude /login` automatically; if logged out, a guided `claude setup-token` flow stores a token encrypted with Windows DPAPI
+- **Multiple providers** — your Claude subscription by default, OpenRouter credits, or any custom Anthropic-compatible endpoint (LiteLLM/local proxies, other gateways), switchable per session
 
 ## Requirements
 

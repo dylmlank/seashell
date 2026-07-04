@@ -10,11 +10,14 @@ interface SecretsFile {
   oauthToken?: string
   /** base64 of DPAPI-encrypted OpenRouter API key */
   openrouterKey?: string
+  /** base64 of DPAPI-encrypted custom-endpoint API key */
+  customKey?: string
 }
 
-const memory: { oauthToken: string | null; openrouterKey: string | null } = {
+const memory: { oauthToken: string | null; openrouterKey: string | null; customKey: string | null } = {
   oauthToken: null,
-  openrouterKey: null
+  openrouterKey: null,
+  customKey: null
 }
 
 // DPAPI (CurrentUser) via .NET ProtectedData — the same Windows API Electron's
@@ -95,5 +98,15 @@ export const secrets = {
   },
   clearOpenRouterKey(): void {
     clear('openrouterKey')
+  },
+
+  getCustomKey(): string | null {
+    return (memory.customKey ??= decrypt(readSecrets().customKey))
+  },
+  saveCustomKey(key: string): boolean {
+    return save('customKey', key)
+  },
+  clearCustomKey(): void {
+    clear('customKey')
   }
 }

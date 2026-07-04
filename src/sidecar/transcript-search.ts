@@ -193,7 +193,7 @@ export const transcriptSearch = {
     const header = [
       `# Claude session ${sessionId}`,
       '',
-      `*Exported from Claude Shell on ${new Date().toLocaleString()}${cwd ? ` · project: \`${cwd}\`` : ''}*`,
+      `*Exported from Seashell on ${new Date().toLocaleString()}${cwd ? ` · project: \`${cwd}\`` : ''}*`,
       ''
     ].join('\n')
     return `${header}\n${lines.join('\n\n')}\n`

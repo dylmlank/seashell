@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-// Claude Shell sidecar — the whole "main process" now runs under Bun, spawned
+// Seashell sidecar — the whole "main process" now runs under Bun, spawned
 // and supervised by the Tauri (Rust) shell. The frontend talks to it over a
 // localhost WebSocket speaking the same channels as the old Electron IPC.
 import type { ServerWebSocket } from 'bun'
@@ -44,7 +44,7 @@ const server = Bun.serve({
       return new Response('forbidden', { status: 403 })
     }
     if (srv.upgrade(req)) return undefined
-    return new Response('claude-shell sidecar', { status: 200 })
+    return new Response('seashell sidecar', { status: 200 })
   },
   websocket: {
     open(ws) {

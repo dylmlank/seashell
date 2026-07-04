@@ -4,8 +4,9 @@
 export type PermissionMode = 'default' | 'acceptEdits' | 'plan' | 'bypassPermissions'
 
 /** Which backend a session talks to. Anthropic = your Claude subscription;
- *  OpenRouter = pay-per-token credits billed by OpenRouter. */
-export type Provider = 'anthropic' | 'openrouter'
+ *  OpenRouter = pay-per-token credits billed by OpenRouter; custom = any
+ *  Anthropic-compatible endpoint (local proxies, other gateways). */
+export type Provider = 'anthropic' | 'openrouter' | 'custom'
 
 export type SessionStatus = 'starting' | 'idle' | 'streaming' | 'awaitingApproval' | 'error'
 
@@ -80,6 +81,10 @@ export interface AppSettings {
   defaultProvider: Provider
   /** Model id for new OpenRouter sessions (e.g. "anthropic/claude-sonnet-4.5"). */
   openrouterModel: string | null
+  /** Anthropic-compatible base URL for the custom provider (e.g. a LiteLLM proxy). */
+  customBaseUrl: string | null
+  /** Model id for new custom-provider sessions. */
+  customModel: string | null
   notifications: boolean
   /** Append a system prompt letting Claude create project skills/commands for itself. */
   allowSelfSkills: boolean
@@ -212,7 +217,7 @@ export interface PortInfo {
   process: string
 }
 
-/** State of a dev server Claude Shell launched for the live preview. */
+/** State of a dev server Seashell launched for the live preview. */
 export interface DevServerStatus {
   running: boolean
   /** True once launched but before its URL has been detected. */

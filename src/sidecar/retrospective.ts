@@ -6,7 +6,7 @@ const SKILL_DIR = join(homedir(), '.claude', 'skills', 'shell-retrospective')
 
 const SKILL_MD = `---
 name: shell-retrospective
-description: Brief end-of-turn retrospective — capture durable lessons from the exchange that just happened into persistent memory. Invoked automatically by Claude Shell when auto-retrospective is enabled.
+description: Brief end-of-turn retrospective — capture durable lessons from the exchange that just happened into persistent memory. Invoked automatically by Seashell when auto-retrospective is enabled.
 ---
 
 Look back at the exchange that just finished (the user's last request and how you handled it) and do a fast retrospective:

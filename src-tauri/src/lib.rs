@@ -1,4 +1,4 @@
-// Claude Shell — Tauri shell. Hosts the webview, owns the pty terminals, and
+// Seashell — Tauri shell. Hosts the webview, owns the pty terminals, and
 // spawns/supervises the Bun sidecar that runs the Claude Agent SDK.
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use rand::Rng;

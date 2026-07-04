@@ -28105,6 +28105,8 @@ var DEFAULTS = {
   defaultPermissionMode: "bypassPermissions",
   defaultProvider: "anthropic",
   openrouterModel: null,
+  customBaseUrl: null,
+  customModel: null,
   notifications: true,
   allowSelfSkills: true,
   autoCompact: false,
@@ -28244,7 +28246,8 @@ import { join as join3 } from "path";
 var file2 = () => join3(userDataDir(), "secrets.json");
 var memory = {
   oauthToken: null,
-  openrouterKey: null
+  openrouterKey: null,
+  customKey: null
 };
 function dpapi(direction, b64In) {
   const script = "Add-Type -AssemblyName System.Security; " + "$in = [Convert]::FromBase64String([Console]::In.ReadToEnd().Trim()); " + `$out = [Security.Cryptography.ProtectedData]::${direction}($in, $null, 'CurrentUser'); ` + "[Console]::Out.Write([Convert]::ToBase64String($out))";
@@ -28313,6 +28316,15 @@ var secrets = {
   },
   clearOpenRouterKey() {
     clear("openrouterKey");
+  },
+  getCustomKey() {
+    return memory.customKey ??= decrypt(readSecrets().customKey);
+  },
+  saveCustomKey(key) {
+    return save("customKey", key);
+  },
+  clearCustomKey() {
+    clear("customKey");
   }
 };
 
@@ -29491,7 +29503,7 @@ function writeOverviewMemory(cwd, e) {
   mkdirSync4(dir, { recursive: true });
   const body = `---
 name: project-overview
-description: How this project works \u2014 kept current automatically by Claude Shell
+description: How this project works \u2014 kept current automatically by Seashell
 metadata:
   type: project
 ---
@@ -29512,11 +29524,11 @@ ${e.parts.map((p) => `- **${p.name}** \u2014 ${p.role}`).join(`
 ${e.different.map((d) => `- ${d}`).join(`
 `)}
 
-_Auto-updated by Claude Shell: ${new Date(e.generatedAt).toISOString().slice(0, 10)}_
+_Auto-updated by Seashell: ${new Date(e.generatedAt).toISOString().slice(0, 10)}_
 `;
   writeFileSync4(join16(dir, "project-overview.md"), body, "utf8");
   const indexPath = join16(dir, "MEMORY.md");
-  const line = "- [Project Overview](project-overview.md) \u2014 how this project works, auto-updated by Claude Shell";
+  const line = "- [Project Overview](project-overview.md) \u2014 how this project works, auto-updated by Seashell";
   let index;
   try {
     index = readFileSync8(indexPath, "utf8");
@@ -29689,7 +29701,7 @@ import { join as join17 } from "path";
 var SKILL_DIR = join17(homedir6(), ".claude", "skills", "shell-retrospective");
 var SKILL_MD = `---
 name: shell-retrospective
-description: Brief end-of-turn retrospective \u2014 capture durable lessons from the exchange that just happened into persistent memory. Invoked automatically by Claude Shell when auto-retrospective is enabled.
+description: Brief end-of-turn retrospective \u2014 capture durable lessons from the exchange that just happened into persistent memory. Invoked automatically by Seashell when auto-retrospective is enabled.
 ---
 
 Look back at the exchange that just finished (the user's last request and how you handled it) and do a fast retrospective:
@@ -29798,7 +29810,7 @@ class SessionHandle {
     this.provider = opts.provider ?? "anthropic";
     this.chatOnly = opts.chatOnly ?? false;
     const settings = settingsStore.get();
-    const defaultModel = this.provider === "openrouter" ? settings.openrouterModel ?? undefined : settings.defaultModel ?? undefined;
+    const defaultModel = this.provider === "openrouter" ? settings.openrouterModel ?? undefined : this.provider === "custom" ? settings.customModel ?? undefined : settings.defaultModel ?? undefined;
     const thinkingLevel = opts.thinkingLevel ?? settings.defaultThinkingLevel ?? "off";
     const options = {
       cwd: opts.cwd,
@@ -29832,10 +29844,10 @@ class SessionHandle {
         console.error(`[session ${this.tabId}] ${line}`);
       }
     };
-    if (this.provider === "openrouter") {
+    if (this.provider !== "anthropic") {
       const env = { ...process.env };
-      env.ANTHROPIC_BASE_URL = OPENROUTER_BASE_URL;
-      env.ANTHROPIC_AUTH_TOKEN = secrets.getOpenRouterKey() ?? "";
+      env.ANTHROPIC_BASE_URL = this.provider === "openrouter" ? OPENROUTER_BASE_URL : settings.customBaseUrl ?? "";
+      env.ANTHROPIC_AUTH_TOKEN = (this.provider === "openrouter" ? secrets.getOpenRouterKey() : secrets.getCustomKey()) ?? "";
       env.ANTHROPIC_API_KEY = "";
       delete env.CLAUDE_CODE_OAUTH_TOKEN;
       options.env = env;
@@ -30520,7 +30532,7 @@ ${text.trim()}`);
     const header = [
       `# Claude session ${sessionId}`,
       "",
-      `*Exported from Claude Shell on ${new Date().toLocaleString()}${cwd ? ` \xB7 project: \`${cwd}\`` : ""}*`,
+      `*Exported from Seashell on ${new Date().toLocaleString()}${cwd ? ` \xB7 project: \`${cwd}\`` : ""}*`,
       ""
     ].join(`
 `);
@@ -30643,7 +30655,10 @@ var handlers = {
     const h = sessionManager.get(a.tabId);
     return h ? changes.commit(h.cwd, a.message, a.files) : { error: "Session not found" };
   },
-  "providers:getState": () => ({ openrouterKeySet: secrets.getOpenRouterKey() !== null }),
+  "providers:getState": () => ({
+    openrouterKeySet: secrets.getOpenRouterKey() !== null,
+    customKeySet: secrets.getCustomKey() !== null
+  }),
   "providers:saveOpenRouterKey": (a) => {
     const key = a.key.trim();
     if (!key.startsWith("sk-or-")) {
@@ -30653,6 +30668,14 @@ var handlers = {
     return { ok: true };
   },
   "providers:clearOpenRouterKey": () => secrets.clearOpenRouterKey(),
+  "providers:saveCustomKey": (a) => {
+    const key = a.key.trim();
+    if (!key)
+      return { ok: false, error: "Key is empty." };
+    secrets.saveCustomKey(key);
+    return { ok: true };
+  },
+  "providers:clearCustomKey": () => secrets.clearCustomKey(),
   "providers:listOpenRouterModels": () => listOpenRouterModels(),
   "providers:desktopMcp": () => listDesktopMcp(),
   "instructions:get": (a) => {
@@ -30798,7 +30821,7 @@ var server = Bun.serve({
     }
     if (srv.upgrade(req))
       return;
-    return new Response("claude-shell sidecar", { status: 200 });
+    return new Response("seashell sidecar", { status: 200 });
   },
   websocket: {
     open(ws2) {

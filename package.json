@@ -1,5 +1,5 @@
 {
-  "name": "claude-shell",
+  "name": "seashell",
   "version": "2.0.0",
   "description": "Desktop UI for Claude Code — Tauri + Bun. Chat, editor, terminal, approvals, history, usage.",
   "author": "Dylan",

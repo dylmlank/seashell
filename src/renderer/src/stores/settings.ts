@@ -12,6 +12,8 @@ export const useSettings = create<SettingsStore>(() => ({
     defaultPermissionMode: 'bypassPermissions',
     defaultProvider: 'anthropic',
     openrouterModel: null,
+    customBaseUrl: null,
+    customModel: null,
     notifications: true,
     allowSelfSkills: true,
     autoCompact: false,

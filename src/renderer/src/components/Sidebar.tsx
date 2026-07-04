@@ -88,10 +88,10 @@ export function Sidebar({
     <div className="flex w-64 shrink-0 flex-col border-r border-border/60 bg-[#0d0d0d]">
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-sm text-accent">
-          ✳
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-sm">
+          🐚
         </span>
-        <span className="text-sm font-semibold tracking-tight">Claude Shell</span>
+        <span className="text-sm font-semibold tracking-tight">Seashell</span>
       </div>
 
       {/* Open a project (a folder on disk) — starts its first session */}

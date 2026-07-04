@@ -120,7 +120,9 @@ class SessionHandle {
     const defaultModel =
       this.provider === 'openrouter'
         ? (settings.openrouterModel ?? undefined)
-        : (settings.defaultModel ?? undefined)
+        : this.provider === 'custom'
+          ? (settings.customModel ?? undefined)
+          : (settings.defaultModel ?? undefined)
     const thinkingLevel = opts.thinkingLevel ?? settings.defaultThinkingLevel ?? 'off'
     const options: Options = {
       cwd: opts.cwd,
@@ -173,13 +175,17 @@ class SessionHandle {
         console.error(`[session ${this.tabId}] ${line}`)
       }
     }
-    if (this.provider === 'openrouter') {
-      // Route the CLI's native Anthropic protocol at OpenRouter's compatible
-      // endpoint. Anthropic credentials must be blanked (not just unset) or the
-      // CLI falls back to its own login. Options.env REPLACES the subprocess env.
+    if (this.provider !== 'anthropic') {
+      // Route the CLI's native Anthropic protocol at a compatible endpoint
+      // (OpenRouter, or any user-configured gateway/proxy). Anthropic
+      // credentials must be blanked (not just unset) or the CLI falls back to
+      // its own login. Options.env REPLACES the subprocess env.
       const env: Record<string, string | undefined> = { ...process.env }
-      env.ANTHROPIC_BASE_URL = OPENROUTER_BASE_URL
-      env.ANTHROPIC_AUTH_TOKEN = secrets.getOpenRouterKey() ?? ''
+      env.ANTHROPIC_BASE_URL =
+        this.provider === 'openrouter' ? OPENROUTER_BASE_URL : (settings.customBaseUrl ?? '')
+      env.ANTHROPIC_AUTH_TOKEN =
+        (this.provider === 'openrouter' ? secrets.getOpenRouterKey() : secrets.getCustomKey()) ??
+        ''
       env.ANTHROPIC_API_KEY = ''
       delete env.CLAUDE_CODE_OAUTH_TOKEN
       options.env = env

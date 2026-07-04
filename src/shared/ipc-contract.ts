@@ -103,9 +103,11 @@ export interface Invokes {
     files: string[]
   }) => { ok: true } | { error: string }
 
-  'providers:getState': () => { openrouterKeySet: boolean }
+  'providers:getState': () => { openrouterKeySet: boolean; customKeySet: boolean }
   'providers:saveOpenRouterKey': (a: { key: string }) => { ok: boolean; error?: string }
   'providers:clearOpenRouterKey': () => void
+  'providers:saveCustomKey': (a: { key: string }) => { ok: boolean; error?: string }
+  'providers:clearCustomKey': () => void
   'providers:listOpenRouterModels': () => ModelInfo[] | { error: string }
   'providers:desktopMcp': () => DesktopConnector[]
 

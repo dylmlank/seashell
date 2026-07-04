@@ -49,7 +49,7 @@ export function writeOverviewMemory(cwd: string, e: ProjectExplanation): void {
   mkdirSync(dir, { recursive: true })
   const body = `---
 name: project-overview
-description: How this project works — kept current automatically by Claude Shell
+description: How this project works — kept current automatically by Seashell
 metadata:
   type: project
 ---
@@ -67,13 +67,13 @@ ${e.parts.map((p) => `- **${p.name}** — ${p.role}`).join('\n')}
 ## What makes it different
 ${e.different.map((d) => `- ${d}`).join('\n')}
 
-_Auto-updated by Claude Shell: ${new Date(e.generatedAt).toISOString().slice(0, 10)}_
+_Auto-updated by Seashell: ${new Date(e.generatedAt).toISOString().slice(0, 10)}_
 `
   writeFileSync(join(dir, 'project-overview.md'), body, 'utf8')
 
   // Make sure the memory index points at it (the index is what sessions load).
   const indexPath = join(dir, 'MEMORY.md')
-  const line = '- [Project Overview](project-overview.md) — how this project works, auto-updated by Claude Shell'
+  const line = '- [Project Overview](project-overview.md) — how this project works, auto-updated by Seashell'
   let index: string
   try {
     index = readFileSync(indexPath, 'utf8')

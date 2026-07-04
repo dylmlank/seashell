@@ -41,7 +41,7 @@ function Welcome(): React.JSX.Element {
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/15 text-3xl text-accent shadow-2xl shadow-accent/10">
             ✳
           </div>
-          <h1 className="mb-1.5 text-3xl font-semibold tracking-tight">Claude Shell</h1>
+          <h1 className="mb-1.5 text-3xl font-semibold tracking-tight">Seashell</h1>
           <p className="text-text-dim">
             Pick a project folder and Claude gets to work — with your approval.
           </p>

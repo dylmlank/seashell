@@ -161,12 +161,15 @@ const MODE_CHOICES: { value: PermissionMode; label: string }[] = [
 function ProvidersSection(): React.JSX.Element {
   const settings = useSettings((s) => s.settings)
   const [keySet, setKeySet] = useState(false)
+  const [customKeySet, setCustomKeySet] = useState(false)
   const [keyInput, setKeyInput] = useState('')
+  const [customKeyInput, setCustomKeyInput] = useState('')
   const [keyError, setKeyError] = useState<string | null>(null)
 
   const refresh = async (): Promise<void> => {
     const state = await window.api.invoke('providers:getState')
     setKeySet(state.openrouterKeySet)
+    setCustomKeySet(state.customKeySet)
   }
   useEffect(() => {
     void refresh()
@@ -182,6 +185,19 @@ function ProvidersSection(): React.JSX.Element {
     setKeyInput('')
     void refresh()
   }
+
+  const saveCustomKey = async (): Promise<void> => {
+    setKeyError(null)
+    const result = await window.api.invoke('providers:saveCustomKey', { key: customKeyInput })
+    if (!result.ok) {
+      setKeyError(result.error ?? 'Could not save key')
+      return
+    }
+    setCustomKeyInput('')
+    void refresh()
+  }
+
+  const customReady = customKeySet && !!settings.customBaseUrl
 
   return (
     <div>
@@ -204,6 +220,9 @@ function ProvidersSection(): React.JSX.Element {
           <option value="anthropic">Anthropic (subscription)</option>
           <option value="openrouter" disabled={!keySet}>
             OpenRouter (credits){keySet ? '' : ' — add key first'}
+          </option>
+          <option value="custom" disabled={!customReady}>
+            Custom endpoint{customReady ? '' : ' — set URL & key first'}
           </option>
         </select>
       </Row>
@@ -245,6 +264,70 @@ function ProvidersSection(): React.JSX.Element {
             </button>
           </span>
         )}
+      </Row>
+      <Row
+        label="Custom endpoint URL"
+        hint="Any Anthropic-compatible API — a LiteLLM/Ollama proxy, a gateway, another vendor's compat endpoint."
+      >
+        <input
+          type="text"
+          value={settings.customBaseUrl ?? ''}
+          onChange={(e) => void updateSettings({ customBaseUrl: e.target.value.trim() || null })}
+          placeholder="https://host/v1 or http://localhost:4000"
+          className="w-64 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm outline-none focus:border-accent-dim"
+        />
+      </Row>
+      <Row
+        label="Custom endpoint key"
+        hint={
+          customKeySet
+            ? 'Key saved (encrypted). New custom sessions use it.'
+            : 'Whatever the endpoint expects as its API key. Stored encrypted on this machine.'
+        }
+      >
+        {customKeySet ? (
+          <button
+            onClick={() => {
+              void window.api.invoke('providers:clearCustomKey').then(() => {
+                if (settings.defaultProvider === 'custom')
+                  void updateSettings({ defaultProvider: 'anthropic' })
+                void refresh()
+              })
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm hover:bg-border"
+          >
+            <Trash2 size={14} /> Remove key
+          </button>
+        ) : (
+          <span className="flex items-center gap-1.5">
+            <input
+              type="password"
+              value={customKeyInput}
+              onChange={(e) => setCustomKeyInput(e.target.value)}
+              placeholder="key"
+              className="w-44 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm outline-none focus:border-accent-dim"
+            />
+            <button
+              onClick={() => void saveCustomKey()}
+              disabled={!customKeyInput.trim()}
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-dim disabled:opacity-40"
+            >
+              <KeyRound size={14} /> Save
+            </button>
+          </span>
+        )}
+      </Row>
+      <Row
+        label="Custom endpoint model"
+        hint="Model id new custom sessions start with (whatever your endpoint serves)."
+      >
+        <input
+          type="text"
+          value={settings.customModel ?? ''}
+          onChange={(e) => void updateSettings({ customModel: e.target.value.trim() || null })}
+          placeholder="e.g. glm-4.7 or deepseek-chat"
+          className="w-64 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm outline-none focus:border-accent-dim"
+        />
       </Row>
       {keyError && <p className="pb-2 text-xs text-red-400">{keyError}</p>}
     </div>

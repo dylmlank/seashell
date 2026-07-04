@@ -28,7 +28,7 @@ export function OnboardingView({ reason }: { reason?: string }): React.JSX.Eleme
           <h1 className="text-xl font-semibold">Log in with your Claude account</h1>
         </div>
         <p className="mb-1 text-sm text-text-dim">
-          Claude Shell uses your Claude subscription through Claude Code.
+          Seashell uses your Claude subscription through Claude Code.
         </p>
         {reason && (
           <p className="mb-4 rounded-lg bg-red-950/50 px-3 py-2 text-sm text-red-300">
@@ -81,7 +81,7 @@ export function OnboardingView({ reason }: { reason?: string }): React.JSX.Eleme
               <p className="mt-2 text-xs text-text-dim">
                 Stored encrypted on this machine (Windows DPAPI). Alternatively, run{' '}
                 <code className="rounded bg-surface-2 px-1">claude /login</code> once in any terminal
-                — Claude Shell picks that up automatically on restart.
+                — Seashell picks that up automatically on restart.
               </p>
             </div>
           </li>

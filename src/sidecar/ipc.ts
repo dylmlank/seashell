@@ -153,7 +153,10 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
     return h ? changes.commit(h.cwd, a.message, a.files) : { error: 'Session not found' }
   },
 
-  'providers:getState': () => ({ openrouterKeySet: secrets.getOpenRouterKey() !== null }),
+  'providers:getState': () => ({
+    openrouterKeySet: secrets.getOpenRouterKey() !== null,
+    customKeySet: secrets.getCustomKey() !== null
+  }),
   'providers:saveOpenRouterKey': (a) => {
     const key = a.key.trim()
     if (!key.startsWith('sk-or-')) {
@@ -163,6 +166,13 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
     return { ok: true }
   },
   'providers:clearOpenRouterKey': () => secrets.clearOpenRouterKey(),
+  'providers:saveCustomKey': (a) => {
+    const key = a.key.trim()
+    if (!key) return { ok: false, error: 'Key is empty.' }
+    secrets.saveCustomKey(key)
+    return { ok: true }
+  },
+  'providers:clearCustomKey': () => secrets.clearCustomKey(),
   'providers:listOpenRouterModels': () => listOpenRouterModels(),
   'providers:desktopMcp': () => listDesktopMcp(),
 

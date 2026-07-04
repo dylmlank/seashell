@@ -3,9 +3,9 @@
 import { ask, message } from '@tauri-apps/plugin-dialog'
 
 export function confirmDialog(text: string): Promise<boolean> {
-  return ask(text, { title: 'Claude Shell', kind: 'warning' })
+  return ask(text, { title: 'Seashell', kind: 'warning' })
 }
 
 export async function alertDialog(text: string): Promise<void> {
-  await message(text, { title: 'Claude Shell' })
+  await message(text, { title: 'Seashell' })
 }

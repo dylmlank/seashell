@@ -100,6 +100,14 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             OpenRouter
           </span>
         )}
+        {tab.provider === 'custom' && (
+          <span
+            title="This session runs against your custom endpoint, not your Claude subscription."
+            className="rounded-md bg-violet-900/40 px-1.5 py-0.5 text-[10px] font-medium text-violet-300"
+          >
+            Custom API
+          </span>
+        )}
         {/* Workspace tabs — centered */}
         <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2">
           <button
