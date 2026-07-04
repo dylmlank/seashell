@@ -26,6 +26,7 @@ import { sessionManager } from './session-manager'
 import { settingsStore } from './settings-store'
 import { transcriptSearch } from './transcript-search'
 import { usageStore } from './usage-store'
+import { worktrees } from './worktrees'
 
 type Handler<C extends keyof Invokes> = (
   arg: Parameters<Invokes[C]>[0]
@@ -124,6 +125,14 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
 
   'usage:getAll': () => usageStore.getAll(),
   'usage:limits': () => sessionManager.limits(),
+  'usage:history': () => usageStore.getHistory(),
+
+  'worktree:create': (a) => worktrees.create(a.cwd),
+  'worktree:merge': async (a) => {
+    const h = sessionManager.get(a.tabId)
+    if (!h) return { error: 'Session not found' }
+    return worktrees.merge(h.cwd)
+  },
 
   'settings:get': () => settingsStore.get(),
   'settings:set': (a) => settingsStore.set(a),

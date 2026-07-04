@@ -52,6 +52,25 @@ You are encouraged to extend your own capabilities as you work, proactively and 
 - Plugins & MCP servers: when a well-known plugin or MCP server solves the task better than building from scratch, install or register it (claude plugin install, or add it to .mcp.json) and say what you added and why.
 Always tell the user what you created or installed and how to invoke it. Prefer small, composable pieces with clear descriptions over monoliths.`.trim()
 
+const THINKING_RANK: ThinkingLevel[] = ['off', 'low', 'medium', 'high', 'ultra']
+
+/** Smart thinking: pick a budget for THIS message, never above the user's
+ *  chosen ceiling. Short chatter gets none; hard/code-heavy questions get more. */
+export function smartThinkingLevel(text: string, ceiling: ThinkingLevel): ThinkingLevel {
+  const capIdx = THINKING_RANK.indexOf(ceiling)
+  if (capIdx <= 0) return 'off'
+  const t = text.trim()
+  const hard =
+    /\b(why|debug|design|architect|refactor|optimi[sz]e|prove|plan|complex|race|deadlock|security|audit|investigate|root cause)\b/i.test(t)
+  const code = /```|\berror\b|exception|stack trace|\.(ts|tsx|js|jsx|py|rs|cs|cpp|java|go)\b/i.test(t)
+  let want: number
+  if (t.length < 60 && !hard && !code) want = 0
+  else if (hard && code) want = THINKING_RANK.indexOf('high')
+  else if (hard || code || t.length > 400) want = THINKING_RANK.indexOf('medium')
+  else want = THINKING_RANK.indexOf('low')
+  return THINKING_RANK[Math.min(want, capIdx)]
+}
+
 type Broadcast = <C extends keyof Events>(channel: C, payload: Events[C]) => void
 
 let broadcast: Broadcast = () => {}
@@ -101,6 +120,10 @@ class SessionHandle {
   /** Real window size from the last getContextUsage — lets mid-turn per-call
    *  usage update the gauge live instead of waiting for the turn result. */
   private lastMaxTokens = 0
+  /** The user's chosen thinking ceiling, and what's currently applied (smart
+   *  thinking scales per message but never above the ceiling). */
+  private thinkingLevel: ThinkingLevel = 'off'
+  private appliedThinking: ThinkingLevel = 'off'
   private usage: UsageTotals = {
     inputTokens: 0,
     outputTokens: 0,
@@ -123,7 +146,12 @@ class SessionHandle {
         : this.provider === 'custom'
           ? (settings.customModel ?? undefined)
           : (settings.defaultModel ?? undefined)
-    const thinkingLevel = opts.thinkingLevel ?? settings.defaultThinkingLevel ?? 'off'
+    // Side chats are the "quick mode": read-only AND cheap — no thinking budget.
+    const thinkingLevel = this.chatOnly
+      ? 'off'
+      : (opts.thinkingLevel ?? settings.defaultThinkingLevel ?? 'off')
+    this.thinkingLevel = thinkingLevel
+    this.appliedThinking = thinkingLevel
     const options: Options = {
       cwd: opts.cwd,
       resume: opts.resume,
@@ -136,9 +164,13 @@ class SessionHandle {
       enableFileCheckpointing: true,
       // Lets the user switch into Bypass mode mid-session; the UI confirms first.
       allowDangerouslySkipPermissions: true,
-      // Load the user's full Claude Code config: plugins, skills, MCP servers,
-      // CLAUDE.md, hooks — so the shell behaves exactly like the terminal CLI.
-      settingSources: ['user', 'project', 'local'],
+      // Full config (plugins, skills, MCP, user CLAUDE.md) for normal sessions.
+      // Lean sessions and side chats drop the user level — a much smaller
+      // context baseline; the project's own CLAUDE.md still loads.
+      settingSources:
+        settings.leanSessions || this.chatOnly
+          ? ['project', 'local']
+          : ['user', 'project', 'local'],
       ...(settings.allowSelfSkills && !this.chatOnly
         ? { appendSystemPrompt: SELF_EXTEND_PROMPT }
         : {}),
@@ -494,6 +526,7 @@ class SessionHandle {
       }
       case 'result': {
         const u = msg.usage
+        const costDelta = Math.max(0, msg.total_cost_usd - this.usage.costUsd)
         this.usage.inputTokens += u.input_tokens
         this.usage.outputTokens += u.output_tokens
         this.usage.cacheReadTokens += u.cache_read_input_tokens ?? 0
@@ -502,13 +535,20 @@ class SessionHandle {
         this.usage.turns = msg.num_turns
         this.usage.lastContextTokens =
           u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0)
+        usageStore.addDay({
+          outputTokens: u.output_tokens,
+          inputTokens: u.input_tokens,
+          costUsd: costDelta,
+          turns: 1
+        })
         this.send({
           kind: 'turn_result',
           usage: { ...this.usage },
           costUsd: msg.total_cost_usd,
           isError: msg.subtype !== 'success',
           errorText: msg.subtype !== 'success' ? msg.subtype : undefined,
-          turnTokens: { output: u.output_tokens, context: this.usage.lastContextTokens }
+          turnTokens: { output: u.output_tokens, context: this.usage.lastContextTokens },
+          ...(this.turnPhase !== 'user' ? { phase: this.turnPhase } : {})
         })
         this.turnConfirmedOut = 0
         this.turnStreamChars = 0
@@ -675,6 +715,15 @@ class SessionHandle {
     this.turnHadMutations = false
     this.turnConfirmedOut = 0
     this.turnStreamChars = 0
+    // Smart thinking: budget this message by its complexity, capped at the
+    // chosen level — "whats up" shouldn't spend an 18k thinking budget.
+    if (!this.chatOnly && settingsStore.get().smartThinking) {
+      const effective = smartThinkingLevel(text, this.thinkingLevel)
+      if (effective !== this.appliedThinking) {
+        this.appliedThinking = effective
+        void this.q.setMaxThinkingTokens(THINKING_BUDGETS[effective]).catch(() => {})
+      }
+    }
     broadcast('session:status', { tabId: this.tabId, status: 'streaming' })
     const content: Array<
       | { type: 'text'; text: string }
@@ -722,6 +771,8 @@ class SessionHandle {
 
   /** Change extended-thinking budget live (0 disables it for the rest of the session). */
   setThinking(level: ThinkingLevel): Promise<void> {
+    this.thinkingLevel = level
+    this.appliedThinking = level
     const budget = THINKING_BUDGETS[level] ?? 0
     return this.q.setMaxThinkingTokens(budget > 0 ? budget : 0)
   }

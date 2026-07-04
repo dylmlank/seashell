@@ -28,7 +28,10 @@ const DEFAULTS: AppSettings = {
   smoothStreaming: true,
   reopenLastProject: false,
   chatWidth: 'wide',
-  defaultThinkingLevel: 'high'
+  defaultThinkingLevel: 'high',
+  smartThinking: true,
+  leanSessions: false,
+  templates: []
 }
 
 const file = (): string => join(userDataDir(), 'settings.json')

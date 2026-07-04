@@ -51,6 +51,8 @@ export type UiEvent =
       errorText?: string
       /** What this specific turn cost: output tokens + context size it ran at. */
       turnTokens: { output: number; context: number }
+      /** Set when this was an automatic follow-up turn (retro/compact receipt). */
+      phase?: CyclePhase
     }
   | { kind: 'status_text'; text: string }
   /** Live output-token count while streaming (recalibrated per API message). */
@@ -122,6 +124,27 @@ export interface AppSettings {
   chatWidth: 'comfortable' | 'wide' | 'full'
   /** Default extended-thinking level for new sessions. */
   defaultThinkingLevel: ThinkingLevel
+  /** Auto-scale the thinking budget per message (never above the chosen level). */
+  smartThinking: boolean
+  /** Skip user-level plugins/MCP/skills for a minimal context baseline. */
+  leanSessions: boolean
+  /** One-click session presets shown on the Welcome screen. */
+  templates: SessionTemplate[]
+}
+
+/** A saved way to start a session: folder + optional first prompt. */
+export interface SessionTemplate {
+  name: string
+  cwd: string
+  prompt?: string
+}
+
+/** Tokens spent per day, for the usage graph. */
+export interface DayUsage {
+  outputTokens: number
+  inputTokens: number
+  costUsd: number
+  turns: number
 }
 
 export interface UiToolUse {

@@ -5,6 +5,7 @@ import type {
   BranchInfo,
   ChangedFile,
   ContextBreakdown,
+  DayUsage,
   DesktopConnector,
   DevServerStatus,
   DirEntry,
@@ -88,6 +89,13 @@ export interface Invokes {
   'usage:getAll': () => Record<string, UsageTotals>
   /** Plan rate-limit windows (5h / weekly), fetched through any live session. */
   'usage:limits': () => PlanLimits
+  /** Tokens per day (YYYY-MM-DD keys) for the usage graph. */
+  'usage:history': () => Record<string, DayUsage>
+
+  /** Create a git worktree next to the project and return its path. */
+  'worktree:create': (a: { cwd: string }) => { path: string; branch: string } | { error: string }
+  /** Merge a worktree session's branch into the main repo and remove the worktree. */
+  'worktree:merge': (a: { tabId: string }) => { ok: true } | { error: string }
 
   'settings:get': () => AppSettings
   'settings:set': (a: Partial<AppSettings>) => AppSettings

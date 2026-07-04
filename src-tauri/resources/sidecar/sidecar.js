@@ -28073,7 +28073,7 @@ Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resour
 import { spawn as spawn5 } from "child_process";
 import { rmSync as rmSync3 } from "fs";
 import { readdir as readdir5, readFile as readFile8, writeFile as writeFile4 } from "fs/promises";
-import { extname, join as join20, resolve as resolve2 } from "path";
+import { extname, join as join21, resolve as resolve2 } from "path";
 
 // src/sidecar/approvals.ts
 import { randomUUID } from "crypto";
@@ -28125,7 +28125,10 @@ var DEFAULTS = {
   smoothStreaming: true,
   reopenLastProject: false,
   chatWidth: "wide",
-  defaultThinkingLevel: "high"
+  defaultThinkingLevel: "high",
+  smartThinking: true,
+  leanSessions: false,
+  templates: []
 };
 var file = () => join2(userDataDir(), "settings.json");
 var THINKING_LEGACY = {
@@ -29730,7 +29733,19 @@ var RETRO_PROMPT = "Run your shell-retrospective skill now for the exchange abov
 import { readFileSync as readFileSync9, writeFileSync as writeFileSync6 } from "fs";
 import { join as join18 } from "path";
 var file4 = () => join18(userDataDir(), "usage.json");
+var historyFile = () => join18(userDataDir(), "usage-history.json");
 var cache3 = null;
+var historyCache = null;
+function loadHistory() {
+  if (historyCache)
+    return historyCache;
+  try {
+    historyCache = JSON.parse(readFileSync9(historyFile(), "utf8"));
+  } catch {
+    historyCache = {};
+  }
+  return historyCache;
+}
 function load2() {
   if (cache3)
     return cache3;
@@ -29754,6 +29769,24 @@ var usageStore = {
   getAll() {
     return load2();
   },
+  addDay(delta) {
+    const data = loadHistory();
+    const day = new Date().toISOString().slice(0, 10);
+    const bucket = data[day] ?? { outputTokens: 0, inputTokens: 0, costUsd: 0, turns: 0 };
+    bucket.outputTokens += delta.outputTokens;
+    bucket.inputTokens += delta.inputTokens;
+    bucket.costUsd += delta.costUsd;
+    bucket.turns += delta.turns;
+    data[day] = bucket;
+    try {
+      writeFileSync6(historyFile(), JSON.stringify(data));
+    } catch (err) {
+      console.error("usage-history save failed:", err);
+    }
+  },
+  getHistory() {
+    return loadHistory();
+  },
   flush() {}
 };
 
@@ -29773,6 +29806,25 @@ You are encouraged to extend your own capabilities as you work, proactively and 
 - Tools: when no existing tool fits a task, build one \u2014 a script in the project (wire it up as a slash command or npm script), or a small MCP server registered in .mcp.json for capabilities every future session should have.
 - Plugins & MCP servers: when a well-known plugin or MCP server solves the task better than building from scratch, install or register it (claude plugin install, or add it to .mcp.json) and say what you added and why.
 Always tell the user what you created or installed and how to invoke it. Prefer small, composable pieces with clear descriptions over monoliths.`.trim();
+var THINKING_RANK = ["off", "low", "medium", "high", "ultra"];
+function smartThinkingLevel(text, ceiling) {
+  const capIdx = THINKING_RANK.indexOf(ceiling);
+  if (capIdx <= 0)
+    return "off";
+  const t = text.trim();
+  const hard = /\b(why|debug|design|architect|refactor|optimi[sz]e|prove|plan|complex|race|deadlock|security|audit|investigate|root cause)\b/i.test(t);
+  const code = /```|\berror\b|exception|stack trace|\.(ts|tsx|js|jsx|py|rs|cs|cpp|java|go)\b/i.test(t);
+  let want;
+  if (t.length < 60 && !hard && !code)
+    want = 0;
+  else if (hard && code)
+    want = THINKING_RANK.indexOf("high");
+  else if (hard || code || t.length > 400)
+    want = THINKING_RANK.indexOf("medium");
+  else
+    want = THINKING_RANK.indexOf("low");
+  return THINKING_RANK[Math.min(want, capIdx)];
+}
 var broadcast4 = () => {};
 function setBroadcast(fn) {
   broadcast4 = fn;
@@ -29796,6 +29848,8 @@ class SessionHandle {
   turnStreamChars = 0;
   lastStreamPush = 0;
   lastMaxTokens = 0;
+  thinkingLevel = "off";
+  appliedThinking = "off";
   usage = {
     inputTokens: 0,
     outputTokens: 0,
@@ -29812,7 +29866,9 @@ class SessionHandle {
     this.chatOnly = opts.chatOnly ?? false;
     const settings = settingsStore.get();
     const defaultModel = this.provider === "openrouter" ? settings.openrouterModel ?? undefined : this.provider === "custom" ? settings.customModel ?? undefined : settings.defaultModel ?? undefined;
-    const thinkingLevel = opts.thinkingLevel ?? settings.defaultThinkingLevel ?? "off";
+    const thinkingLevel = this.chatOnly ? "off" : opts.thinkingLevel ?? settings.defaultThinkingLevel ?? "off";
+    this.thinkingLevel = thinkingLevel;
+    this.appliedThinking = thinkingLevel;
     const options = {
       cwd: opts.cwd,
       resume: opts.resume,
@@ -29822,7 +29878,7 @@ class SessionHandle {
       includePartialMessages: true,
       enableFileCheckpointing: true,
       allowDangerouslySkipPermissions: true,
-      settingSources: ["user", "project", "local"],
+      settingSources: settings.leanSessions || this.chatOnly ? ["project", "local"] : ["user", "project", "local"],
       ...settings.allowSelfSkills && !this.chatOnly ? { appendSystemPrompt: SELF_EXTEND_PROMPT } : {},
       ...this.chatOnly ? { tools: [...CHAT_ONLY_TOOLS] } : {},
       ...settings.importDesktopMcp && !this.chatOnly && !process.env.CLAUDE_SHELL_USER_DATA ? { mcpServers: loadDesktopMcpServers() } : {},
@@ -30118,6 +30174,7 @@ class SessionHandle {
       }
       case "result": {
         const u = msg.usage;
+        const costDelta = Math.max(0, msg.total_cost_usd - this.usage.costUsd);
         this.usage.inputTokens += u.input_tokens;
         this.usage.outputTokens += u.output_tokens;
         this.usage.cacheReadTokens += u.cache_read_input_tokens ?? 0;
@@ -30125,13 +30182,20 @@ class SessionHandle {
         this.usage.costUsd = msg.total_cost_usd;
         this.usage.turns = msg.num_turns;
         this.usage.lastContextTokens = u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+        usageStore.addDay({
+          outputTokens: u.output_tokens,
+          inputTokens: u.input_tokens,
+          costUsd: costDelta,
+          turns: 1
+        });
         this.send({
           kind: "turn_result",
           usage: { ...this.usage },
           costUsd: msg.total_cost_usd,
           isError: msg.subtype !== "success",
           errorText: msg.subtype !== "success" ? msg.subtype : undefined,
-          turnTokens: { output: u.output_tokens, context: this.usage.lastContextTokens }
+          turnTokens: { output: u.output_tokens, context: this.usage.lastContextTokens },
+          ...this.turnPhase !== "user" ? { phase: this.turnPhase } : {}
         });
         this.turnConfirmedOut = 0;
         this.turnStreamChars = 0;
@@ -30268,6 +30332,13 @@ class SessionHandle {
     this.turnHadMutations = false;
     this.turnConfirmedOut = 0;
     this.turnStreamChars = 0;
+    if (!this.chatOnly && settingsStore.get().smartThinking) {
+      const effective = smartThinkingLevel(text, this.thinkingLevel);
+      if (effective !== this.appliedThinking) {
+        this.appliedThinking = effective;
+        this.q.setMaxThinkingTokens(THINKING_BUDGETS[effective]).catch(() => {});
+      }
+    }
     broadcast4("session:status", { tabId: this.tabId, status: "streaming" });
     const content = [];
     for (const img of images ?? []) {
@@ -30306,6 +30377,8 @@ class SessionHandle {
     return this.q.setModel(model);
   }
   setThinking(level) {
+    this.thinkingLevel = level;
+    this.appliedThinking = level;
     const budget = THINKING_BUDGETS[level] ?? 0;
     return this.q.setMaxThinkingTokens(budget > 0 ? budget : 0);
   }
@@ -30545,6 +30618,47 @@ ${lines.join(`
   }
 };
 
+// src/sidecar/worktrees.ts
+import { execFile as execFile3 } from "child_process";
+import { basename, dirname as dirname2, join as join20 } from "path";
+import { promisify as promisify2 } from "util";
+var run2 = promisify2(execFile3);
+async function git2(cwd, ...args) {
+  const { stdout } = await run2("git", ["-C", cwd, ...args], { windowsHide: true });
+  return stdout.trim();
+}
+var worktrees = {
+  async create(cwd) {
+    try {
+      const root = await git2(cwd, "rev-parse", "--show-toplevel");
+      const name = `wt-${Date.now().toString(36)}`;
+      const branch = `seashell/${name}`;
+      const path = join20(dirname2(root), `${basename(root)}-${name}`);
+      await git2(root, "worktree", "add", "-b", branch, path);
+      return { path, branch };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+  async merge(worktreeCwd) {
+    try {
+      const branch = await git2(worktreeCwd, "rev-parse", "--abbrev-ref", "HEAD");
+      const commonDir = await git2(worktreeCwd, "rev-parse", "--git-common-dir");
+      const mainRoot = dirname2(commonDir.replace(/\//g, "\\"));
+      if (await git2(worktreeCwd, "status", "--porcelain")) {
+        await git2(worktreeCwd, "add", "-A");
+        await git2(worktreeCwd, "commit", "-m", "Seashell worktree changes");
+      }
+      await git2(mainRoot, "merge", "--no-ff", branch, "-m", `Merge ${branch}`);
+      await git2(mainRoot, "worktree", "remove", worktreeCwd, "--force");
+      await git2(mainRoot, "branch", "-d", branch);
+      return { ok: true };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+};
+
 // src/sidecar/ipc.ts
 var IMAGE_MEDIA = {
   ".png": "image/png",
@@ -30630,6 +30744,14 @@ var handlers = {
   },
   "usage:getAll": () => usageStore.getAll(),
   "usage:limits": () => sessionManager.limits(),
+  "usage:history": () => usageStore.getHistory(),
+  "worktree:create": (a) => worktrees.create(a.cwd),
+  "worktree:merge": async (a) => {
+    const h = sessionManager.get(a.tabId);
+    if (!h)
+      return { error: "Session not found" };
+    return worktrees.merge(h.cwd);
+  },
   "settings:get": () => settingsStore.get(),
   "settings:set": (a) => settingsStore.set(a),
   "changes:list": (a) => {
@@ -30720,7 +30842,7 @@ var handlers = {
   "previews:cards": () => previews.cards(),
   "previews:capture": (a) => previews.capture(a.cwd, a.url),
   "shots:captureFile": async (a) => {
-    const tmp = join20(userDataDir(), "previews", `file-shot-${process.pid}-${Math.random().toString(36).slice(2)}.png`);
+    const tmp = join21(userDataDir(), "previews", `file-shot-${process.pid}-${Math.random().toString(36).slice(2)}.png`);
     const ok = await captureShot(`file:///${a.path.replace(/\\/g, "/")}`, tmp, a.width ?? 1280, a.height ?? 800);
     if (!ok)
       return { error: "File capture failed" };
@@ -30750,7 +30872,7 @@ var handlers = {
     const h = sessionManager.get(a.tabId);
     if (!h)
       return { error: "Session not found" };
-    const target = resolve2(join20(h.cwd, a.rel));
+    const target = resolve2(join21(h.cwd, a.rel));
     if (!target.startsWith(resolve2(h.cwd)))
       return { error: "Path outside project" };
     try {
@@ -30771,7 +30893,7 @@ var handlers = {
     const h = sessionManager.get(a.tabId);
     if (!h)
       return { error: "Session not found" };
-    const target = resolve2(join20(h.cwd, a.rel));
+    const target = resolve2(join21(h.cwd, a.rel));
     if (!target.startsWith(resolve2(h.cwd)))
       return { error: "Path outside project" };
     try {
@@ -30786,7 +30908,7 @@ var handlers = {
   },
   "previews:clearCache": () => {
     try {
-      rmSync3(join20(userDataDir(), "previews"), { recursive: true, force: true });
+      rmSync3(join21(userDataDir(), "previews"), { recursive: true, force: true });
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };

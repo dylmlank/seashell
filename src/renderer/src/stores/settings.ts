@@ -32,7 +32,10 @@ export const useSettings = create<SettingsStore>(() => ({
     smoothStreaming: true,
     reopenLastProject: false,
     chatWidth: 'wide',
-    defaultThinkingLevel: 'high'
+    defaultThinkingLevel: 'high',
+    smartThinking: true,
+    leanSessions: false,
+    templates: []
   },
   loaded: false
 }))

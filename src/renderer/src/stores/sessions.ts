@@ -23,6 +23,8 @@ export type ChatItem =
       text: string
       streaming: boolean
       toolCount: number
+      /** Output tokens the follow-up turn itself spent (its receipt). */
+      tokens?: number
     }
   | { kind: 'plan'; id: string; todos: TodoItem[] }
   | { kind: 'status'; id: string; text: string }
@@ -59,6 +61,10 @@ export interface TabState {
   thinkingLevel: ThinkingLevel
   /** Side-chat sessions render in a side panel and stay out of the OPEN list. */
   side?: boolean
+  /** Set when this session runs in an isolated git worktree (merge-back UI). */
+  worktree?: { branch: string }
+  /** Messages typed while a turn was running — sent automatically when idle. */
+  queue?: { text: string; images?: ImageAttachment[] }[]
   /** Path of the last previewable file (HTML/SVG/Markdown) Claude wrote. */
   lastArtifact?: string
   /** Exact context fill from the CLI (knows the real per-model window). */
@@ -224,7 +230,12 @@ function reduceEvent(items: ChatItem[], event: UiEvent): ChatItem[] {
       if (event.turnTokens.output > 0) {
         for (let i = next.length - 1; i >= 0; i--) {
           const item = next[i]
-          if (item.kind === 'assistant') {
+          // Retro/compact receipts land on their aside; answers on the bubble.
+          if (event.phase && item.kind === 'aside' && item.phase === event.phase) {
+            next[i] = { ...item, tokens: (item.tokens ?? 0) + event.turnTokens.output }
+            break
+          }
+          if (!event.phase && item.kind === 'assistant') {
             next[i] = { ...item, tokens: event.turnTokens.output }
             break
           }
@@ -353,6 +364,15 @@ if (!window.__sessionsWired) {
   })
   window.api.on('session:status', ({ tabId, status, error }) => {
     useSessions.getState().update(tabId, { status, error })
+    // Turn finished with messages waiting — send the next one.
+    if (status === 'idle') {
+      const tab = useSessions.getState().tabs.find((t) => t.tabId === tabId)
+      const next = tab?.queue?.[0]
+      if (tab && next) {
+        useSessions.getState().update(tabId, { queue: tab.queue!.slice(1) })
+        sendMessage(tabId, next.text, next.images)
+      }
+    }
   })
 }
 
@@ -397,10 +417,25 @@ export async function createTab(cwd: string, resume?: string, side?: boolean): P
   return tabId
 }
 
+/** Create an isolated git-worktree session for a project: its own branch and
+ *  sibling folder — merge back (or abandon) from the session header. */
+export async function createWorktreeTab(cwd: string): Promise<void> {
+  const result = await window.api.invoke('worktree:create', { cwd })
+  if ('error' in result) throw new Error(result.error)
+  const tabId = await createTab(result.path)
+  useSessions.getState().update(tabId, { worktree: { branch: result.branch } })
+}
+
 export function sendMessage(tabId: string, text: string, images?: ImageAttachment[]): void {
   const store = useSessions.getState()
   const tab = store.tabs.find((t) => t.tabId === tabId)
   if (!tab) return
+  // Busy? Queue it — sent automatically the moment this turn (and its
+  // follow-ups) finish. Keeps typing flowing without interrupting Claude.
+  if (tab.status === 'streaming' || tab.status === 'awaitingApproval') {
+    store.update(tabId, { queue: [...(tab.queue ?? []), { text, images }] })
+    return
+  }
   store.update(tabId, {
     items: [
       ...tab.items,

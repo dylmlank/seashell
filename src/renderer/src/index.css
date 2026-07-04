@@ -108,6 +108,10 @@ body,
 }
 .msg-in {
   animation: rise-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  /* Poor man's virtualization: offscreen chat items skip layout/paint, so
+     400-message resumed transcripts scroll like short ones. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 90px;
 }
 .reduced-motion .msg-in {
   animation: none;

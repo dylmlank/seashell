@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { X, BarChart3 } from 'lucide-react'
+import type { DayUsage } from '@shared/types'
 import { useUsage } from '../stores/usage'
 import { LimitBars } from './LimitBars'
 
@@ -6,6 +8,59 @@ function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
   return String(n)
+}
+
+/** Last-14-days token bars (output solid, input as the dim base). */
+function HistoryGraph(): React.JSX.Element | null {
+  const [days, setDays] = useState<{ label: string; day: DayUsage | undefined }[] | null>(null)
+  useEffect(() => {
+    void window.api.invoke('usage:history').then((history) => {
+      const next: { label: string; day: DayUsage | undefined }[] = []
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 86_400_000)
+        next.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, day: history[d.toISOString().slice(0, 10)] })
+      }
+      setDays(next)
+    })
+  }, [])
+  if (!days) return null
+
+  const max = Math.max(1, ...days.map((d) => (d.day?.outputTokens ?? 0) + (d.day?.inputTokens ?? 0)))
+  if (max <= 1) return null
+
+  return (
+    <div className="border-b border-border px-5 py-4">
+      <p className="pb-2 text-xs font-semibold uppercase tracking-wide text-text-dim">
+        Last 14 days
+      </p>
+      <div className="flex h-24 items-end gap-1.5">
+        {days.map(({ label, day }) => {
+          const total = (day?.outputTokens ?? 0) + (day?.inputTokens ?? 0)
+          const outShare = total > 0 ? (day!.outputTokens / total) * 100 : 0
+          return (
+            <div key={label} className="group flex min-w-0 flex-1 flex-col items-center gap-1">
+              <div
+                title={
+                  day
+                    ? `${label}: ${fmt(day.outputTokens)} out · ${fmt(day.inputTokens)} in · ${day.turns} turns`
+                    : `${label}: no usage`
+                }
+                className="flex w-full flex-col justify-end overflow-hidden rounded-t-md bg-surface-2"
+                style={{ height: `${Math.max(3, (total / max) * 100)}%` }}
+              >
+                <span className="w-full bg-accent/35" style={{ height: `${100 - outShare}%` }} />
+                <span className="w-full bg-accent" style={{ height: `${outShare}%` }} />
+              </div>
+              <span className="truncate text-[9px] text-text-dim/60">{label}</span>
+            </div>
+          )
+        })}
+      </div>
+      <p className="pt-1.5 text-[10px] text-text-dim/60">
+        solid = output tokens · dim = fresh input tokens (cache reads excluded)
+      </p>
+    </div>
+  )
 }
 
 export function UsagePanel({ onClose }: { onClose: () => void }): React.JSX.Element {
@@ -35,6 +90,8 @@ export function UsagePanel({ onClose }: { onClose: () => void }): React.JSX.Elem
             <X size={16} />
           </button>
         </div>
+
+        <HistoryGraph />
 
         <div className="border-b border-border px-5 py-4">
           <p className="pb-2 text-xs font-semibold uppercase tracking-wide text-text-dim">

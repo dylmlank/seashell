@@ -10,13 +10,15 @@ import {
   History,
   MessagesSquare,
   SquareTerminal,
-  Waypoints
+  Waypoints,
+  X
 } from 'lucide-react'
 import clsx from 'clsx'
 import { contextWindow } from '../lib/models'
 import { dispatchMessage, mergeSuggestions, useCommands } from '../stores/commands'
-import { interrupt, type TabState } from '../stores/sessions'
+import { closeTab, interrupt, useSessions, type TabState } from '../stores/sessions'
 import { useUi } from '../stores/ui'
+import { alertDialog, confirmDialog } from '../lib/dialogs'
 
 function basename(p: string): string {
   return p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
@@ -44,6 +46,25 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
   const setPanel = (p: Exclude<Parameters<typeof togglePanel>[1], null>): void =>
     togglePanel(tab.tabId, p)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [merging, setMerging] = useState(false)
+
+  const dropQueued = (index: number): void => {
+    useSessions.getState().update(tab.tabId, {
+      queue: (tab.queue ?? []).filter((_, i) => i !== index)
+    })
+  }
+
+  const mergeWorktree = async (): Promise<void> => {
+    if (!(await confirmDialog(`Merge branch ${tab.worktree?.branch} into the main checkout and remove this worktree? This session closes afterwards.`))) return
+    setMerging(true)
+    const result = await window.api.invoke('worktree:merge', { tabId: tab.tabId })
+    setMerging(false)
+    if ('error' in result) {
+      void alertDialog(`Merge failed: ${result.error}`)
+      return
+    }
+    closeTab(tab.tabId)
+  }
   const [instructionsOpen, setInstructionsOpen] = useState(false)
   const [contextOpen, setContextOpen] = useState(false)
   const [seenArtifact, setSeenArtifact] = useState<string | undefined>()
@@ -106,6 +127,24 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             className="rounded-md bg-violet-900/40 px-1.5 py-0.5 text-[10px] font-medium text-violet-300"
           >
             Custom API
+          </span>
+        )}
+        {tab.worktree && (
+          <span className="flex items-center gap-1">
+            <span
+              title={`Isolated git worktree on branch ${tab.worktree.branch} — the main checkout is untouched until you merge.`}
+              className="rounded-md bg-emerald-900/40 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300"
+            >
+              Worktree
+            </span>
+            <button
+              onClick={() => void mergeWorktree()}
+              disabled={merging}
+              title="Merge this worktree's changes into the main checkout and remove it"
+              className="rounded-md border border-emerald-700/50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300 hover:bg-emerald-900/40 disabled:opacity-50"
+            >
+              {merging ? 'Merging…' : 'Merge back'}
+            </button>
           </span>
         )}
         {/* Workspace tabs — centered */}
@@ -241,6 +280,28 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           <MessageList items={tab.items} tabId={tab.tabId} />
+
+          {(tab.queue?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 px-6 pb-1 text-[11px] text-text-dim">
+              <span className="font-medium">Queued:</span>
+              {tab.queue!.map((q, i) => (
+                <span
+                  key={i}
+                  title={q.text}
+                  className="flex max-w-56 items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5"
+                >
+                  <span className="truncate">{q.text}</span>
+                  <button
+                    onClick={() => dropQueued(i)}
+                    title="Remove from queue"
+                    className="shrink-0 rounded-full p-0.5 hover:bg-border hover:text-red-400"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
 
           <Composer
             tabId={tab.tabId}

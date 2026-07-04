@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   ChevronRight,
+  GitBranchPlus,
   History,
   MessageSquare,
   Loader2,
@@ -16,7 +17,7 @@ import {
   FileSearch
 } from 'lucide-react'
 import type { SearchHit, SessionSummary } from '@shared/types'
-import { createTab, useSessions } from '../stores/sessions'
+import { createTab, createWorktreeTab, useSessions } from '../stores/sessions'
 import { alertDialog, confirmDialog } from '../lib/dialogs'
 
 function timeAgo(ms: number): string {
@@ -219,6 +220,19 @@ export function SessionList({
     }
   }
 
+  const newWorktree = async (cwd: string): Promise<void> => {
+    if (creating) return
+    setCreating(cwd)
+    try {
+      await createWorktreeTab(cwd)
+      onResume?.()
+    } catch (err) {
+      void alertDialog(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCreating(null)
+    }
+  }
+
   const renderRow = (s: SessionSummary): React.JSX.Element => {
     const isOpen = openSessionIds.includes(s.sessionId)
     const isPinned = pinned.includes(s.sessionId)
@@ -402,20 +416,32 @@ export function SessionList({
                     </span>
                     <span className="font-normal text-text-dim/40">{list.length}</span>
                     {cwd && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          void newInProject(cwd)
-                        }}
-                        title={`New session in ${cwd}`}
-                        className="ml-auto rounded p-0.5 text-text-dim opacity-0 hover:bg-border hover:text-accent group-hover/project:opacity-100"
-                      >
-                        {creating === cwd ? (
-                          <Loader2 size={12} className="animate-spin text-accent" />
-                        ) : (
-                          <Plus size={12} />
-                        )}
-                      </button>
+                      <span className="ml-auto flex gap-0.5 opacity-0 group-hover/project:opacity-100">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void newWorktree(cwd)
+                          }}
+                          title="New worktree session — isolated branch + folder; merge back only if you like the result"
+                          className="rounded p-0.5 text-text-dim hover:bg-border hover:text-accent"
+                        >
+                          <GitBranchPlus size={12} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void newInProject(cwd)
+                          }}
+                          title={`New session in ${cwd}`}
+                          className="rounded p-0.5 text-text-dim hover:bg-border hover:text-accent"
+                        >
+                          {creating === cwd ? (
+                            <Loader2 size={12} className="animate-spin text-accent" />
+                          ) : (
+                            <Plus size={12} />
+                          )}
+                        </button>
+                      </span>
                     )}
                   </div>
                 )}

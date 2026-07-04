@@ -114,6 +114,14 @@ function AsideCard({ item }: { item: AsideItem }): React.JSX.Element {
             {item.toolCount} memory update{item.toolCount > 1 ? 's' : ''}
           </span>
         )}
+        {!item.streaming && (item.tokens ?? 0) > 0 && (
+          <span
+            title="Output tokens this automatic follow-up spent"
+            className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] tabular-nums"
+          >
+            {item.tokens! >= 1000 ? `${(item.tokens! / 1000).toFixed(1)}k` : item.tokens} tok
+          </span>
+        )}
         <span className="ml-auto">
           {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
         </span>
@@ -239,8 +247,8 @@ const MessageBubble = memo(function MessageBubble({
       if (!item.text.trim()) return null
       return (
         <div className="flex max-w-[95%] gap-3 anim-in">
-          <span className="mt-1 h-5 w-5 shrink-0 select-none rounded-md bg-accent/15 text-center text-[11px] leading-5 text-accent">
-            ✳
+          <span className="mt-1 h-5 w-5 shrink-0 select-none rounded-md bg-accent/15 text-center text-[11px] leading-5">
+            🐚
           </span>
           <div className="min-w-0">
             <SmoothText text={item.text} streaming={item.streaming} />

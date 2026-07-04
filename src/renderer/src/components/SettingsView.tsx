@@ -400,6 +400,24 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
               </select>
             </Row>
             <Row
+              label="Smart thinking"
+              hint="Budget thinking per message: quick questions get little or none, hard/code-heavy ones get up to your chosen level. Big token saver."
+            >
+              <Toggle
+                checked={settings.smartThinking}
+                onChange={(v) => void updateSettings({ smartThinking: v })}
+              />
+            </Row>
+            <Row
+              label="Lean sessions"
+              hint="Skip your user-level plugins, MCP servers, and skills for a minimal context baseline (project CLAUDE.md still loads). Applies to new sessions."
+            >
+              <Toggle
+                checked={settings.leanSessions}
+                onChange={(v) => void updateSettings({ leanSessions: v })}
+              />
+            </Row>
+            <Row
               label="Let Claude extend itself"
               hint="Claude may create skills for repeated or hard tasks, slash commands, subagents, and its own tools, and install plugins/MCP servers when they fit — it always tells you what it added."
             >
