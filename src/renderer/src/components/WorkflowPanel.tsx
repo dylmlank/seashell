@@ -63,14 +63,14 @@ function ModuleGraph({ map }: { map: ProjectMap }): React.JSX.Element {
             width={92}
             height={30}
             rx={9}
-            fill="#101414"
+            fill="var(--color-surface-2)"
             stroke="var(--color-accent)"
             strokeOpacity={0.25 + (n.lines / maxLines) * 0.6}
           />
-          <text x={n.x} y={n.y - 2} textAnchor="middle" fontSize="10" fill="#ededed" fontFamily="Consolas,monospace">
+          <text x={n.x} y={n.y - 2} textAnchor="middle" fontSize="10" fill="var(--color-text)" fontFamily="Consolas,monospace">
             {n.name.length > 15 ? `${n.name.slice(0, 14)}…` : n.name}
           </text>
-          <text x={n.x} y={n.y + 10} textAnchor="middle" fontSize="8" fill="#6b7280">
+          <text x={n.x} y={n.y + 10} textAnchor="middle" fontSize="8" fill="var(--color-text-dim)">
             {fmt(n.lines)} loc · {n.files}f
           </text>
         </g>
@@ -87,10 +87,10 @@ function ExternalsGraph({ map }: { map: ProjectMap }): React.JSX.Element {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
       <rect x={10} y={H / 2 - 22} width={120} height={44} rx={12} fill="var(--color-accent)" opacity={0.15} stroke="var(--color-accent)" />
-      <text x={70} y={H / 2 - 2} textAnchor="middle" fontSize="12" fill="#ededed" fontWeight="600">
+      <text x={70} y={H / 2 - 2} textAnchor="middle" fontSize="12" fill="var(--color-text)" fontWeight="600">
         your app
       </text>
-      <text x={70} y={H / 2 + 12} textAnchor="middle" fontSize="8" fill="#6b7280">
+      <text x={70} y={H / 2 + 12} textAnchor="middle" fontSize="8" fill="var(--color-text-dim)">
         {fmt(map.totalLines)} lines
       </text>
       {rows.map((ext, i) => {
@@ -104,11 +104,11 @@ function ExternalsGraph({ map }: { map: ProjectMap }): React.JSX.Element {
               strokeWidth={1 + Math.min(3, ext.count / 3)}
               opacity="0.45"
             />
-            <rect x={320} y={y - 15} width={228} height={32} rx={9} fill="#101414" stroke="#2a2a2a" />
-            <text x={332} y={y - 1} fontSize="10" fill="#ededed" fontFamily="Consolas,monospace">
+            <rect x={320} y={y - 15} width={228} height={32} rx={9} fill="var(--color-surface-2)" stroke="var(--color-border)" />
+            <text x={332} y={y - 1} fontSize="10" fill="var(--color-text)" fontFamily="Consolas,monospace">
               {ext.host.length > 32 ? `${ext.host.slice(0, 31)}…` : ext.host}
             </text>
-            <text x={332} y={y + 11} fontSize="8" fill="#6b7280">
+            <text x={332} y={y + 11} fontSize="8" fill="var(--color-text-dim)">
               {ext.kind === 'ws' ? 'websocket' : 'http'} · {ext.count} reference{ext.count > 1 ? 's' : ''}
             </text>
           </g>

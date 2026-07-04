@@ -536,7 +536,35 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
                 onChange={(v) => void updateSettings({ smoothStreaming: v })}
               />
             </Row>
-            <Row label="Accent color" hint="The whole theme follows this — buttons, glows, gauges.">
+            <Row label="Theme" hint="The palette — backgrounds, panels, text. Accent color applies on top.">
+              <div className="flex gap-1.5">
+                {(
+                  [
+                    ['abyss', 'Abyss', '#0a0a0a', '#1d1d1d'],
+                    ['midnight', 'Midnight', '#000000', '#161616'],
+                    ['lagoon', 'Lagoon', '#061219', '#112a36'],
+                    ['reef', 'Reef', '#120d0a', '#251b16'],
+                    ['sandbar', 'Sandbar', '#f3efe6', '#ebe5d7']
+                  ] as const
+                ).map(([id, label, bg, surface]) => (
+                  <button
+                    key={id}
+                    onClick={() => void updateSettings({ theme: id })}
+                    title={label}
+                    className={
+                      'flex h-9 w-12 flex-col overflow-hidden rounded-lg border transition-transform hover:scale-105 ' +
+                      (settings.theme === id
+                        ? 'border-accent ring-1 ring-accent'
+                        : 'border-border')
+                    }
+                  >
+                    <span className="h-2/3 w-full" style={{ backgroundColor: bg }} />
+                    <span className="h-1/3 w-full" style={{ backgroundColor: surface }} />
+                  </button>
+                ))}
+              </div>
+            </Row>
+            <Row label="Accent color" hint="Buttons, glows, gauges — works with any theme.">
               <div className="flex gap-1.5">
                 {['#14b8a6', '#d97757', '#7c3aed', '#3b82f6', '#ec4899', '#22c55e', '#eab308'].map(
                   (color) => (

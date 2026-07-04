@@ -17,6 +17,9 @@ export type CyclePhase = 'retro' | 'compact'
  *  budgets in the sidecar (see THINKING_BUDGETS). */
 export type ThinkingLevel = 'off' | 'low' | 'medium' | 'high' | 'ultra'
 
+/** Palette presets — ocean-themed, naturally. */
+export type ThemeId = 'abyss' | 'midnight' | 'lagoon' | 'reef' | 'sandbar'
+
 /** Events the renderer reduces into chat items. */
 export type UiEvent =
   | {
@@ -103,8 +106,10 @@ export interface AppSettings {
   autoScreenshots: boolean
   fontSize: 'sm' | 'md' | 'lg'
   reducedMotion: boolean
-  /** Accent color (hex) — drives the whole theme. */
+  /** Accent color (hex) — drives highlights within any theme. */
   accent: string
+  /** Palette preset (backgrounds, surfaces, text). */
+  theme: ThemeId
   /** Shell for the integrated terminal. */
   terminalShell: 'cmd' | 'powershell' | 'pwsh'
   terminalFontSize: number

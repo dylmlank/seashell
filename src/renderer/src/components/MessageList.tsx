@@ -338,8 +338,8 @@ export function MessageList({
       <div className={`mx-auto w-full space-y-4 ${chatWidthClass(chatWidth)}`}>
         {items.length === 0 && (
           <div className="stagger flex flex-col items-center gap-2 pt-20 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-xl text-accent shadow-lg shadow-accent/10">
-              ✳
+            <span className="brand-float flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-xl shadow-lg shadow-accent/10">
+              🐚
             </span>
             <p className="mt-2 text-lg font-medium">
               {chatOnly ? 'Ask me anything' : 'What are we working on?'}
@@ -362,15 +362,17 @@ export function MessageList({
             </div>
           </div>
         )}
-        {toEntries(items).map((entry) =>
-          entry.kind === 'group' && entry.tools.length > 1 ? (
-            <ActivityGroup key={entry.id} items={entry.tools} />
-          ) : entry.kind === 'group' ? (
-            <ToolCallCard key={entry.id} item={entry.tools[0]} />
-          ) : (
-            <MessageBubble key={entry.item.id} item={entry.item} tabId={tabId} />
-          )
-        )}
+        {toEntries(items).map((entry) => (
+          <div key={entry.kind === 'group' ? entry.id : entry.item.id} className="msg-in">
+            {entry.kind === 'group' && entry.tools.length > 1 ? (
+              <ActivityGroup items={entry.tools} />
+            ) : entry.kind === 'group' ? (
+              <ToolCallCard item={entry.tools[0]} />
+            ) : (
+              <MessageBubble item={entry.item} tabId={tabId} />
+            )}
+          </div>
+        ))}
         <TurnIndicator items={items} tabId={tabId} />
         <div ref={bottomRef} />
       </div>

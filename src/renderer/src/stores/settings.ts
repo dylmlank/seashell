@@ -25,6 +25,7 @@ export const useSettings = create<SettingsStore>(() => ({
     fontSize: 'md',
     reducedMotion: false,
     accent: '#14b8a6',
+    theme: 'abyss',
     terminalShell: 'cmd',
     terminalFontSize: 13,
     editorFontSize: 13,
@@ -40,8 +41,10 @@ function applyToDocument(s: AppSettings): void {
   const root = document.documentElement
   root.style.fontSize = s.fontSize === 'sm' ? '14px' : s.fontSize === 'lg' ? '18px' : '16px'
   root.classList.toggle('reduced-motion', s.reducedMotion)
-  // The whole theme derives from this one variable (dim/glows via color-mix).
+  // Highlights derive from this one variable (dim/glows via color-mix).
   root.style.setProperty('--color-accent', s.accent)
+  // Palette preset — index.css overrides the color vars per data-theme.
+  root.dataset.theme = s.theme
 }
 
 declare global {

@@ -35,11 +35,12 @@ function Welcome(): React.JSX.Element {
   }
 
   return (
-    <div className="chat-wash flex h-full flex-col items-center overflow-y-auto">
-      <div className="stagger flex flex-col items-center gap-7 pb-10 pt-[12vh]">
+    <div className="chat-wash relative flex h-full flex-col items-center overflow-y-auto">
+      <div className="aurora" />
+      <div className="stagger relative flex flex-col items-center gap-7 pb-10 pt-[12vh]">
         <div className="text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/15 text-3xl text-accent shadow-2xl shadow-accent/10">
-            ✳
+          <div className="brand-float mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/15 text-3xl shadow-2xl shadow-accent/10">
+            🐚
           </div>
           <h1 className="mb-1.5 text-3xl font-semibold tracking-tight">Seashell</h1>
           <p className="text-text-dim">

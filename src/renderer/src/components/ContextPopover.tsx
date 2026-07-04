@@ -36,7 +36,7 @@ const PALETTE = [
   '#d946ef'
 ]
 
-const FREE_CELL = '#1f1f1f'
+const FREE_CELL = 'var(--color-surface-2)'
 
 type Category = ContextBreakdown['categories'][number]
 

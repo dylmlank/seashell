@@ -21,6 +21,7 @@ const DEFAULTS: AppSettings = {
   fontSize: 'md',
   reducedMotion: false,
   accent: '#14b8a6',
+  theme: 'abyss',
   terminalShell: 'cmd',
   terminalFontSize: 13,
   editorFontSize: 13,

@@ -224,7 +224,7 @@ export function Composer({
             </div>
           )}
 
-          <div className="composer-card rounded-2xl border border-border bg-surface">
+          <div className="composer-card focus-glow rounded-2xl border border-border bg-surface">
             <textarea
               ref={areaRef}
               value={text}

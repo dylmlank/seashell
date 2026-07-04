@@ -40,7 +40,7 @@ export function SidePanelShell({
   }
 
   return (
-    <div className="relative flex h-full shrink-0" style={{ width }}>
+    <div className="panel-in relative flex h-full shrink-0" style={{ width }}>
       <div
         onMouseDown={startDrag}
         title="Drag to resize"

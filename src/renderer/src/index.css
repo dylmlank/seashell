@@ -11,6 +11,43 @@
   --color-text-dim: #8f8f8f;
 }
 
+/* Theme presets — override the palette per data-theme; accent stays its own
+   setting so any accent works with any theme. Default (abyss) is the @theme
+   block above. */
+html[data-theme='midnight'] {
+  --color-bg: #000000;
+  --color-surface: #0a0a0a;
+  --color-surface-2: #161616;
+  --color-border: #1f1f1f;
+  --color-text: #f0f0f0;
+  --color-text-dim: #868686;
+}
+html[data-theme='lagoon'] {
+  --color-bg: #061219;
+  --color-surface: #0a1c25;
+  --color-surface-2: #112a36;
+  --color-border: #1a3a49;
+  --color-text: #e9f2f6;
+  --color-text-dim: #82a5b4;
+}
+html[data-theme='reef'] {
+  --color-bg: #120d0a;
+  --color-surface: #1a1311;
+  --color-surface-2: #251b16;
+  --color-border: #31241c;
+  --color-text: #f3ece5;
+  --color-text-dim: #a3907f;
+}
+html[data-theme='sandbar'] {
+  --color-bg: #f3efe6;
+  --color-surface: #fbf8f1;
+  --color-surface-2: #ebe5d7;
+  --color-border: #d9cfbd;
+  --color-text: #262219;
+  --color-text-dim: #75705f;
+  --color-accent-dim: color-mix(in srgb, var(--color-accent) 78%, black);
+}
+
 html,
 body,
 #root {
@@ -36,7 +73,141 @@ textarea {
     background-color 0.15s ease,
     border-color 0.15s ease,
     color 0.15s ease,
-    opacity 0.15s ease;
+    opacity 0.15s ease,
+    transform 0.1s ease;
+}
+
+/* Micro-interaction: buttons give a tiny press. */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.reduced-motion button:active:not(:disabled) {
+  transform: none;
+}
+
+/* Theme switches melt instead of snapping. */
+body,
+.bg-bg,
+.bg-surface,
+.bg-surface-2 {
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease;
+}
+
+/* Chat items rise in as they appear. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.msg-in {
+  animation: rise-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.reduced-motion .msg-in {
+  animation: none;
+}
+
+/* Side panels slide in from their edge. */
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.panel-in {
+  animation: panel-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.reduced-motion .panel-in {
+  animation: none;
+}
+
+/* Composer lights up while focused. */
+.focus-glow {
+  transition: box-shadow 0.25s ease;
+}
+.focus-glow:focus-within {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
+    0 10px 46px color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+/* Brand shell bobs gently. */
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.brand-float {
+  animation: floaty 5s ease-in-out infinite;
+}
+.reduced-motion .brand-float {
+  animation: none;
+}
+
+/* Welcome-screen aurora: two accent-tinted blobs drifting behind content. */
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: translate(-12%, -8%) scale(1);
+  }
+  50% {
+    transform: translate(10%, 6%) scale(1.15);
+  }
+}
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: translate(14%, 10%) scale(1.1);
+  }
+  50% {
+    transform: translate(-8%, -6%) scale(0.95);
+  }
+}
+.aurora {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.aurora::before,
+.aurora::after {
+  content: '';
+  position: absolute;
+  width: 55vw;
+  height: 55vw;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.14;
+}
+.aurora::before {
+  background: var(--color-accent);
+  top: -18%;
+  left: -12%;
+  animation: drift-a 26s ease-in-out infinite;
+}
+.aurora::after {
+  background: color-mix(in srgb, var(--color-accent) 60%, #6366f1);
+  bottom: -22%;
+  right: -14%;
+  animation: drift-b 32s ease-in-out infinite;
+}
+.reduced-motion .aurora::before,
+.reduced-motion .aurora::after {
+  animation: none;
 }
 
 /* Markdown content inside chat bubbles */
