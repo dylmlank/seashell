@@ -66,20 +66,52 @@ const STYLE_PROMPTS: Record<string, string> = {
 const THINKING_RANK: ThinkingLevel[] = ['off', 'low', 'medium', 'high', 'ultra']
 
 /** Smart thinking: pick a budget for THIS message, never above the user's
- *  chosen ceiling. Short chatter gets none; hard/code-heavy questions get more. */
+ *  chosen ceiling. Short chatter gets none; hard/code-heavy questions get more.
+ *  Also drives smart model routing (off→haiku, low/medium→sonnet, high→chosen).
+ *
+ *  Signals, from strongest to weakest:
+ *  - hard: reasoning-heavy verbs (debug, design, why, refactor, audit…)
+ *  - build: coding INTENT even when worded casually (implement, fix, add a
+ *    feature, make it do X, write a component…) — these must never grade as
+ *    chatter, or a coding task lands on a Q&A model
+ *  - code: literal code markers (fences, file extensions, errors) */
+const BUILD_VERBS =
+  /\b(implement|build|create|add|fix|make|write|update|change|remove|rename|migrate|integrate|wire|hook up|set ?up)\b/i
+const BUILD_NOUNS =
+  /\b(feature|function|component|page|button|endpoint|api|test|script|file|bug|command|panel|screen|app|site|server|class|module|style|animation|sidebar|menu|list|view|tab|window|dialog|modal|header|footer|icon|theme|layout|form|route|setting)s?\b/i
+const BREAKAGE = /\b(bug|broken|doesn'?t work|not working|crash(es|ed)?|fails?|failing)\b/i
+
+/** Coding intent, even when worded casually — "make the sidebar collapsible"
+ *  must never be graded (or model-routed) as chatter. */
+export function hasBuildIntent(text: string): boolean {
+  return (BUILD_VERBS.test(text) && BUILD_NOUNS.test(text)) || BREAKAGE.test(text)
+}
+
 export function smartThinkingLevel(text: string, ceiling: ThinkingLevel): ThinkingLevel {
   const capIdx = THINKING_RANK.indexOf(ceiling)
   if (capIdx <= 0) return 'off'
   const t = text.trim()
   const hard =
     /\b(why|debug|design|architect|refactor|optimi[sz]e|prove|plan|complex|race|deadlock|security|audit|investigate|root cause)\b/i.test(t)
+  const build = hasBuildIntent(t)
+  const ask = /\b(summari[sz]e|explain|describe|compare|walk me through|tell me about|how do(es)?|what does|where is)\b/i.test(t)
   const code = /```|\berror\b|exception|stack trace|\.(ts|tsx|js|jsx|py|rs|cs|cpp|java|go)\b/i.test(t)
   let want: number
-  if (t.length < 60 && !hard && !code) want = 0
-  else if (hard && code) want = THINKING_RANK.indexOf('high')
-  else if (hard || code || t.length > 400) want = THINKING_RANK.indexOf('medium')
+  if (t.length < 60 && !hard && !build && !code && !ask) want = 0
+  else if ((hard && code) || (build && (hard || code))) want = THINKING_RANK.indexOf('high')
+  else if (build || hard || code || t.length > 400) want = THINKING_RANK.indexOf('medium')
   else want = THINKING_RANK.indexOf('low')
   return THINKING_RANK[Math.min(want, capIdx)]
+}
+
+/** Model routing on the same signals. Build intent alone (no code attached
+ *  yet) still deserves the session's real model — new-feature asks usually
+ *  arrive without code blocks. */
+export function smartModelChoice(text: string, preferred: string): string {
+  const grade = smartThinkingLevel(text, 'ultra')
+  if (grade === 'high' || grade === 'ultra') return preferred
+  if (hasBuildIntent(text)) return preferred
+  return grade === 'off' ? 'haiku' : 'sonnet'
 }
 
 type Broadcast = <C extends keyof Events>(channel: C, payload: Events[C]) => void
@@ -761,13 +793,7 @@ class SessionHandle {
     // the session's chosen model. Once the context is large, dropping tiers
     // would re-read it uncached — so big sessions only switch UP.
     if (settings.smartModel && this.preferredModel) {
-      const grade = smartThinkingLevel(text, 'ultra')
-      const target =
-        grade === 'high' || grade === 'ultra'
-          ? this.preferredModel
-          : grade === 'off'
-            ? 'haiku'
-            : 'sonnet'
+      const target = smartModelChoice(text, this.preferredModel)
       const bigContext = this.usage.lastContextTokens > 60_000
       if (
         target !== this.appliedModel &&

@@ -29996,23 +29996,39 @@ var STYLE_PROMPTS = {
   formal: "Response style: professional and formal. Complete sentences, precise terminology, no slang or emoji."
 };
 var THINKING_RANK = ["off", "low", "medium", "high", "ultra"];
+var BUILD_VERBS = /\b(implement|build|create|add|fix|make|write|update|change|remove|rename|migrate|integrate|wire|hook up|set ?up)\b/i;
+var BUILD_NOUNS = /\b(feature|function|component|page|button|endpoint|api|test|script|file|bug|command|panel|screen|app|site|server|class|module|style|animation|sidebar|menu|list|view|tab|window|dialog|modal|header|footer|icon|theme|layout|form|route|setting)s?\b/i;
+var BREAKAGE = /\b(bug|broken|doesn'?t work|not working|crash(es|ed)?|fails?|failing)\b/i;
+function hasBuildIntent(text) {
+  return BUILD_VERBS.test(text) && BUILD_NOUNS.test(text) || BREAKAGE.test(text);
+}
 function smartThinkingLevel(text, ceiling) {
   const capIdx = THINKING_RANK.indexOf(ceiling);
   if (capIdx <= 0)
     return "off";
   const t = text.trim();
   const hard = /\b(why|debug|design|architect|refactor|optimi[sz]e|prove|plan|complex|race|deadlock|security|audit|investigate|root cause)\b/i.test(t);
+  const build = hasBuildIntent(t);
+  const ask = /\b(summari[sz]e|explain|describe|compare|walk me through|tell me about|how do(es)?|what does|where is)\b/i.test(t);
   const code = /```|\berror\b|exception|stack trace|\.(ts|tsx|js|jsx|py|rs|cs|cpp|java|go)\b/i.test(t);
   let want;
-  if (t.length < 60 && !hard && !code)
+  if (t.length < 60 && !hard && !build && !code && !ask)
     want = 0;
-  else if (hard && code)
+  else if (hard && code || build && (hard || code))
     want = THINKING_RANK.indexOf("high");
-  else if (hard || code || t.length > 400)
+  else if (build || hard || code || t.length > 400)
     want = THINKING_RANK.indexOf("medium");
   else
     want = THINKING_RANK.indexOf("low");
   return THINKING_RANK[Math.min(want, capIdx)];
+}
+function smartModelChoice(text, preferred) {
+  const grade = smartThinkingLevel(text, "ultra");
+  if (grade === "high" || grade === "ultra")
+    return preferred;
+  if (hasBuildIntent(text))
+    return preferred;
+  return grade === "off" ? "haiku" : "sonnet";
 }
 var broadcast4 = () => {};
 function setBroadcast(fn) {
@@ -30550,8 +30566,7 @@ class SessionHandle {
       }
     }
     if (settings.smartModel && this.preferredModel) {
-      const grade = smartThinkingLevel(text, "ultra");
-      const target = grade === "high" || grade === "ultra" ? this.preferredModel : grade === "off" ? "haiku" : "sonnet";
+      const target = smartModelChoice(text, this.preferredModel);
       const bigContext = this.usage.lastContextTokens > 60000;
       if (target !== this.appliedModel && (target === this.preferredModel || !bigContext)) {
         this.appliedModel = target;
