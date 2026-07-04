@@ -1,7 +1,7 @@
 {
   "name": "seashell",
   "version": "0.1.0",
-  "description": "Desktop UI for Claude Code — Tauri + Bun. Chat, editor, terminal, approvals, history, usage.",
+  "description": "Desktop UI for Claude Code \u00e2\u20ac\u201d Tauri + Bun. Chat, editor, terminal, approvals, history, usage.",
   "author": "Dylan",
   "scripts": {
     "format": "prettier --write .",
@@ -16,7 +16,8 @@
     "build": "tauri build",
     "test": "bun test tests/",
     "sidecar": "bun run src/sidecar/index.ts",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "canary": "bun scripts/sdk-canary.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.198",

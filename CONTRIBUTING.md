@@ -14,7 +14,8 @@ bun test tests/sidecar.test.ts
   the renderer never imports SDK types — the sidecar maps SDK messages into
   the shared `UiEvent` contract (`src/shared/ipc-contract.ts`).
 - The Agent SDK version is **pinned exact** on purpose (pre-1.0 shapes drift).
-  Don't bump it casually; if you do, note what changed.
+  Before bumping it, run `bun run canary` — it exercises every SDK surface the
+  app depends on and tells you exactly what an upgrade would break.
 - Keep diffs focused; match the surrounding style. `bun run lint` must pass.
 - Windows is the primary tested platform. macOS/Linux fixes are very welcome —
   platform-specific code lives in `src/sidecar/platform.ts` and behind
