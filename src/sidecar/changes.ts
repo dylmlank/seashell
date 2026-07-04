@@ -105,6 +105,21 @@ export const changes = {
     }
   },
 
+  /** Working-tree delta vs HEAD, for the after-turn chip in chat. */
+  async shortstat(
+    cwd: string
+  ): Promise<{ files: number; insertions: number; deletions: number } | null> {
+    try {
+      const out = await git(cwd, ['diff', 'HEAD', '--shortstat'])
+      const files = Number(out.match(/(\d+) files? changed/)?.[1] ?? 0)
+      const insertions = Number(out.match(/(\d+) insertions?/)?.[1] ?? 0)
+      const deletions = Number(out.match(/(\d+) deletions?/)?.[1] ?? 0)
+      return files > 0 ? { files, insertions, deletions } : null
+    } catch {
+      return null // not a git repo — no chip
+    }
+  },
+
   /** Push the current branch and open a GitHub PR (gh cli). Returns its URL. */
   async createPr(cwd: string): Promise<{ url: string } | { error: string }> {
     try {

@@ -26,6 +26,9 @@ interface UiStore {
   commandsManager: boolean
   /** Transient corner notifications (native slash-command feedback). */
   toasts: Toast[]
+  /** Second session rendered side-by-side with the active one. */
+  split: string | null
+  setSplit: (tabId: string | null) => void
   setPanel: (tabId: string, panel: SidePanel) => void
   togglePanel: (tabId: string, panel: Exclude<SidePanel, null>) => void
   setPalette: (palette: 'commands' | 'files' | null) => void
@@ -41,6 +44,8 @@ export const useUi = create<UiStore>((set) => ({
   palette: null,
   commandsManager: false,
   toasts: [],
+  split: null,
+  setSplit: (tabId) => set((s) => ({ split: s.split === tabId ? null : tabId })),
   setPanel: (tabId, panel) => set((s) => ({ panels: { ...s.panels, [tabId]: panel } })),
   togglePanel: (tabId, panel) =>
     set((s) => ({

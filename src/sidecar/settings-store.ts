@@ -32,7 +32,8 @@ const DEFAULTS: AppSettings = {
   smartThinking: true,
   leanSessions: false,
   templates: [],
-  responseStyle: 'normal'
+  responseStyle: 'normal',
+  speakReplies: false
 }
 
 const file = (): string => join(userDataDir(), 'settings.json')

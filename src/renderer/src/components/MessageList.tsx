@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   CheckCircle2,
+  GitCommitHorizontal,
   XCircle,
   Brain,
   Minimize2
@@ -259,6 +260,21 @@ const MessageBubble = memo(function MessageBubble({
             )}
           </div>
         </div>
+      )
+    case 'diffstat':
+      return (
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('seashell-open-changes'))}
+          title="Open the Changes panel to review and commit"
+          className="mx-auto flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-[11px] text-text-dim transition-all hover:-translate-y-px hover:border-accent-dim/60 hover:text-text"
+        >
+          <GitCommitHorizontal size={12} className="text-accent" />
+          <span className="text-green-500">+{item.insertions}</span>
+          <span className="text-red-400">−{item.deletions}</span>
+          <span>
+            across {item.files} file{item.files === 1 ? '' : 's'}
+          </span>
+        </button>
       )
     case 'aside':
       return <AsideCard item={item} />

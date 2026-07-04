@@ -3,7 +3,7 @@ import { FolderOpen, Loader2, Plus, X, Zap } from 'lucide-react'
 import type { SessionTemplate } from '@shared/types'
 import { useAuth } from './stores/auth'
 import { updateSettings, useSettings } from './stores/settings'
-import { createTab, sendMessage, useSessions } from './stores/sessions'
+import { createTab, POP_TAB_ID, sendMessage, useSessions } from './stores/sessions'
 import { ApprovalModal } from './components/ApprovalModal'
 import { ChangesPanel } from './components/ChangesPanel'
 import { ChatView } from './components/ChatView'
@@ -62,6 +62,29 @@ function Welcome(): React.JSX.Element {
       <ProjectGallery />
     </div>
   )
+}
+
+/** A detached pop-out window: hydrate the tab from the hand-off snapshot,
+ *  then live off the same sidecar broadcasts as the main window. */
+function PopView({ tabId }: { tabId: string }): React.JSX.Element {
+  const tab = useSessions((s) => s.tabs.find((t) => t.tabId === tabId))
+  useEffect(() => {
+    if (useSessions.getState().tabs.some((t) => t.tabId === tabId)) return
+    try {
+      const raw = localStorage.getItem(`pop:${tabId}`)
+      if (raw) useSessions.getState().addTab(JSON.parse(raw))
+    } catch {
+      // bad snapshot — the not-found message below covers it
+    }
+  }, [tabId])
+  if (!tab) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-text-dim">
+        This session is no longer available — it may have been closed in the main window.
+      </div>
+    )
+  }
+  return <ChatView key={tab.tabId} tab={tab} />
 }
 
 /** One-click session presets: folder + optional first prompt. */
@@ -173,6 +196,8 @@ export default function App(): React.JSX.Element {
   const [usageOpen, setUsageOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const commandsManagerOpen = useUi((s) => s.commandsManager)
+  const splitId = useUi((s) => s.split)
+  const splitTab = tabs.find((t) => t.tabId === splitId)
   const settingsLoaded = useSettings((s) => s.loaded)
   const reopenLast = useSettings((s) => s.settings.reopenLastProject)
   const reopened = useRef(false)
@@ -180,7 +205,7 @@ export default function App(): React.JSX.Element {
   // Pick up where you left off: resume the sessions that were open when the
   // app last closed (falls back to just opening the last project).
   useEffect(() => {
-    if (reopened.current || !settingsLoaded || !reopenLast) return
+    if (POP_TAB_ID || reopened.current || !settingsLoaded || !reopenLast) return
     reopened.current = true
     if (tabs.length > 0) return
     try {
@@ -205,9 +230,17 @@ export default function App(): React.JSX.Element {
     if (last) void createTab(last).catch(() => {})
   }, [settingsLoaded, reopenLast, tabs.length])
 
+  // Diff-stat chips in chat open the Changes panel.
+  useEffect(() => {
+    const open = (): void => setChangesOpen(true)
+    window.addEventListener('seashell-open-changes', open)
+    return () => window.removeEventListener('seashell-open-changes', open)
+  }, [])
+
   // Ctrl+N: new chat in the current project, no folder picker (Desktop-style).
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      if (POP_TAB_ID) return
       if (!e.ctrlKey || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'n') return
       e.preventDefault()
       const cwd =
@@ -218,6 +251,11 @@ export default function App(): React.JSX.Element {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // Detached window: render just the popped session, no sidebar/chrome.
+  if (POP_TAB_ID) {
+    return <PopView tabId={POP_TAB_ID} />
+  }
 
   if (authState.state === 'loggedOut') {
     return <OnboardingView reason={authState.detail} />
@@ -231,8 +269,15 @@ export default function App(): React.JSX.Element {
         onShowUsage={() => setUsageOpen(true)}
         onShowSettings={() => setSettingsOpen(true)}
       />
-      <div className="min-w-0 flex-1">
-        {activeTab ? <ChatView key={activeTab.tabId} tab={activeTab} /> : <Welcome />}
+      <div className="flex min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
+          {activeTab ? <ChatView key={activeTab.tabId} tab={activeTab} /> : <Welcome />}
+        </div>
+        {splitTab && splitTab.tabId !== activeTabId && (
+          <div className="min-w-0 flex-1 border-l border-border">
+            <ChatView key={splitTab.tabId} tab={splitTab} />
+          </div>
+        )}
       </div>
       {changesOpen && activeTab && (
         <ChangesPanel key={`changes-${activeTab.tabId}`} tabId={activeTab.tabId} />

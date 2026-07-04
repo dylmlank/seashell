@@ -161,6 +161,25 @@ fn open_terminal(cwd: String) {
         .spawn();
 }
 
+/// Detach a session into its own OS window. The renderer spots the pop-*
+/// window label, hydrates the tab from a localStorage snapshot, and keeps in
+/// sync via the shared sidecar broadcasts.
+#[tauri::command]
+async fn open_popout(app: AppHandle, tab_id: String) -> Result<(), String> {
+    let label = format!("pop-{tab_id}");
+    if let Some(existing) = app.get_webview_window(&label) {
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+    // Async commands run on the main runtime — same pattern as capture_url.
+    tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App("index.html".into()))
+        .title("Seashell")
+        .inner_size(1000.0, 740.0)
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// External links from chat markdown open in the default browser.
 #[tauri::command]
 fn open_external(url: String) -> Result<(), String> {
@@ -445,6 +464,7 @@ pub fn run() {
             pty_kill,
             open_terminal,
             open_external,
+            open_popout,
             save_text_file,
             capture_url,
             flash_window

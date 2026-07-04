@@ -28129,7 +28129,8 @@ var DEFAULTS = {
   smartThinking: true,
   leanSessions: false,
   templates: [],
-  responseStyle: "normal"
+  responseStyle: "normal",
+  speakReplies: false
 };
 var file = () => join2(userDataDir(), "settings.json");
 var THINKING_LEGACY = {
@@ -28474,6 +28475,17 @@ var changes = {
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+  async shortstat(cwd) {
+    try {
+      const out = await git(cwd, ["diff", "HEAD", "--shortstat"]);
+      const files = Number(out.match(/(\d+) files? changed/)?.[1] ?? 0);
+      const insertions = Number(out.match(/(\d+) insertions?/)?.[1] ?? 0);
+      const deletions = Number(out.match(/(\d+) deletions?/)?.[1] ?? 0);
+      return files > 0 ? { files, insertions, deletions } : null;
+    } catch {
+      return null;
     }
   },
   async createPr(cwd) {
@@ -30261,6 +30273,12 @@ class SessionHandle {
           if (this.turnHadMutations && !this.chatOnly) {
             projectExplain.maybeRefresh(this.cwd);
           }
+        }
+        if (this.turnPhase === "user" && this.turnHadMutations && !this.chatOnly) {
+          changes.shortstat(this.cwd).then((stat2) => {
+            if (stat2)
+              this.send({ kind: "diffstat", ...stat2 });
+          });
         }
         this.pushContextUsage();
         refreshPlanLimits(this);

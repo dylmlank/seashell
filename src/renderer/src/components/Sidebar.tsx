@@ -8,11 +8,14 @@ import {
   Settings2,
   BellRing,
   CheckCircle2,
+  Columns2,
+  PictureInPicture2,
   AlertCircle
 } from 'lucide-react'
 import clsx from 'clsx'
 import type { SessionStatus } from '@shared/types'
-import { closeTab, createTab, useSessions } from '../stores/sessions'
+import { closeTab, createTab, popOutTab, useSessions } from '../stores/sessions'
+import { useUi } from '../stores/ui'
 import { LimitBars } from './LimitBars'
 import { SessionList } from './SessionSidebar'
 import { alertDialog } from '../lib/dialogs'
@@ -70,6 +73,8 @@ export function Sidebar({
   const activeTabId = useSessions((s) => s.activeTabId)
   const setActive = useSessions((s) => s.setActive)
   const [opening, setOpening] = useState(false)
+  const split = useUi((s) => s.split)
+  const setSplit = useUi((s) => s.setSplit)
 
   const newSession = async (): Promise<void> => {
     const cwd = await window.api.invoke('dialog:pickFolder')
@@ -152,16 +157,38 @@ export function Sidebar({
                       Needs you
                     </span>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      closeTab(tab.tabId)
-                    }}
-                    title="Close session"
-                    className="shrink-0 rounded p-0.5 opacity-0 hover:bg-border group-hover:opacity-100"
-                  >
-                    <X size={12} />
-                  </button>
+                  <span className="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSplit(tab.tabId)
+                      }}
+                      title={split === tab.tabId ? 'Close split view' : 'Open side-by-side with the active session'}
+                      className={clsx('rounded p-0.5 hover:bg-border', split === tab.tabId && 'text-accent')}
+                    >
+                      <Columns2 size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void popOutTab(tab)
+                      }}
+                      title="Pop out into its own window"
+                      className="rounded p-0.5 hover:bg-border"
+                    >
+                      <PictureInPicture2 size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        closeTab(tab.tabId)
+                      }}
+                      title="Close session"
+                      className="rounded p-0.5 hover:bg-border"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
                 </div>
               )
             })}

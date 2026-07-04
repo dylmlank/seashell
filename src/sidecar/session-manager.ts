@@ -9,6 +9,7 @@ import {
 } from '@anthropic-ai/claude-agent-sdk'
 import { approvals } from './approvals'
 import { auth } from './auth'
+import { changes } from './changes'
 import { AsyncQueue } from './async-queue'
 import { loadDesktopMcpServers } from './desktop-mcp'
 import { notifyIfUnfocused } from './notify'
@@ -586,6 +587,12 @@ class SessionHandle {
             // project memory) current. Fingerprint + throttle gated inside.
             void projectExplain.maybeRefresh(this.cwd)
           }
+        }
+        // After the ANSWER turn (before retro/compact), show what it changed.
+        if (this.turnPhase === 'user' && this.turnHadMutations && !this.chatOnly) {
+          void changes.shortstat(this.cwd).then((stat) => {
+            if (stat) this.send({ kind: 'diffstat', ...stat })
+          })
         }
         // Token-free control requests: exact context fill for the gauge, and a
         // throttled plan-limits refresh for the usage bars.

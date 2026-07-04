@@ -58,6 +58,8 @@ export type UiEvent =
       phase?: CyclePhase
     }
   | { kind: 'status_text'; text: string }
+  /** Working-tree delta after an edit turn ("+120 −18 across 4 files"). */
+  | { kind: 'diffstat'; files: number; insertions: number; deletions: number }
   /** Live output-token count while streaming (recalibrated per API message). */
   | { kind: 'stream_tokens'; outputTokens: number }
   /** Authoritative context-window fill from the CLI (per-model window sizes). */
@@ -135,6 +137,8 @@ export interface AppSettings {
   templates: SessionTemplate[]
   /** How answers read (appended to the system prompt of new sessions). */
   responseStyle: ResponseStyle
+  /** Read answers aloud when a turn finishes. */
+  speakReplies: boolean
 }
 
 /** A saved way to start a session: folder + optional first prompt. */

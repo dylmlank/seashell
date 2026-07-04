@@ -506,6 +506,18 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
               />
             </Row>
             <Row
+              label="Speak replies aloud"
+              hint="Read each finished answer with the system voice — pairs with the mic button for full voice conversations."
+            >
+              <Toggle
+                checked={settings.speakReplies}
+                onChange={(v) => {
+                  if (!v) speechSynthesis.cancel()
+                  void updateSettings({ speakReplies: v })
+                }}
+              />
+            </Row>
+            <Row
               label="Auto-screenshot visual changes"
               hint="When a turn edits pages, styles, or components, capture the result (dev server or the written HTML) with headless Edge and paste before/after frames into the chat."
             >

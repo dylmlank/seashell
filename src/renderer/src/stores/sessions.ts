@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { invoke as tauriInvoke } from '@tauri-apps/api/core'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import type {
   CyclePhase,
   ImageAttachment,
@@ -28,6 +30,8 @@ export type ChatItem =
     }
   | { kind: 'plan'; id: string; todos: TodoItem[] }
   | { kind: 'status'; id: string; text: string }
+  /** What the turn changed on disk — click opens the Changes panel. */
+  | { kind: 'diffstat'; id: string; files: number; insertions: number; deletions: number }
   /** Auto-captured screenshots showing what the turn changed. */
   | {
       kind: 'shots'
@@ -221,6 +225,21 @@ function reduceEvent(items: ChatItem[], event: UiEvent): ChatItem[] {
           : item
       )
     }
+    case 'diffstat': {
+      // Replace a previous unclicked chip from the same turn burst.
+      const last = items[items.length - 1]
+      const base = last?.kind === 'diffstat' ? items.slice(0, -1) : items
+      return [
+        ...base,
+        {
+          kind: 'diffstat',
+          id: nextId(),
+          files: event.files,
+          insertions: event.insertions,
+          deletions: event.deletions
+        }
+      ]
+    }
     case 'turn_result': {
       // Close out any dangling streaming bubble and stamp the turn's token cost
       // on the answer it belongs to.
@@ -346,17 +365,48 @@ export function appendItem(tabId: string, item: Omit<ChatItem, 'id'>): void {
   store.update(tabId, { items: [...tab.items, { ...item, id: nextId() } as ChatItem] })
 }
 
+/** True in a detached pop-out window (label pop-<tabId>). */
+export const POP_TAB_ID = ((): string | null => {
+  const label = getCurrentWebviewWindow().label
+  return label.startsWith('pop-') ? label.slice(4) : null
+})()
+
+/** Detach a session into its own OS window (state handed off via snapshot). */
+export async function popOutTab(tab: TabState): Promise<void> {
+  localStorage.setItem(`pop:${tab.tabId}`, JSON.stringify(tab))
+  await tauriInvoke('open_popout', { tabId: tab.tabId })
+}
+
 if (!window.__sessionsWired) {
   window.__sessionsWired = true
   // Remember what's open so a restart can pick up where you left off.
-  useSessions.subscribe((state) => {
-    const open = state.tabs
-      .filter((t) => !t.side)
-      .map((t) => ({ cwd: t.cwd, sessionId: t.sdkSessionId, title: t.title }))
-    localStorage.setItem('open-tabs', JSON.stringify(open))
-  })
+  // Pop-out windows hold a single borrowed tab — they must not overwrite it.
+  if (!POP_TAB_ID) {
+    useSessions.subscribe((state) => {
+      const open = state.tabs
+        .filter((t) => !t.side)
+        .map((t) => ({ cwd: t.cwd, sessionId: t.sdkSessionId, title: t.title }))
+      localStorage.setItem('open-tabs', JSON.stringify(open))
+    })
+  }
   window.api.on('session:event', ({ tabId, event }) => {
     useSessions.getState().applyEvent(tabId, event)
+    // Spoken replies: read the finished answer aloud (main sessions only).
+    if (event.kind === 'turn_result' && !event.isError && !event.phase) {
+      void import('./settings').then(({ useSettings }) => {
+        if (!useSettings.getState().settings.speakReplies) return
+        const tab = useSessions.getState().tabs.find((t) => t.tabId === tabId)
+        if (!tab || tab.side) return
+        const lastAnswer = [...tab.items].reverse().find((i) => i.kind === 'assistant')
+        if (lastAnswer?.kind !== 'assistant' || !lastAnswer.text.trim()) return
+        const spoken = lastAnswer.text
+          .replace(/```[\s\S]*?```/g, ' code block omitted. ')
+          .replace(/[#*_`>|-]/g, ' ')
+          .slice(0, 1200)
+        speechSynthesis.cancel()
+        speechSynthesis.speak(new SpeechSynthesisUtterance(spoken))
+      })
+    }
     // Successful real turns (not retro/compact) may deserve visual proof.
     if (event.kind === 'turn_result' && !event.isError) {
       const tab = useSessions.getState().tabs.find((t) => t.tabId === tabId)
@@ -439,6 +489,7 @@ export function sendMessage(tabId: string, text: string, images?: ImageAttachmen
   const store = useSessions.getState()
   const tab = store.tabs.find((t) => t.tabId === tabId)
   if (!tab) return
+  speechSynthesis.cancel() // a new message interrupts any read-aloud
   // Busy? Queue it — sent automatically the moment this turn (and its
   // follow-ups) finish. Keeps typing flowing without interrupting Claude.
   if (tab.status === 'streaming' || tab.status === 'awaitingApproval') {

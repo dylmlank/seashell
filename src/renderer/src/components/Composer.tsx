@@ -6,8 +6,10 @@ import { ModelSelector } from './ModelSelector'
 import { PermissionModeSwitcher } from './PermissionModeSwitcher'
 import { ThinkingSelector } from './ThinkingSelector'
 import { useSettings } from '../stores/settings'
+import { useSessions } from '../stores/sessions'
 import { chatWidthClass } from '../lib/chat-width'
 import { alertDialog } from '../lib/dialogs'
+import { getPrompts, pushPrompt } from '../lib/prompt-history'
 
 const SOURCE_BADGE: Record<SlashSuggestion['source'], { label: string; cls: string }> = {
   native: { label: 'app', cls: 'bg-accent-dim/30 text-accent' },
@@ -49,6 +51,10 @@ export function Composer({
   const [slashIndex, setSlashIndex] = useState(0)
   const areaRef = useRef<HTMLTextAreaElement>(null)
   const chatWidth = useSettings((s) => s.settings.chatWidth)
+  const cwd = useSessions((s) => s.tabs.find((t) => t.tabId === tabId)?.cwd)
+  // Prompt recall: where we are in history, and the unsent draft to return to.
+  const historyIndex = useRef<number | null>(null)
+  const draft = useRef('')
 
   // Slash autocomplete: active while the input is a single line starting with "/".
   const slashMatches = useMemo(() => {
@@ -62,6 +68,9 @@ export function Composer({
   const submit = (): void => {
     const trimmed = text.trim()
     if ((!trimmed && images.length === 0 && files.length === 0) || disabled) return
+    if (trimmed && cwd) pushPrompt(cwd, trimmed)
+    historyIndex.current = null
+    draft.current = ''
     // Non-image attachments travel as paths — Claude reads them with its own tools.
     const withFiles = files.length
       ? `${trimmed}\n\n[Attached files — read them as needed]\n${files.map((f) => `- ${f.path}`).join('\n')}`
@@ -239,6 +248,7 @@ export function Composer({
               }
               className="max-h-48 w-full resize-none bg-transparent px-4 pb-1 pt-3.5 outline-none placeholder:text-text-dim/70"
               onChange={(e) => {
+                historyIndex.current = null // typing exits prompt recall
                 setText(e.target.value)
                 e.target.style.height = 'auto'
                 e.target.style.height = `${Math.min(e.target.scrollHeight, 192)}px`
@@ -265,6 +275,34 @@ export function Composer({
                   if (e.key === 'Tab') {
                     e.preventDefault()
                     setText(`/${slashMatches[slashIndex].name} `)
+                    return
+                  }
+                }
+                // Terminal-style recall: Up/Down walk sent prompts when the
+                // caret is at the very start (or the box is empty).
+                if (
+                  (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+                  cwd &&
+                  (text === '' || historyIndex.current !== null) &&
+                  (e.target as HTMLTextAreaElement).selectionStart === 0
+                ) {
+                  const list = getPrompts(cwd)
+                  if (list.length > 0) {
+                    e.preventDefault()
+                    if (historyIndex.current === null) {
+                      if (e.key === 'ArrowDown') return
+                      draft.current = text
+                      historyIndex.current = list.length - 1
+                    } else if (e.key === 'ArrowUp') {
+                      historyIndex.current = Math.max(0, historyIndex.current - 1)
+                    } else if (historyIndex.current >= list.length - 1) {
+                      historyIndex.current = null
+                      setText(draft.current)
+                      return
+                    } else {
+                      historyIndex.current += 1
+                    }
+                    setText(list[historyIndex.current])
                     return
                   }
                 }
