@@ -417,6 +417,15 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
               </select>
             </Row>
             <Row
+              label="Smart model routing"
+              hint="Pick the model per message: quick chatter → Haiku, ordinary asks → Sonnet, complex/code work → your chosen model. Big sessions only switch up, never down (protects the prompt cache)."
+            >
+              <Toggle
+                checked={settings.smartModel}
+                onChange={(v) => void updateSettings({ smartModel: v })}
+              />
+            </Row>
+            <Row
               label="Smart thinking"
               hint="Budget thinking per message: quick questions get little or none, hard/code-heavy ones get up to your chosen level. Big token saver."
             >

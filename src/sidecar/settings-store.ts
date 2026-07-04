@@ -30,6 +30,7 @@ const DEFAULTS: AppSettings = {
   chatWidth: 'wide',
   defaultThinkingLevel: 'medium',
   smartThinking: true,
+  smartModel: true,
   leanSessions: false,
   templates: [],
   responseStyle: 'normal',

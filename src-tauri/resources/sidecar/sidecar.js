@@ -28131,6 +28131,7 @@ var DEFAULTS = {
   chatWidth: "wide",
   defaultThinkingLevel: "medium",
   smartThinking: true,
+  smartModel: true,
   leanSessions: false,
   templates: [],
   responseStyle: "normal",
@@ -30038,6 +30039,8 @@ class SessionHandle {
   lastMaxTokens = 0;
   thinkingLevel = "off";
   appliedThinking = "off";
+  preferredModel;
+  appliedModel;
   usage = {
     inputTokens: 0,
     outputTokens: 0,
@@ -30197,6 +30200,8 @@ class SessionHandle {
         if (msg.subtype === "init") {
           this.sdkSessionId = msg.session_id;
           this.usage.model = msg.model;
+          this.preferredModel ??= msg.model;
+          this.appliedModel ??= msg.model;
           this.pushContextUsage();
           this.send({
             kind: "init",
@@ -30536,11 +30541,22 @@ class SessionHandle {
     this.turnHadMutations = false;
     this.turnConfirmedOut = 0;
     this.turnStreamChars = 0;
-    if (!this.chatOnly && settingsStore.get().smartThinking) {
+    const settings = settingsStore.get();
+    if (!this.chatOnly && settings.smartThinking) {
       const effective = smartThinkingLevel(text, this.thinkingLevel);
       if (effective !== this.appliedThinking) {
         this.appliedThinking = effective;
         this.q.setMaxThinkingTokens(THINKING_BUDGETS[effective]).catch(() => {});
+      }
+    }
+    if (settings.smartModel && this.preferredModel) {
+      const grade = smartThinkingLevel(text, "ultra");
+      const target = grade === "high" || grade === "ultra" ? this.preferredModel : grade === "off" ? "haiku" : "sonnet";
+      const bigContext = this.usage.lastContextTokens > 60000;
+      if (target !== this.appliedModel && (target === this.preferredModel || !bigContext)) {
+        this.appliedModel = target;
+        this.q.setModel(target).catch(() => {});
+        this.send({ kind: "model", model: target });
       }
     }
     broadcast4("session:status", { tabId: this.tabId, status: "streaming" });
@@ -30578,8 +30594,8 @@ class SessionHandle {
     return this.q.setPermissionMode(mode);
   }
   setModel(model) {
-    if (this.chatOnly && !/haiku|sonnet/i.test(model))
-      return Promise.resolve();
+    this.preferredModel = model;
+    this.appliedModel = model;
     return this.q.setModel(model);
   }
   setThinking(level) {

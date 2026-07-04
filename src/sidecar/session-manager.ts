@@ -135,6 +135,10 @@ class SessionHandle {
    *  thinking scales per message but never above the ceiling). */
   private thinkingLevel: ThinkingLevel = 'off'
   private appliedThinking: ThinkingLevel = 'off'
+  /** Smart model routing: the user's chosen model is the "complex" tier;
+   *  simpler messages drop to sonnet/haiku. */
+  private preferredModel?: string
+  private appliedModel?: string
   private usage: UsageTotals = {
     inputTokens: 0,
     outputTokens: 0,
@@ -344,6 +348,10 @@ class SessionHandle {
         if (msg.subtype === 'init') {
           this.sdkSessionId = msg.session_id
           this.usage.model = msg.model
+          // The session's starting model is the smart-router's "complex" tier
+          // (unless the user already picked one explicitly).
+          this.preferredModel ??= msg.model
+          this.appliedModel ??= msg.model
           // Show the true context baseline (system prompt, tools, connectors)
           // as soon as the session is live — before any tokens are spent.
           void this.pushContextUsage()
@@ -739,13 +747,35 @@ class SessionHandle {
     this.turnHadMutations = false
     this.turnConfirmedOut = 0
     this.turnStreamChars = 0
+    const settings = settingsStore.get()
     // Smart thinking: budget this message by its complexity, capped at the
     // chosen level — "whats up" shouldn't spend an 18k thinking budget.
-    if (!this.chatOnly && settingsStore.get().smartThinking) {
+    if (!this.chatOnly && settings.smartThinking) {
       const effective = smartThinkingLevel(text, this.thinkingLevel)
       if (effective !== this.appliedThinking) {
         this.appliedThinking = effective
         void this.q.setMaxThinkingTokens(THINKING_BUDGETS[effective]).catch(() => {})
+      }
+    }
+    // Smart model routing: trivial → haiku, ordinary → sonnet, complex/code →
+    // the session's chosen model. Once the context is large, dropping tiers
+    // would re-read it uncached — so big sessions only switch UP.
+    if (settings.smartModel && this.preferredModel) {
+      const grade = smartThinkingLevel(text, 'ultra')
+      const target =
+        grade === 'high' || grade === 'ultra'
+          ? this.preferredModel
+          : grade === 'off'
+            ? 'haiku'
+            : 'sonnet'
+      const bigContext = this.usage.lastContextTokens > 60_000
+      if (
+        target !== this.appliedModel &&
+        (target === this.preferredModel || !bigContext)
+      ) {
+        this.appliedModel = target
+        void this.q.setModel(target).catch(() => {})
+        this.send({ kind: 'model', model: target })
       }
     }
     broadcast('session:status', { tabId: this.tabId, status: 'streaming' })
@@ -790,8 +820,10 @@ class SessionHandle {
   }
 
   setModel(model: string): Promise<void> {
-    // Side chats stay on the Q&A tier — heavyweight models are for coding tabs.
-    if (this.chatOnly && !/haiku|sonnet/i.test(model)) return Promise.resolve()
+    // A manual pick sets the session's preferred model — smart routing uses
+    // it as the "complex task" tier from here on.
+    this.preferredModel = model
+    this.appliedModel = model
     return this.q.setModel(model)
   }
 

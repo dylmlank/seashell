@@ -34,6 +34,7 @@ export const useSettings = create<SettingsStore>(() => ({
     chatWidth: 'wide',
     defaultThinkingLevel: 'medium',
     smartThinking: true,
+    smartModel: true,
     leanSessions: false,
     templates: [],
     responseStyle: 'normal',

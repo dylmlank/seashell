@@ -64,6 +64,8 @@ export type UiEvent =
   | { kind: 'stream_tokens'; outputTokens: number }
   /** Authoritative context-window fill from the CLI (per-model window sizes). */
   | { kind: 'context_usage'; totalTokens: number; maxTokens: number; percentage: number }
+  /** Smart routing switched the model for the upcoming message. */
+  | { kind: 'model'; model: string }
 
 export interface TodoItem {
   content: string
@@ -131,6 +133,8 @@ export interface AppSettings {
   defaultThinkingLevel: ThinkingLevel
   /** Auto-scale the thinking budget per message (never above the chosen level). */
   smartThinking: boolean
+  /** Auto-pick the model per message: haiku ↔ sonnet ↔ your chosen model. */
+  smartModel: boolean
   /** Skip user-level plugins/MCP/skills for a minimal context baseline. */
   leanSessions: boolean
   /** One-click session presets shown on the Welcome screen. */
