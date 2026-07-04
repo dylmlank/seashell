@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Camera,
@@ -96,13 +96,15 @@ export function PreviewPanel({
   cwd: string
   tabId?: string
 }): React.JSX.Element {
-  const shots = useSessions(
-    (s) =>
-      (s.tabs.find((t) => t.tabId === tabId)?.items.filter((i) => i.kind === 'shots') ??
-        []) as ShotsItem[]
+  // Select the stable items reference; deriving (filtering) inside the
+  // selector would return a fresh array every pass and loop the renderer.
+  const items = useSessions((s) => s.tabs.find((t) => t.tabId === tabId)?.items)
+  const shots = useMemo(
+    () => ((items ?? []).filter((i) => i.kind === 'shots') as ShotsItem[]),
+    [items]
   )
   const [mode, setMode] = useState<'live' | 'file' | 'shots'>(
-    path ? 'file' : shots.length > 0 ? 'shots' : 'live'
+    path ? 'file' : (items ?? []).some((i) => i.kind === 'shots') ? 'shots' : 'live'
   )
 
   // --- live browser state ---
