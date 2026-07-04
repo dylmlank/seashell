@@ -20,6 +20,9 @@ export type ThinkingLevel = 'off' | 'low' | 'medium' | 'high' | 'ultra'
 /** Palette presets — ocean-themed, naturally. */
 export type ThemeId = 'abyss' | 'midnight' | 'lagoon' | 'reef' | 'sandbar'
 
+/** How answers read, Claude Desktop-style. */
+export type ResponseStyle = 'normal' | 'concise' | 'explanatory' | 'formal'
+
 /** Events the renderer reduces into chat items. */
 export type UiEvent =
   | {
@@ -130,6 +133,8 @@ export interface AppSettings {
   leanSessions: boolean
   /** One-click session presets shown on the Welcome screen. */
   templates: SessionTemplate[]
+  /** How answers read (appended to the system prompt of new sessions). */
+  responseStyle: ResponseStyle
 }
 
 /** A saved way to start a session: folder + optional first prompt. */

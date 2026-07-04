@@ -31,7 +31,8 @@ const DEFAULTS: AppSettings = {
   defaultThinkingLevel: 'high',
   smartThinking: true,
   leanSessions: false,
-  templates: []
+  templates: [],
+  responseStyle: 'normal'
 }
 
 const file = (): string => join(userDataDir(), 'settings.json')

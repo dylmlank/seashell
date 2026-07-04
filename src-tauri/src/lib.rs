@@ -403,6 +403,22 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        // Quick-summon from anywhere (Claude Desktop parity). Registered in
+        // setup() so a conflict (e.g. Claude Desktop owns the combo) degrades
+        // gracefully instead of killing the app.
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        if let Some(win) = app.get_webview_window("main") {
+                            let _ = win.show();
+                            let _ = win.unminimize();
+                            let _ = win.set_focus();
+                        }
+                    }
+                })
+                .build(),
+        )
         .manage(AppState {
             sidecar: Mutex::new(None),
             sidecar_port: Mutex::new(0),
@@ -413,6 +429,12 @@ pub fn run() {
         })
         .setup(|app| {
             supervise_sidecar(app.handle().clone());
+            {
+                use tauri_plugin_global_shortcut::GlobalShortcutExt;
+                if let Err(e) = app.global_shortcut().register("ctrl+shift+space") {
+                    eprintln!("[hotkey] Ctrl+Shift+Space unavailable: {e}");
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

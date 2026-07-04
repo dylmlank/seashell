@@ -16,6 +16,7 @@
 - **Usage dashboard** — per-session tokens, cache hits, cost, and a live context-window gauge
 - **Claude account login** — uses your existing `claude /login` automatically; if logged out, a guided `claude setup-token` flow stores a token encrypted with Windows DPAPI
 - **Multiple providers** — your Claude subscription by default, OpenRouter credits, or any custom Anthropic-compatible endpoint (LiteLLM/local proxies, other gateways), switchable per session
+- **Desktop-grade extras** — global summon hotkey (Ctrl+Shift+Space), response styles (concise/explanatory/formal), one-click GitHub PR creation, open-in-Explorer/VS Code, message queueing, session templates, worktree sessions, smart per-message thinking budgets
 
 ## Requirements
 

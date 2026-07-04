@@ -28128,7 +28128,8 @@ var DEFAULTS = {
   defaultThinkingLevel: "high",
   smartThinking: true,
   leanSessions: false,
-  templates: []
+  templates: [],
+  responseStyle: "normal"
 };
 var file = () => join2(userDataDir(), "settings.json");
 var THINKING_LEGACY = {
@@ -28391,6 +28392,16 @@ var auth = {
 import { execFile } from "child_process";
 import { readFile } from "fs/promises";
 import { join as join5 } from "path";
+function exec(cwd, cmd, args) {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, { cwd, maxBuffer: 16 * 1024 * 1024, windowsHide: true, shell: cmd === "gh" }, (err, stdout, stderr) => {
+      if (err)
+        reject(new Error(stderr.trim() || err.message));
+      else
+        resolve(stdout);
+    });
+  });
+}
 function git(cwd, args) {
   return new Promise((resolve, reject) => {
     execFile("git", args, { cwd, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
@@ -28463,6 +28474,27 @@ var changes = {
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+  async createPr(cwd) {
+    try {
+      const branch = (await git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"])).trim();
+      if (branch === "main" || branch === "master") {
+        return { error: `You're on ${branch} \u2014 create a branch first, then open a PR from it.` };
+      }
+      await git(cwd, ["push", "-u", "origin", "HEAD"]);
+      const out = await exec(cwd, "gh", ["pr", "create", "--fill"]);
+      const url = out.match(/https:\/\/\S+/)?.[0];
+      if (!url)
+        return { error: `gh did not return a PR URL:
+${out.slice(0, 300)}` };
+      return { url };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const existing = msg.match(/https:\/\/github\.com\/\S+\/pull\/\d+/)?.[0];
+      if (existing)
+        return { url: existing };
+      return { error: msg };
     }
   },
   async commit(cwd, message, files) {
@@ -28935,9 +28967,9 @@ var pins = {
 };
 
 // src/sidecar/ports.ts
-import { exec, spawn as spawn3 } from "child_process";
+import { exec as exec2, spawn as spawn3 } from "child_process";
 import { promisify } from "util";
-var run = promisify(exec);
+var run = promisify(exec2);
 var ports = {
   async list() {
     try {
@@ -29806,6 +29838,11 @@ You are encouraged to extend your own capabilities as you work, proactively and 
 - Tools: when no existing tool fits a task, build one \u2014 a script in the project (wire it up as a slash command or npm script), or a small MCP server registered in .mcp.json for capabilities every future session should have.
 - Plugins & MCP servers: when a well-known plugin or MCP server solves the task better than building from scratch, install or register it (claude plugin install, or add it to .mcp.json) and say what you added and why.
 Always tell the user what you created or installed and how to invoke it. Prefer small, composable pieces with clear descriptions over monoliths.`.trim();
+var STYLE_PROMPTS = {
+  concise: "Response style: be concise. Answer directly with minimal preamble, no filler, no restating the question. Short sentences, tight lists.",
+  explanatory: "Response style: be explanatory. Walk through your reasoning, define terms, and include examples so the user learns the why, not just the what.",
+  formal: "Response style: professional and formal. Complete sentences, precise terminology, no slang or emoji."
+};
 var THINKING_RANK = ["off", "low", "medium", "high", "ultra"];
 function smartThinkingLevel(text, ceiling) {
   const capIdx = THINKING_RANK.indexOf(ceiling);
@@ -29879,7 +29916,17 @@ class SessionHandle {
       enableFileCheckpointing: true,
       allowDangerouslySkipPermissions: true,
       settingSources: settings.leanSessions || this.chatOnly ? ["project", "local"] : ["user", "project", "local"],
-      ...settings.allowSelfSkills && !this.chatOnly ? { appendSystemPrompt: SELF_EXTEND_PROMPT } : {},
+      ...(() => {
+        const parts = [];
+        if (settings.allowSelfSkills && !this.chatOnly)
+          parts.push(SELF_EXTEND_PROMPT);
+        const style = STYLE_PROMPTS[settings.responseStyle];
+        if (style)
+          parts.push(style);
+        return parts.length ? { appendSystemPrompt: parts.join(`
+
+`) } : {};
+      })(),
       ...this.chatOnly ? { tools: [...CHAT_ONLY_TOOLS] } : {},
       ...settings.importDesktopMcp && !this.chatOnly && !process.env.CLAUDE_SHELL_USER_DATA ? { mcpServers: loadDesktopMcpServers() } : {},
       canUseTool: (toolName, input, ctx) => {
@@ -30777,6 +30824,20 @@ var handlers = {
   "changes:commit": (a) => {
     const h = sessionManager.get(a.tabId);
     return h ? changes.commit(h.cwd, a.message, a.files) : { error: "Session not found" };
+  },
+  "changes:createPr": (a) => {
+    const h = sessionManager.get(a.tabId);
+    return h ? changes.createPr(h.cwd) : { error: "Session not found" };
+  },
+  "project:open": (a) => {
+    const h = sessionManager.get(a.tabId);
+    if (!h)
+      return;
+    if (a.app === "vscode") {
+      spawn5("cmd.exe", ["/c", "code", "."], { cwd: h.cwd, detached: true, stdio: "ignore" }).unref();
+    } else {
+      spawn5("explorer.exe", [h.cwd], { detached: true, stdio: "ignore" }).unref();
+    }
   },
   "providers:getState": () => ({
     openrouterKeySet: secrets.getOpenRouterKey() !== null,

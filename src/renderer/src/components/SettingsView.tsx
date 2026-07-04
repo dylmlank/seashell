@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X, Settings2, LogIn, LogOut, KeyRound, SquareTerminal, Trash2 } from 'lucide-react'
-import type { PermissionMode, Provider, ThinkingLevel } from '@shared/types'
+import type { PermissionMode, Provider, ResponseStyle, ThinkingLevel } from '@shared/types'
 import { updateSettings, useSettings } from '../stores/settings'
 import { useAuth } from '../stores/auth'
 
@@ -397,6 +397,23 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
                 <option value="ultra">Ultra</option>
+              </select>
+            </Row>
+            <Row
+              label="Response style"
+              hint="How answers read — Claude Desktop-style. Applies to new sessions."
+            >
+              <select
+                value={settings.responseStyle}
+                onChange={(e) =>
+                  void updateSettings({ responseStyle: e.target.value as ResponseStyle })
+                }
+                className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm outline-none"
+              >
+                <option value="normal">Normal</option>
+                <option value="concise">Concise</option>
+                <option value="explanatory">Explanatory</option>
+                <option value="formal">Formal</option>
               </select>
             </Row>
             <Row

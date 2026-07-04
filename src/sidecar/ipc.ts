@@ -161,6 +161,19 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
     const h = sessionManager.get(a.tabId)
     return h ? changes.commit(h.cwd, a.message, a.files) : { error: 'Session not found' }
   },
+  'changes:createPr': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? changes.createPr(h.cwd) : { error: 'Session not found' }
+  },
+  'project:open': (a) => {
+    const h = sessionManager.get(a.tabId)
+    if (!h) return
+    if (a.app === 'vscode') {
+      spawn('cmd.exe', ['/c', 'code', '.'], { cwd: h.cwd, detached: true, stdio: 'ignore' }).unref()
+    } else {
+      spawn('explorer.exe', [h.cwd], { detached: true, stdio: 'ignore' }).unref()
+    }
+  },
 
   'providers:getState': () => ({
     openrouterKeySet: secrets.getOpenRouterKey() !== null,

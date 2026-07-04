@@ -110,6 +110,10 @@ export interface Invokes {
     message: string
     files: string[]
   }) => { ok: true } | { error: string }
+  /** Push the current branch and open a GitHub PR via gh. */
+  'changes:createPr': (a: { tabId: string }) => { url: string } | { error: string }
+  /** Open the project folder in Explorer or VS Code. */
+  'project:open': (a: { tabId: string; app: 'explorer' | 'vscode' }) => void
 
   'providers:getState': () => { openrouterKeySet: boolean; customKeySet: boolean }
   'providers:saveOpenRouterKey': (a: { key: string }) => { ok: boolean; error?: string }

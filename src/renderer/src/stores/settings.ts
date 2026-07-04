@@ -35,7 +35,8 @@ export const useSettings = create<SettingsStore>(() => ({
     defaultThinkingLevel: 'high',
     smartThinking: true,
     leanSessions: false,
-    templates: []
+    templates: [],
+    responseStyle: 'normal'
   },
   loaded: false
 }))

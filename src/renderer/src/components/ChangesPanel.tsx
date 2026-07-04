@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
+import { invoke as tauriInvoke } from '@tauri-apps/api/core'
 import {
   GitBranch,
   GitCommitHorizontal,
+  GitPullRequestArrow,
   RefreshCw,
   Undo2,
   FilePlus2,
@@ -31,6 +33,24 @@ export function ChangesPanel({ tabId }: { tabId: string }): React.JSX.Element {
   const [excluded, setExcluded] = useState<Set<string>>(new Set())
   const [message, setMessage] = useState('')
   const [commitError, setCommitError] = useState<string | null>(null)
+  const [prBusy, setPrBusy] = useState(false)
+  const [prUrl, setPrUrl] = useState<string | null>(null)
+
+  const createPr = async (): Promise<void> => {
+    if (prUrl) {
+      void tauriInvoke('open_external', { url: prUrl })
+      return
+    }
+    setPrBusy(true)
+    setCommitError(null)
+    const result = await window.api.invoke('changes:createPr', { tabId })
+    setPrBusy(false)
+    if ('error' in result) setCommitError(result.error)
+    else {
+      setPrUrl(result.url)
+      void tauriInvoke('open_external', { url: result.url })
+    }
+  }
 
   const refresh = useCallback(async (): Promise<void> => {
     const result = await window.api.invoke('changes:list', { tabId })
@@ -210,6 +230,15 @@ export function ChangesPanel({ tabId }: { tabId: string }): React.JSX.Element {
               <GitCommitHorizontal size={15} />
               Commit {files.length - excluded.size} file
               {files.length - excluded.size === 1 ? '' : 's'}
+            </button>
+            <button
+              onClick={() => void createPr()}
+              disabled={busy || prBusy}
+              title="Push the current branch and open a GitHub pull request (gh)"
+              className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm hover:bg-border disabled:opacity-40"
+            >
+              <GitPullRequestArrow size={15} />
+              {prBusy ? 'Opening PR…' : prUrl ? 'PR opened — view on GitHub' : 'Create pull request'}
             </button>
           </div>
         </>

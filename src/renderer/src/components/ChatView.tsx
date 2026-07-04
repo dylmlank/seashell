@@ -102,10 +102,17 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
   return (
     <div className="chat-wash flex h-full flex-col">
       <div className="relative flex items-center gap-3 border-b border-border/40 px-4 py-2.5 text-xs text-text-dim">
-        <span className="flex items-center gap-1.5" title={tab.cwd}>
+        <span className="flex items-center gap-1.5">
           <span className={`h-2 w-2 rounded-full ${statusDot}`} />
-          <Folder size={13} />
-          <span className="max-w-48 truncate font-mono">{basename(tab.cwd)}</span>
+          <button
+            onClick={() => void window.api.invoke('project:open', { tabId: tab.tabId, app: 'explorer' })}
+            onAuxClick={() => void window.api.invoke('project:open', { tabId: tab.tabId, app: 'vscode' })}
+            title={`${tab.cwd}\nClick: open in Explorer · Middle-click: open in VS Code`}
+            className="flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-surface-2 hover:text-text"
+          >
+            <Folder size={13} />
+            <span className="max-w-48 truncate font-mono">{basename(tab.cwd)}</span>
+          </button>
         </span>
         {busy && tab.liveTokens !== undefined && (
           <span className="tabular-nums text-accent" title="Output tokens generated so far this turn">
