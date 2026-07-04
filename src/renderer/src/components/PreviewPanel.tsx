@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertTriangle,
+  Camera,
   ExternalLink,
   Eye,
   FileText,
@@ -13,7 +14,64 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import type { DevServerStatus, PortInfo } from '@shared/types'
+import { useSessions, type ChatItem } from '../stores/sessions'
 import { Markdown } from './Markdown'
+
+type ShotsItem = Extract<ChatItem, { kind: 'shots' }>
+
+/** Every screenshot captured this session, newest first, with a lightbox. */
+function ShotsGallery({ shots }: { shots: ShotsItem[] }): React.JSX.Element {
+  const [zoom, setZoom] = useState<{ data: string; label: string } | null>(null)
+  if (shots.length === 0) {
+    return (
+      <p className="p-4 text-xs leading-relaxed text-text-dim">
+        No screenshots yet. When a turn changes something visual, Seashell captures
+        before/after frames automatically — they show up in the chat and collect here.
+      </p>
+    )
+  }
+  return (
+    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+      {[...shots].reverse().map((s) => (
+        <div key={s.id}>
+          <p className="pb-1.5 truncate font-mono text-[11px] text-text-dim">{s.title}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {s.frames.map((f) => (
+              <button
+                key={`${s.id}-${f.label}`}
+                onClick={() => setZoom({ data: f.data, label: `${s.title} — ${f.label}` })}
+                className="group overflow-hidden rounded-lg border border-border bg-black/30 text-left transition-transform hover:scale-[1.02]"
+                title="Click to enlarge"
+              >
+                <img
+                  src={`data:image/png;base64,${f.data}`}
+                  alt={f.label}
+                  className="max-h-40 w-full object-contain"
+                />
+                <span className="block px-2 py-1 text-[10px] capitalize text-text-dim group-hover:text-text">
+                  {f.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      {zoom && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-2 bg-black/85 p-6"
+          onClick={() => setZoom(null)}
+        >
+          <img
+            src={`data:image/png;base64,${zoom.data}`}
+            alt={zoom.label}
+            className="max-h-[90%] max-w-full rounded-xl border border-border shadow-2xl"
+          />
+          <p className="text-xs text-text-dim">{zoom.label}</p>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function isAbsolute(p: string): boolean {
   return /^[a-zA-Z]:[\\/]/.test(p) || p.startsWith('/') || p.startsWith('\\')
@@ -31,12 +89,21 @@ function pickDevPort(ports: PortInfo[]): number | undefined {
  *  file mode for the last HTML/SVG/Markdown artifact Claude wrote. */
 export function PreviewPanel({
   path,
-  cwd
+  cwd,
+  tabId
 }: {
   path?: string
   cwd: string
+  tabId?: string
 }): React.JSX.Element {
-  const [mode, setMode] = useState<'live' | 'file'>(path ? 'file' : 'live')
+  const shots = useSessions(
+    (s) =>
+      (s.tabs.find((t) => t.tabId === tabId)?.items.filter((i) => i.kind === 'shots') ??
+        []) as ShotsItem[]
+  )
+  const [mode, setMode] = useState<'live' | 'file' | 'shots'>(
+    path ? 'file' : shots.length > 0 ? 'shots' : 'live'
+  )
 
   // --- live browser state ---
   const [ports, setPorts] = useState<PortInfo[]>([])
@@ -203,9 +270,14 @@ export function PreviewPanel({
             <FileText size={12} /> {name}
           </button>
         )}
+        <button onClick={() => setMode('shots')} className={tabCls(mode === 'shots')}>
+          <Camera size={12} /> Shots{shots.length > 0 ? ` (${shots.length})` : ''}
+        </button>
       </div>
 
-      {mode === 'live' ? (
+      {mode === 'shots' ? (
+        <ShotsGallery shots={shots} />
+      ) : mode === 'live' ? (
         <>
           {/* URL bar */}
           <div className="flex items-center gap-1.5 border-b border-border/60 px-2 py-1.5">

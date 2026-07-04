@@ -343,7 +343,7 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
         )}
         {panel === 'preview' && (
           <SidePanelShell storageKey="preview" defaultWidth={520}>
-            <PreviewPanel path={tab.lastArtifact} cwd={tab.cwd} />
+            <PreviewPanel path={tab.lastArtifact} cwd={tab.cwd} tabId={tab.tabId} />
           </SidePanelShell>
         )}
         {panel === 'memory' && (

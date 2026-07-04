@@ -41,7 +41,7 @@ function ShotsCard({ item }: { item: ShotsItem }): React.JSX.Element {
 
   return (
     <div
-      className="ml-8 max-w-lg overflow-hidden rounded-xl border border-border bg-surface anim-in"
+      className="ml-8 max-w-2xl overflow-hidden rounded-xl border border-border bg-surface anim-in"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -67,7 +67,7 @@ function ShotsCard({ item }: { item: ShotsItem }): React.JSX.Element {
         <img
           src={`data:image/png;base64,${frame.data}`}
           alt={`${item.title} — ${frame.label}`}
-          className="max-h-72 w-full border-t border-border/60 object-cover object-top"
+          className="max-h-96 w-full border-t border-border/60 bg-black/30 object-contain"
         />
       </button>
       <p className="px-3 py-1 text-[10px] text-text-dim/50">captured automatically after this turn</p>
