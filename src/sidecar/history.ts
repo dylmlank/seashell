@@ -48,5 +48,27 @@ export const history = {
       )
     }
     return sessions.map(toSummary).sort((a, b) => b.lastModified - a.lastModified)
+  },
+
+  /** Auto-tidy: delete sessions that were never really used — no first prompt
+   *  (the CLI and quick opens leave these behind) — once they're a day old.
+   *  Real conversations are never touched. Returns how many were removed. */
+  async tidy(openSdkIds: string[]): Promise<number> {
+    const { deleteSession } = await import('@anthropic-ai/claude-agent-sdk')
+    const sessions = await listSessions({ limit: 500 })
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000
+    let removed = 0
+    for (const s of sessions) {
+      const empty = !s.firstPrompt?.trim() && !s.summary?.trim()
+      if (!empty || s.lastModified > cutoff) continue
+      if (openSdkIds.includes(s.sessionId)) continue
+      try {
+        await deleteSession(s.sessionId)
+        removed++
+      } catch {
+        // locked or already gone — skip
+      }
+    }
+    return removed
   }
 }

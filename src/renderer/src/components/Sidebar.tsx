@@ -24,6 +24,49 @@ function basename(p: string): string {
   return p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
 }
 
+function agoShort(ms?: number): string {
+  if (!ms) return ''
+  const mins = Math.floor((Date.now() - ms) / 60_000)
+  if (mins < 1) return 'now'
+  if (mins < 60) return `${mins}m`
+  const hours = Math.floor(mins / 60)
+  return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`
+}
+
+type OpenEntry = { tab: import('../stores/sessions').TabState; label: string }
+
+/** Group open tabs by project, needs-input first, with UNIQUE labels —
+ *  untitled chats become "New chat", "New chat 2", … within their project. */
+function groupOpenTabs(tabs: import('../stores/sessions').TabState[]): [string, OpenEntry[]][] {
+  const byCwd = new Map<string, OpenEntry[]>()
+  for (const tab of tabs) {
+    const list = byCwd.get(tab.cwd) ?? []
+    list.push({ tab, label: tab.title ?? '' })
+    byCwd.set(tab.cwd, list)
+  }
+  for (const list of byCwd.values()) {
+    let untitled = 0
+    const seen = new Map<string, number>()
+    for (const entry of list) {
+      if (!entry.label) {
+        untitled++
+        entry.label = untitled === 1 ? 'New chat' : `New chat ${untitled}`
+      } else {
+        // Two chats that started with the same prompt get numbered too.
+        const n = (seen.get(entry.label) ?? 0) + 1
+        seen.set(entry.label, n)
+        if (n > 1) entry.label = `${entry.label} (${n})`
+      }
+    }
+    list.sort((a, b) => {
+      const aNeeds = a.tab.status === 'awaitingApproval' ? 0 : 1
+      const bNeeds = b.tab.status === 'awaitingApproval' ? 0 : 1
+      return aNeeds - bNeeds
+    })
+  }
+  return [...byCwd.entries()]
+}
+
 /** Icon + accessible label for a session's live state, so the Open list reads
  *  at a glance: working / needs you / ready / error. */
 function statusMeta(status: SessionStatus): { icon: React.ReactNode; label: string } {
@@ -75,6 +118,7 @@ export function Sidebar({
   const [opening, setOpening] = useState(false)
   const split = useUi((s) => s.split)
   const setSplit = useUi((s) => s.setSplit)
+  const openGroups = groupOpenTabs(tabs)
 
   const newSession = async (): Promise<void> => {
     const cwd = await window.api.invoke('dialog:pickFolder')
@@ -116,83 +160,92 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* Open sessions */}
+      {/* Open sessions, grouped under their project. Sessions needing input
+          always surface first within their group. */}
       {tabs.length > 0 && (
         <div className="px-3 pt-2">
           <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-text-dim/70">
             Open
           </div>
-          <div className="space-y-0.5">
-            {tabs.map((tab) => {
-              const active = tab.tabId === activeTabId
-              const needsInput = tab.status === 'awaitingApproval'
-              const meta = statusMeta(tab.status)
-              return (
-                <div
-                  key={tab.tabId}
-                  data-testid="tab"
-                  onClick={() => setActive(tab.tabId)}
-                  title={`${basename(tab.cwd)} — ${meta.label}\n${tab.cwd}`}
-                  className={clsx(
-                    'group flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
-                    needsInput && !active && 'ring-1 ring-inset ring-amber-400/30',
-                    active
-                      ? 'bg-surface-2 text-text'
-                      : 'text-text-dim hover:bg-surface hover:text-text'
-                  )}
-                >
-                  {meta.icon}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate leading-tight">
-                      {tab.title ?? basename(tab.cwd)}
-                    </span>
-                    {tab.title && (
-                      <span className="block truncate text-[10px] leading-tight text-text-dim/60">
-                        {basename(tab.cwd)}
+          {openGroups.map(([cwd, list]) => (
+            <div key={cwd} className="pb-1.5">
+              <div className="flex items-center gap-1.5 px-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-dim/50">
+                <span className="truncate">{basename(cwd)}</span>
+              </div>
+              <div className="space-y-0.5">
+                {list.map(({ tab, label }) => {
+                  const active = tab.tabId === activeTabId
+                  const needsInput = tab.status === 'awaitingApproval'
+                  const meta = statusMeta(tab.status)
+                  return (
+                    <div
+                      key={tab.tabId}
+                      data-testid="tab"
+                      onClick={() => setActive(tab.tabId)}
+                      title={`${label} — ${meta.label}\n${tab.cwd}`}
+                      className={clsx(
+                        'group ml-1.5 flex cursor-pointer items-center gap-2 rounded-lg border-l-2 py-1 pl-2 pr-1.5 text-sm transition-colors',
+                        needsInput
+                          ? 'border-amber-400/60'
+                          : active
+                            ? 'border-accent'
+                            : 'border-border/50',
+                        active
+                          ? 'bg-surface-2 text-text'
+                          : 'text-text-dim hover:bg-surface hover:text-text'
+                      )}
+                    >
+                      {meta.icon}
+                      <span className="min-w-0 flex-1 truncate text-[13px] leading-tight">
+                        {label}
                       </span>
-                    )}
-                  </span>
-                  {needsInput && (
-                    <span className="shrink-0 rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 group-hover:hidden">
-                      Needs you
-                    </span>
-                  )}
-                  <span className="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSplit(tab.tabId)
-                      }}
-                      title={split === tab.tabId ? 'Close split view' : 'Open side-by-side with the active session'}
-                      className={clsx('rounded p-0.5 hover:bg-border', split === tab.tabId && 'text-accent')}
-                    >
-                      <Columns2 size={12} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        void popOutTab(tab)
-                      }}
-                      title="Pop out into its own window"
-                      className="rounded p-0.5 hover:bg-border"
-                    >
-                      <PictureInPicture2 size={12} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        closeTab(tab.tabId)
-                      }}
-                      title="Close session"
-                      className="rounded p-0.5 hover:bg-border"
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+                      {needsInput ? (
+                        <span className="shrink-0 rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 group-hover:hidden">
+                          Needs you
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-[10px] tabular-nums text-text-dim/50 group-hover:hidden">
+                          {tab.status === 'streaming' ? 'now' : agoShort(tab.lastActiveAt)}
+                        </span>
+                      )}
+                      <span className="hidden shrink-0 gap-0.5 group-hover:flex">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSplit(tab.tabId)
+                          }}
+                          title={split === tab.tabId ? 'Close split view' : 'Open side-by-side with the active session'}
+                          className={clsx('rounded p-0.5 hover:bg-border', split === tab.tabId && 'text-accent')}
+                        >
+                          <Columns2 size={12} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void popOutTab(tab)
+                          }}
+                          title="Pop out into its own window"
+                          className="rounded p-0.5 hover:bg-border"
+                        >
+                          <PictureInPicture2 size={12} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            closeTab(tab.tabId)
+                          }}
+                          title="Close session"
+                          className="rounded p-0.5 hover:bg-border"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

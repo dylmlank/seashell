@@ -847,6 +847,10 @@ export const sessionManager = {
   async limits(): Promise<PlanLimits> {
     const first = handles.values().next().value as SessionHandle | undefined
     return first ? refreshPlanLimits(first) : lastLimits
+  },
+  /** SDK session ids of everything currently open (guards the auto-tidy). */
+  activeSdkIds(): string[] {
+    return [...handles.values()].map((h) => h.sdkSessionId).filter((id): id is string => !!id)
   }
 }
 

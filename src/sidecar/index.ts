@@ -6,6 +6,8 @@ import type { ServerWebSocket } from 'bun'
 import type { EventChannel, Events, InvokeChannel } from '../shared/ipc-contract'
 import { handlers } from './ipc'
 import { devserver } from './devserver'
+import { history } from './history'
+import { settingsStore } from './settings-store'
 import { setApprovalBroadcast } from './approvals'
 import { auth, injectStoredToken, setAuthBroadcast } from './auth'
 import { setNotifyBroadcast } from './notify'
@@ -80,6 +82,20 @@ const server = Bun.serve({
 
 // The Rust shell reads this line from stdout to learn where to point the frontend.
 console.log(`SIDECAR_PORT=${server.port}`)
+
+// Auto-tidy: sweep never-used session transcripts (no first prompt, >1 day
+// old) shortly after boot and every 6 hours. Real conversations are kept.
+async function tidySweep(): Promise<void> {
+  try {
+    if (!settingsStore.get().autoTidySessions) return
+    const removed = await history.tidy(sessionManager.activeSdkIds())
+    if (removed > 0) console.log(`[tidy] removed ${removed} empty session(s)`)
+  } catch (err) {
+    console.error('[tidy] sweep failed:', err)
+  }
+}
+setTimeout(() => void tidySweep(), 90_000)
+setInterval(() => void tidySweep(), 6 * 60 * 60 * 1000)
 
 function shutdown(): void {
   sessionManager.disposeAll()

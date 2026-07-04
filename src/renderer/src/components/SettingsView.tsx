@@ -506,6 +506,15 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
               />
             </Row>
             <Row
+              label="Auto-tidy sessions"
+              hint="Quietly delete session transcripts that were never used (no first message, older than a day). Real conversations are never touched."
+            >
+              <Toggle
+                checked={settings.autoTidySessions}
+                onChange={(v) => void updateSettings({ autoTidySessions: v })}
+              />
+            </Row>
+            <Row
               label="Speak replies aloud"
               hint="Read each finished answer with the system voice — pairs with the mic button for full voice conversations."
             >
