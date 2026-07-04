@@ -4,8 +4,8 @@ import type { AppSettings } from '../shared/types'
 import { userDataDir } from './paths'
 
 const DEFAULTS: AppSettings = {
-  defaultModel: 'claude-opus-4-8[1m]',
-  defaultPermissionMode: 'bypassPermissions',
+  defaultModel: null,
+  defaultPermissionMode: 'default',
   defaultProvider: 'anthropic',
   openrouterModel: null,
   customBaseUrl: null,
@@ -28,7 +28,7 @@ const DEFAULTS: AppSettings = {
   smoothStreaming: true,
   reopenLastProject: true,
   chatWidth: 'wide',
-  defaultThinkingLevel: 'high',
+  defaultThinkingLevel: 'medium',
   smartThinking: true,
   leanSessions: false,
   templates: [],

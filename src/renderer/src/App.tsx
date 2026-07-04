@@ -230,6 +230,27 @@ export default function App(): React.JSX.Element {
     if (last) void createTab(last).catch(() => {})
   }, [settingsLoaded, reopenLast, tabs.length])
 
+  // If the sidecar never connects, check whether the required tools exist at
+  // all — a clear install screen beats an eternal spinner on fresh machines.
+  const [missing, setMissing] = useState<{ bun: boolean; claude: boolean } | null>(null)
+  useEffect(() => {
+    if (settingsLoaded) return
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const p = await (await import('@tauri-apps/api/core')).invoke<{
+            bun: boolean
+            claude: boolean
+          }>('check_prereqs')
+          if (!p.bun || !p.claude) setMissing(p)
+        } catch {
+          // shell not ready — keep waiting
+        }
+      })()
+    }, 7000)
+    return () => clearTimeout(timer)
+  }, [settingsLoaded])
+
   // Diff-stat chips in chat open the Changes panel.
   useEffect(() => {
     const open = (): void => setChangesOpen(true)
@@ -255,6 +276,38 @@ export default function App(): React.JSX.Element {
   // Detached window: render just the popped session, no sidebar/chrome.
   if (POP_TAB_ID) {
     return <PopView tabId={POP_TAB_ID} />
+  }
+
+  if (missing && !settingsLoaded) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+        <span className="text-4xl">🐚</span>
+        <h1 className="text-xl font-semibold">Almost there — two tools to install</h1>
+        <p className="max-w-md text-sm text-text-dim">
+          Seashell drives the real Claude Code agent, which needs these on your PATH:
+        </p>
+        <div className="space-y-2 text-left text-sm">
+          <p className={missing.bun ? 'text-green-500' : 'text-text-dim'}>
+            {missing.bun ? '✅' : '❌'} <b>Bun</b> — install from{' '}
+            <a href="https://bun.sh" className="text-accent underline">
+              bun.sh
+            </a>
+          </p>
+          <p className={missing.claude ? 'text-green-500' : 'text-text-dim'}>
+            {missing.claude ? '✅' : '❌'} <b>Claude Code CLI</b> —{' '}
+            <code className="rounded bg-surface-2 px-1.5 py-0.5">
+              npm i -g @anthropic-ai/claude-code
+            </code>
+          </p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="rounded-xl bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-dim"
+        >
+          I installed them — check again
+        </button>
+      </div>
+    )
   }
 
   if (authState.state === 'loggedOut') {

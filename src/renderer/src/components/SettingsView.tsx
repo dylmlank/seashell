@@ -714,8 +714,31 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
           </div>
 
           <AccountSection />
+
+          <div className="flex items-center gap-2 py-4 text-xs text-text-dim">
+            <span>🐚</span>
+            <span>
+              Seashell <AppVersion /> · MIT ·{' '}
+              <a
+                href="https://github.com/dylmlank/seashell"
+                className="text-accent hover:underline"
+              >
+                github.com/dylmlank/seashell
+              </a>
+            </span>
+          </div>
         </div>
       </div>
     </div>
   )
+}
+
+function AppVersion(): React.JSX.Element {
+  const [version, setVersion] = useState('')
+  useEffect(() => {
+    void import('@tauri-apps/api/app').then(({ getVersion }) =>
+      getVersion().then((v) => setVersion(`v${v}`))
+    )
+  }, [])
+  return <>{version}</>
 }

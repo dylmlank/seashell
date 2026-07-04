@@ -18,6 +18,21 @@
 - **Multiple providers** — your Claude subscription by default, OpenRouter credits, or any custom Anthropic-compatible endpoint (LiteLLM/local proxies, other gateways), switchable per session
 - **Desktop-grade extras** — global summon hotkey (Ctrl+Shift+Space), response styles (concise/explanatory/formal), one-click GitHub PR creation, open-in-Explorer/VS Code, message queueing, session templates, worktree sessions, smart per-message thinking budgets
 
+![Seashell](docs/screenshot-chat.png)
+
+## Install
+
+Grab the installer for your OS from [Releases](https://github.com/dylmlank/seashell/releases):
+**Windows** `Seashell_x.y.z_x64-setup.exe` · **macOS** `.dmg` · **Linux** `.AppImage` / `.deb`.
+
+You'll also need [Bun](https://bun.sh) and the [Claude Code CLI](https://docs.claude.com/en/docs/claude-code)
+(`npm i -g @anthropic-ai/claude-code`) on your PATH — Seashell checks on first
+run and walks you through anything missing.
+
+> **Unsigned-build warnings:** these builds aren't code-signed (certificates
+> cost real money). On Windows, SmartScreen will warn — click *More info →
+> Run anyway*. On macOS, right-click the app → *Open* the first time.
+
 ## Requirements
 
 - Windows 11, macOS, or Linux

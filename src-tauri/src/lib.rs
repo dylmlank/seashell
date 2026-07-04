@@ -305,6 +305,37 @@ async fn capture_url(
         .ok_or_else(|| "no image data in CDP response".to_string())
 }
 
+#[derive(serde::Serialize)]
+struct Prereqs {
+    bun: bool,
+    claude: bool,
+}
+
+/// First-run help: which required tools are actually on PATH. The renderer
+/// shows install guidance instead of an eternal "connecting…" spinner.
+#[tauri::command]
+fn check_prereqs() -> Prereqs {
+    fn has(cmd: &str) -> bool {
+        #[cfg(windows)]
+        let out = Command::new("cmd.exe")
+            .args(["/c", cmd, "--version"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        #[cfg(not(windows))]
+        let out = Command::new("sh")
+            .args(["-lc", &format!("{cmd} --version")])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        matches!(out, Ok(s) if s.success())
+    }
+    Prereqs {
+        bun: has("bun"),
+        claude: has("claude"),
+    }
+}
+
 /// Taskbar attention when a notification fires while the window is unfocused.
 #[tauri::command]
 fn flash_window(app: AppHandle) {
@@ -481,6 +512,7 @@ pub fn run() {
             open_popout,
             save_text_file,
             capture_url,
+            check_prereqs,
             flash_window
         ])
         .build(tauri::generate_context!())

@@ -28104,8 +28104,8 @@ function userDataDir() {
 
 // src/sidecar/settings-store.ts
 var DEFAULTS = {
-  defaultModel: "claude-opus-4-8[1m]",
-  defaultPermissionMode: "bypassPermissions",
+  defaultModel: null,
+  defaultPermissionMode: "default",
   defaultProvider: "anthropic",
   openrouterModel: null,
   customBaseUrl: null,
@@ -28128,7 +28128,7 @@ var DEFAULTS = {
   smoothStreaming: true,
   reopenLastProject: true,
   chatWidth: "wide",
-  defaultThinkingLevel: "high",
+  defaultThinkingLevel: "medium",
   smartThinking: true,
   leanSessions: false,
   templates: [],
