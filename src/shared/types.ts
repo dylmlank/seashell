@@ -12,6 +12,10 @@ export type SessionStatus = 'starting' | 'idle' | 'streaming' | 'awaitingApprova
 /** Automatic follow-up turns that shouldn't read as part of the conversation. */
 export type CyclePhase = 'retro' | 'compact'
 
+/** Extended-thinking budget, Claude Desktop style. Mapped to thinking-token
+ *  budgets in the sidecar (see THINKING_BUDGETS). */
+export type ThinkingLevel = 'off' | 'low' | 'medium' | 'high' | 'ultra'
+
 /** Events the renderer reduces into chat items. */
 export type UiEvent =
   | {
@@ -104,6 +108,10 @@ export interface AppSettings {
   smoothStreaming: boolean
   /** Reopen the last project automatically on launch. */
   reopenLastProject: boolean
+  /** How wide the chat transcript and composer render. */
+  chatWidth: 'comfortable' | 'wide' | 'full'
+  /** Default extended-thinking level for new sessions. */
+  defaultThinkingLevel: ThinkingLevel
 }
 
 export interface UiToolUse {
@@ -127,6 +135,8 @@ export interface UsageTotals {
 export interface ModelInfo {
   id: string
   displayName: string
+  /** Short capability blurb from the SDK's model catalog, if available. */
+  description?: string
 }
 
 export interface DirEntry {
@@ -202,6 +212,21 @@ export interface PortInfo {
   process: string
 }
 
+/** State of a dev server Claude Shell launched for the live preview. */
+export interface DevServerStatus {
+  running: boolean
+  /** True once launched but before its URL has been detected. */
+  starting: boolean
+  /** The command we ran, e.g. "npm run dev". */
+  command?: string
+  /** The URL sniffed from the server's output, once it prints one. */
+  url?: string
+  pid?: number
+  /** Recent output lines (tail), for surfacing startup errors. */
+  log: string[]
+  error?: string
+}
+
 /** One plan rate-limit window (like Claude Desktop's usage bars). */
 export interface LimitWindow {
   /** Percentage of the window used, 0–100. */
@@ -263,6 +288,22 @@ export interface ProjectExplanation {
   /** Hash of the project map it was generated from — regeneration is skipped
    *  while the project's shape is unchanged. */
   fingerprint?: string
+}
+
+/** A user-authored slash command, stored as a markdown file in
+ *  `.claude/commands/` (project) or `~/.claude/commands/` (user). The body is
+ *  the prompt Claude receives, with `$ARGUMENTS` / `$1`… substituted. */
+export interface UserCommand {
+  /** Command name without the leading slash or `.md` (slashes = namespacing). */
+  name: string
+  /** Where the file lives — decides which folder writes/deletes target. */
+  scope: 'project' | 'user'
+  /** One-line summary shown in the autocomplete (frontmatter `description`). */
+  description?: string
+  /** Placeholder hint shown after the name (frontmatter `argument-hint`). */
+  argumentHint?: string
+  /** The prompt body (frontmatter stripped). */
+  body: string
 }
 
 /** A project folder with a generated visual preview. */

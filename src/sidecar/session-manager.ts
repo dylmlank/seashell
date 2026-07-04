@@ -26,14 +26,31 @@ import type {
   PermissionMode,
   PlanLimits,
   Provider,
+  ThinkingLevel,
   TodoItem,
   UiEvent,
   UiToolUse,
   UsageTotals
 } from '../shared/types'
 
-const SELF_SKILLS_PROMPT = `
-When you find yourself repeating a multi-step workflow, or when a reusable capability would make future work in this project faster or more reliable, proactively create a project skill (a .claude/skills/<name>/SKILL.md file) or a custom slash command (.claude/commands/<name>.md) that captures it. Tell the user what you created and how to invoke it. Prefer small, composable skills with clear descriptions.`.trim()
+/** Thinking-token budget per level (0 disables extended thinking). Mirrors the
+ *  Claude Code CLI's low → ultra reasoning-effort ladder. */
+export const THINKING_BUDGETS: Record<ThinkingLevel, number> = {
+  off: 0,
+  low: 4_000,
+  medium: 10_000,
+  high: 18_000,
+  ultra: 31_999
+}
+
+const SELF_EXTEND_PROMPT = `
+You are encouraged to extend your own capabilities as you work, proactively and without waiting to be asked:
+- Skills: when you repeat a multi-step workflow, or solve a hard problem you may face again, capture it as a project skill (.claude/skills/<name>/SKILL.md) with a clear description of when to use it.
+- Slash commands: when a task is something the user may want to trigger on demand, add a custom command (.claude/commands/<name>.md).
+- Subagents: when a recurring job benefits from an isolated, focused context (a code reviewer, a test runner, a doc writer), define one in .claude/agents/<name>.md with its own prompt and tool list.
+- Tools: when no existing tool fits a task, build one — a script in the project (wire it up as a slash command or npm script), or a small MCP server registered in .mcp.json for capabilities every future session should have.
+- Plugins & MCP servers: when a well-known plugin or MCP server solves the task better than building from scratch, install or register it (claude plugin install, or add it to .mcp.json) and say what you added and why.
+Always tell the user what you created or installed and how to invoke it. Prefer small, composable pieces with clear descriptions over monoliths.`.trim()
 
 type Broadcast = <C extends keyof Events>(channel: C, payload: Events[C]) => void
 
@@ -51,6 +68,8 @@ export interface CreateSessionOpts {
   provider?: Provider
   /** Read-and-answer only: no file edits, commands, or MCP tools. */
   chatOnly?: boolean
+  /** Initial extended-thinking level. */
+  thinkingLevel?: ThinkingLevel
 }
 
 /** The only tools a chat-only (side chat) session may use. */
@@ -102,11 +121,15 @@ class SessionHandle {
       this.provider === 'openrouter'
         ? (settings.openrouterModel ?? undefined)
         : (settings.defaultModel ?? undefined)
+    const thinkingLevel = opts.thinkingLevel ?? settings.defaultThinkingLevel ?? 'off'
     const options: Options = {
       cwd: opts.cwd,
       resume: opts.resume,
       permissionMode: opts.permissionMode,
       model: opts.model ?? defaultModel,
+      ...(THINKING_BUDGETS[thinkingLevel] > 0
+        ? { thinking: { type: 'enabled', budgetTokens: THINKING_BUDGETS[thinkingLevel] } }
+        : {}),
       includePartialMessages: true,
       enableFileCheckpointing: true,
       // Lets the user switch into Bypass mode mid-session; the UI confirms first.
@@ -115,7 +138,7 @@ class SessionHandle {
       // CLAUDE.md, hooks — so the shell behaves exactly like the terminal CLI.
       settingSources: ['user', 'project', 'local'],
       ...(settings.allowSelfSkills && !this.chatOnly
-        ? { appendSystemPrompt: SELF_SKILLS_PROMPT }
+        ? { appendSystemPrompt: SELF_EXTEND_PROMPT }
         : {}),
       // Chat-only sessions get read-only built-ins and none of the imported
       // connectors — they can look but never touch.
@@ -691,9 +714,19 @@ class SessionHandle {
     return this.q.setModel(model)
   }
 
+  /** Change extended-thinking budget live (0 disables it for the rest of the session). */
+  setThinking(level: ThinkingLevel): Promise<void> {
+    const budget = THINKING_BUDGETS[level] ?? 0
+    return this.q.setMaxThinkingTokens(budget > 0 ? budget : 0)
+  }
+
   async supportedModels(): Promise<ModelInfo[]> {
     const models = await this.q.supportedModels()
-    return models.map((m) => ({ id: m.value, displayName: m.displayName }))
+    return models.map((m) => ({
+      id: m.value,
+      displayName: m.displayName,
+      description: m.description
+    }))
   }
 
   dispose(): void {

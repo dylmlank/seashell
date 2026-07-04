@@ -1,9 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUp, FileText, Mic, Square, Paperclip, X } from 'lucide-react'
 import type { ImageAttachment } from '@shared/types'
+import type { SlashSuggestion } from '../lib/slash-commands'
 import { ModelSelector } from './ModelSelector'
 import { PermissionModeSwitcher } from './PermissionModeSwitcher'
+import { ThinkingSelector } from './ThinkingSelector'
+import { useSettings } from '../stores/settings'
+import { chatWidthClass } from '../lib/chat-width'
 import { alertDialog } from '../lib/dialogs'
+
+const SOURCE_BADGE: Record<SlashSuggestion['source'], { label: string; cls: string }> = {
+  native: { label: 'app', cls: 'bg-accent-dim/30 text-accent' },
+  user: { label: 'custom', cls: 'bg-emerald-900/40 text-emerald-300' },
+  builtin: { label: 'claude', cls: 'bg-surface text-text-dim' }
+}
 
 interface PendingImage extends ImageAttachment {
   id: string
@@ -27,7 +37,7 @@ export function Composer({
   tabId: string
   disabled: boolean
   streaming: boolean
-  slashCommands: string[]
+  slashCommands: SlashSuggestion[]
   /** Chat-only sessions have no permission modes worth switching. */
   hideModeControls?: boolean
   onSend: (text: string, images: ImageAttachment[]) => void
@@ -38,12 +48,13 @@ export function Composer({
   const [files, setFiles] = useState<PendingFile[]>([])
   const [slashIndex, setSlashIndex] = useState(0)
   const areaRef = useRef<HTMLTextAreaElement>(null)
+  const chatWidth = useSettings((s) => s.settings.chatWidth)
 
   // Slash autocomplete: active while the input is a single line starting with "/".
   const slashMatches = useMemo(() => {
     if (!text.startsWith('/') || text.includes(' ') || text.includes('\n')) return []
     const needle = text.slice(1).toLowerCase()
-    return slashCommands.filter((c) => c.toLowerCase().startsWith(needle)).slice(0, 8)
+    return slashCommands.filter((c) => c.name.toLowerCase().startsWith(needle)).slice(0, 8)
   }, [text, slashCommands])
 
   useEffect(() => setSlashIndex(0), [slashMatches.length])
@@ -134,7 +145,7 @@ export function Composer({
 
   return (
     <div className="px-6 pb-4 pt-2">
-      <div className="mx-auto w-full max-w-3xl">
+      <div className={`mx-auto w-full ${chatWidthClass(chatWidth)}`}>
         {(images.length > 0 || files.length > 0) && (
           <div className="mb-2 flex flex-wrap items-center gap-2">
             {images.map((img) => (
@@ -173,21 +184,41 @@ export function Composer({
 
         <div className="relative">
           {slashMatches.length > 0 && (
-            <div className="pop-in absolute bottom-full left-0 z-10 mb-2 w-72 overflow-hidden rounded-xl border border-border bg-surface-2 shadow-xl">
+            <div className="pop-in absolute bottom-full left-0 z-10 mb-2 w-96 overflow-hidden rounded-xl border border-border bg-surface-2 shadow-xl">
               {slashMatches.map((cmd, i) => (
                 <button
-                  key={cmd}
+                  key={`${cmd.source}:${cmd.name}`}
                   onMouseEnter={() => setSlashIndex(i)}
                   onClick={() => {
-                    setText(`/${cmd} `)
+                    setText(`/${cmd.name} `)
                     areaRef.current?.focus()
                   }}
                   className={
-                    'block w-full px-3 py-1.5 text-left font-mono text-sm ' +
-                    (i === slashIndex ? 'bg-accent-dim/30 text-accent' : 'text-text')
+                    'flex w-full items-center gap-2 px-3 py-1.5 text-left ' +
+                    (i === slashIndex ? 'bg-accent-dim/25' : '')
                   }
                 >
-                  /{cmd}
+                  <span
+                    className={
+                      'shrink-0 font-mono text-sm ' +
+                      (i === slashIndex ? 'text-accent' : 'text-text')
+                    }
+                  >
+                    /{cmd.name}
+                  </span>
+                  {cmd.argHint && (
+                    <span className="shrink-0 font-mono text-[11px] text-text-dim/70">
+                      {cmd.argHint}
+                    </span>
+                  )}
+                  {cmd.description && (
+                    <span className="truncate text-xs text-text-dim">{cmd.description}</span>
+                  )}
+                  <span
+                    className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide ${SOURCE_BADGE[cmd.source].cls}`}
+                  >
+                    {SOURCE_BADGE[cmd.source].label}
+                  </span>
                 </button>
               ))}
             </div>
@@ -233,16 +264,16 @@ export function Composer({
                   }
                   if (e.key === 'Tab') {
                     e.preventDefault()
-                    setText(`/${slashMatches[slashIndex]} `)
+                    setText(`/${slashMatches[slashIndex].name} `)
                     return
                   }
                 }
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
-                  if (slashMatches.length > 0 && text === `/${slashMatches[slashIndex]}`) {
+                  if (slashMatches.length > 0 && text === `/${slashMatches[slashIndex].name}`) {
                     submit()
                   } else if (slashMatches.length > 0 && !text.includes(' ')) {
-                    setText(`/${slashMatches[slashIndex]} `)
+                    setText(`/${slashMatches[slashIndex].name} `)
                   } else {
                     submit()
                   }
@@ -252,6 +283,7 @@ export function Composer({
 
             <div className="flex items-center gap-1.5 px-2.5 pb-2 pt-1">
               <ModelSelector tabId={tabId} />
+              <ThinkingSelector tabId={tabId} />
               {!hideModeControls && <PermissionModeSwitcher tabId={tabId} />}
               <span className="ml-auto" />
               <button

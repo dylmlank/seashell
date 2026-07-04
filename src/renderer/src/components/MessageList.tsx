@@ -11,6 +11,8 @@ import {
   Minimize2
 } from 'lucide-react'
 import { rewindTo, sendMessage, useSessions, type ChatItem } from '../stores/sessions'
+import { useSettings } from '../stores/settings'
+import { chatWidthClass } from '../lib/chat-width'
 import { Markdown } from './Markdown'
 import { SmoothText } from './SmoothText'
 import { PlanCard } from './PlanCard'
@@ -315,6 +317,7 @@ export function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stickToBottom = useRef(true)
+  const chatWidth = useSettings((s) => s.settings.chatWidth)
 
   useEffect(() => {
     if (stickToBottom.current) {
@@ -332,7 +335,7 @@ export function MessageList({
       }}
       className="flex-1 overflow-y-auto px-6 py-6"
     >
-      <div className="mx-auto w-full max-w-3xl space-y-4">
+      <div className={`mx-auto w-full space-y-4 ${chatWidthClass(chatWidth)}`}>
         {items.length === 0 && (
           <div className="stagger flex flex-col items-center gap-2 pt-20 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-xl text-accent shadow-lg shadow-accent/10">

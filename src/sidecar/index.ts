@@ -5,6 +5,7 @@
 import type { ServerWebSocket } from 'bun'
 import type { EventChannel, Events, InvokeChannel } from '../shared/ipc-contract'
 import { handlers } from './ipc'
+import { devserver } from './devserver'
 import { setApprovalBroadcast } from './approvals'
 import { auth, injectStoredToken, setAuthBroadcast } from './auth'
 import { setNotifyBroadcast } from './notify'
@@ -82,6 +83,7 @@ console.log(`SIDECAR_PORT=${server.port}`)
 
 function shutdown(): void {
   sessionManager.disposeAll()
+  devserver.stopAll()
   usageStore.flush()
   process.exit(0)
 }

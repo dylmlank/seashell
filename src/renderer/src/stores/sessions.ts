@@ -5,6 +5,7 @@ import type {
   PermissionMode,
   Provider,
   SessionStatus,
+  ThinkingLevel,
   TodoItem,
   UiEvent,
   UsageTotals
@@ -54,6 +55,8 @@ export interface TabState {
   error?: string
   permissionMode: PermissionMode
   provider: Provider
+  /** Extended-thinking level for this session (live-adjustable). */
+  thinkingLevel: ThinkingLevel
   /** Side-chat sessions render in a side panel and stay out of the OPEN list. */
   side?: boolean
   /** Path of the last previewable file (HTML/SVG/Markdown) Claude wrote. */
@@ -361,12 +364,14 @@ export async function createTab(cwd: string, resume?: string, side?: boolean): P
   const settings = useSettings.getState().settings
   const permissionMode: PermissionMode = settings.defaultPermissionMode
   const provider: Provider = settings.defaultProvider ?? 'anthropic'
+  const thinkingLevel: ThinkingLevel = settings.defaultThinkingLevel ?? 'off'
   const result = await window.api.invoke('session:create', {
     tabId,
     cwd,
     resume,
     permissionMode,
     provider,
+    thinkingLevel,
     chatOnly: side // side chats are read-and-answer only
   })
   if (!result.ok) {
@@ -379,6 +384,7 @@ export async function createTab(cwd: string, resume?: string, side?: boolean): P
     status: 'starting',
     permissionMode,
     provider,
+    thinkingLevel,
     side,
     items: [],
     slashCommands: [],
@@ -419,6 +425,11 @@ export async function rewindTo(tabId: string, uuid: string): Promise<{ ok: boole
 
 export function interrupt(tabId: string): void {
   void window.api.invoke('session:interrupt', { tabId })
+}
+
+export function setThinking(tabId: string, level: ThinkingLevel): void {
+  useSessions.getState().update(tabId, { thinkingLevel: level })
+  void window.api.invoke('session:setThinking', { tabId, level })
 }
 
 export function closeTab(tabId: string): void {

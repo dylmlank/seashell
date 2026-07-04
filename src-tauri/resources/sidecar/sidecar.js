@@ -5740,7 +5740,7 @@ function Ho(e) {
 function tm(e, t) {
   return new e({ type: "never", ...O(t) });
 }
-function rm(e, t) {
+function rm2(e, t) {
   return new e({ type: "void", ...O(t) });
 }
 function nm(e, t) {
@@ -6783,7 +6783,7 @@ function wm(e) {
   return tm(NC, e);
 }
 function gJ(e) {
-  return rm(UC, e);
+  return rm2(UC, e);
 }
 function hJ(e) {
   return nm(km, e);
@@ -24887,7 +24887,7 @@ Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resour
   MEe = Cr.createWithPreprocess;
   DEe = kp.create;
   mr = {};
-  Tr(mr, { version: () => jb, util: () => C, treeifyError: () => Ip, toJSONSchema: () => Es, toDotPath: () => nC, safeParseAsync: () => Ln, safeParse: () => Un, registry: () => el, regexes: () => jn, prettifyError: () => Rp, parseAsync: () => jo, parse: () => Lo, locales: () => Ss, isValidJWT: () => vC, isValidBase64URL: () => SC, isValidBase64: () => Vb, globalRegistry: () => Rt, globalConfig: () => jc, function: () => um, formatError: () => ms, flattenError: () => fs, config: () => Ve, clone: () => ut, _xid: () => pl, _void: () => rm, _uuidv7: () => il, _uuidv6: () => ol, _uuidv4: () => nl, _uuid: () => rl, _url: () => sl, _uppercase: () => El, _unknown: () => Ho, _union: () => c9, _undefined: () => Yf, _ulid: () => dl, _uint64: () => Jf, _uint32: () => Kf, _tuple: () => qS, _trim: () => Ol, _transform: () => y9, _toUpperCase: () => $l, _toLowerCase: () => Cl, _templateLiteral: () => T9, _symbol: () => Xf, _success: () => x9, _stringbool: () => cm, _stringFormat: () => lm, _string: () => jf, _startsWith: () => Pl, _size: () => xl, _set: () => f9, _safeParseAsync: () => $p, _safeParse: () => Cp, _regex: () => wl, _refine: () => am, _record: () => d9, _readonly: () => E9, _property: () => BS, _promise: () => I9, _positive: () => jS, _pipe: () => k9, _parseAsync: () => Op, _parse: () => Ap, _overwrite: () => on, _optional: () => _9, _number: () => Ff, _nullable: () => b9, _null: () => Qf, _normalize: () => Al, _nonpositive: () => FS, _nonoptional: () => v9, _nonnegative: () => HS, _never: () => tm, _negative: () => zS, _nativeEnum: () => g9, _nanoid: () => cl, _nan: () => om, _multipleOf: () => Bo, _minSize: () => qo, _minLength: () => Hn, _min: () => At, _mime: () => Rl, _maxSize: () => xs, _maxLength: () => ws, _max: () => tr, _map: () => p9, _lte: () => tr, _lt: () => rn, _lowercase: () => kl, _literal: () => h9, _length: () => ks, _lazy: () => P9, _ksuid: () => fl, _jwt: () => vl, _isoTime: () => $S, _isoDuration: () => MS, _isoDateTime: () => OS, _isoDate: () => CS, _ipv6: () => gl, _ipv4: () => ml, _intersection: () => u9, _int64: () => Gf, _int32: () => Vf, _int: () => Hf, _includes: () => Tl, _guid: () => vs, _gte: () => At, _gt: () => nn, _float64: () => qf, _float32: () => Bf, _file: () => im, _enum: () => m9, _endsWith: () => Il, _emoji: () => al, _email: () => tl, _e164: () => Sl, _discriminatedUnion: () => l9, _default: () => S9, _date: () => nm, _custom: () => sm, _cuid2: () => ul, _cuid: () => ll, _coercedString: () => AS, _coercedNumber: () => DS, _coercedDate: () => LS, _coercedBoolean: () => NS, _coercedBigint: () => US, _cidrv6: () => yl, _cidrv4: () => hl, _catch: () => w9, _boolean: () => Zf, _bigint: () => Wf, _base64url: () => bl, _base64: () => _l, _array: () => Ml, _any: () => em, TimePrecision: () => zf, NEVER: () => Ep, JSONSchemaGenerator: () => dm, JSONSchema: () => EC, Doc: () => Up, $output: () => Uf, $input: () => Lf, $constructor: () => _, $brand: () => Tp, $ZodXID: () => Gp, $ZodVoid: () => mf, $ZodUnknown: () => Fo, $ZodUnion: () => Xc, $ZodUndefined: () => uf, $ZodUUID: () => Fp, $ZodURL: () => Bp, $ZodULID: () => Wp, $ZodType: () => G, $ZodTuple: () => Fn, $ZodTransform: () => _s, $ZodTemplateLiteral: () => $f, $ZodSymbol: () => lf, $ZodSuccess: () => Rf, $ZodStringFormat: () => we, $ZodString: () => zn, $ZodSet: () => Sf, $ZodRegistry: () => Qc, $ZodRecord: () => _f, $ZodRealError: () => ps, $ZodReadonly: () => Cf, $ZodPromise: () => Mf, $ZodPrefault: () => Pf, $ZodPipe: () => bs, $ZodOptional: () => kf, $ZodObject: () => Jc, $ZodNumberFormat: () => af, $ZodNumber: () => Wc, $ZodNullable: () => Ef, $ZodNull: () => df, $ZodNonOptional: () => If, $ZodNever: () => ff, $ZodNanoID: () => Vp, $ZodNaN: () => Of, $ZodMap: () => bf, $ZodLiteral: () => xf, $ZodLazy: () => Df, $ZodKSUID: () => Jp, $ZodJWT: () => of, $ZodIntersection: () => yf, $ZodISOTime: () => Bb, $ZodISODuration: () => qb, $ZodISODateTime: () => Fb, $ZodISODate: () => Hb, $ZodIPv6: () => Yp, $ZodIPv4: () => Xp, $ZodGUID: () => zp, $ZodFunction: () => VS, $ZodFile: () => wf, $ZodError: () => Zc, $ZodEnum: () => vf, $ZodEmoji: () => qp, $ZodEmail: () => Hp, $ZodE164: () => nf, $ZodDiscriminatedUnion: () => hf, $ZodDefault: () => Tf, $ZodDate: () => gf, $ZodCustomStringFormat: () => sf, $ZodCustom: () => Nf, $ZodCheckUpperCase: () => Cb, $ZodCheckStringFormat: () => gs, $ZodCheckStartsWith: () => Mb, $ZodCheckSizeEquals: () => Tb, $ZodCheckRegex: () => Ab, $ZodCheckProperty: () => Nb, $ZodCheckOverwrite: () => Lb, $ZodCheckNumberFormat: () => xb, $ZodCheckMultipleOf: () => vb, $ZodCheckMinSize: () => Eb, $ZodCheckMinLength: () => Ib, $ZodCheckMimeType: () => Ub, $ZodCheckMaxSize: () => kb, $ZodCheckMaxLength: () => Pb, $ZodCheckLowerCase: () => Ob, $ZodCheckLessThan: () => Dp, $ZodCheckLengthEquals: () => Rb, $ZodCheckIncludes: () => $b, $ZodCheckGreaterThan: () => Np, $ZodCheckEndsWith: () => Db, $ZodCheckBigIntFormat: () => wb, $ZodCheck: () => Me, $ZodCatch: () => Af, $ZodCUID2: () => Zp, $ZodCUID: () => Kp, $ZodCIDRv6: () => ef, $ZodCIDRv4: () => Qp, $ZodBoolean: () => hs, $ZodBigIntFormat: () => cf, $ZodBigInt: () => Gc, $ZodBase64URL: () => rf, $ZodBase64: () => tf, $ZodAsyncError: () => en, $ZodArray: () => ys, $ZodAny: () => pf });
+  Tr(mr, { version: () => jb, util: () => C, treeifyError: () => Ip, toJSONSchema: () => Es, toDotPath: () => nC, safeParseAsync: () => Ln, safeParse: () => Un, registry: () => el, regexes: () => jn, prettifyError: () => Rp, parseAsync: () => jo, parse: () => Lo, locales: () => Ss, isValidJWT: () => vC, isValidBase64URL: () => SC, isValidBase64: () => Vb, globalRegistry: () => Rt, globalConfig: () => jc, function: () => um, formatError: () => ms, flattenError: () => fs, config: () => Ve, clone: () => ut, _xid: () => pl, _void: () => rm2, _uuidv7: () => il, _uuidv6: () => ol, _uuidv4: () => nl, _uuid: () => rl, _url: () => sl, _uppercase: () => El, _unknown: () => Ho, _union: () => c9, _undefined: () => Yf, _ulid: () => dl, _uint64: () => Jf, _uint32: () => Kf, _tuple: () => qS, _trim: () => Ol, _transform: () => y9, _toUpperCase: () => $l, _toLowerCase: () => Cl, _templateLiteral: () => T9, _symbol: () => Xf, _success: () => x9, _stringbool: () => cm, _stringFormat: () => lm, _string: () => jf, _startsWith: () => Pl, _size: () => xl, _set: () => f9, _safeParseAsync: () => $p, _safeParse: () => Cp, _regex: () => wl, _refine: () => am, _record: () => d9, _readonly: () => E9, _property: () => BS, _promise: () => I9, _positive: () => jS, _pipe: () => k9, _parseAsync: () => Op, _parse: () => Ap, _overwrite: () => on, _optional: () => _9, _number: () => Ff, _nullable: () => b9, _null: () => Qf, _normalize: () => Al, _nonpositive: () => FS, _nonoptional: () => v9, _nonnegative: () => HS, _never: () => tm, _negative: () => zS, _nativeEnum: () => g9, _nanoid: () => cl, _nan: () => om, _multipleOf: () => Bo, _minSize: () => qo, _minLength: () => Hn, _min: () => At, _mime: () => Rl, _maxSize: () => xs, _maxLength: () => ws, _max: () => tr, _map: () => p9, _lte: () => tr, _lt: () => rn, _lowercase: () => kl, _literal: () => h9, _length: () => ks, _lazy: () => P9, _ksuid: () => fl, _jwt: () => vl, _isoTime: () => $S, _isoDuration: () => MS, _isoDateTime: () => OS, _isoDate: () => CS, _ipv6: () => gl, _ipv4: () => ml, _intersection: () => u9, _int64: () => Gf, _int32: () => Vf, _int: () => Hf, _includes: () => Tl, _guid: () => vs, _gte: () => At, _gt: () => nn, _float64: () => qf, _float32: () => Bf, _file: () => im, _enum: () => m9, _endsWith: () => Il, _emoji: () => al, _email: () => tl, _e164: () => Sl, _discriminatedUnion: () => l9, _default: () => S9, _date: () => nm, _custom: () => sm, _cuid2: () => ul, _cuid: () => ll, _coercedString: () => AS, _coercedNumber: () => DS, _coercedDate: () => LS, _coercedBoolean: () => NS, _coercedBigint: () => US, _cidrv6: () => yl, _cidrv4: () => hl, _catch: () => w9, _boolean: () => Zf, _bigint: () => Wf, _base64url: () => bl, _base64: () => _l, _array: () => Ml, _any: () => em, TimePrecision: () => zf, NEVER: () => Ep, JSONSchemaGenerator: () => dm, JSONSchema: () => EC, Doc: () => Up, $output: () => Uf, $input: () => Lf, $constructor: () => _, $brand: () => Tp, $ZodXID: () => Gp, $ZodVoid: () => mf, $ZodUnknown: () => Fo, $ZodUnion: () => Xc, $ZodUndefined: () => uf, $ZodUUID: () => Fp, $ZodURL: () => Bp, $ZodULID: () => Wp, $ZodType: () => G, $ZodTuple: () => Fn, $ZodTransform: () => _s, $ZodTemplateLiteral: () => $f, $ZodSymbol: () => lf, $ZodSuccess: () => Rf, $ZodStringFormat: () => we, $ZodString: () => zn, $ZodSet: () => Sf, $ZodRegistry: () => Qc, $ZodRecord: () => _f, $ZodRealError: () => ps, $ZodReadonly: () => Cf, $ZodPromise: () => Mf, $ZodPrefault: () => Pf, $ZodPipe: () => bs, $ZodOptional: () => kf, $ZodObject: () => Jc, $ZodNumberFormat: () => af, $ZodNumber: () => Wc, $ZodNullable: () => Ef, $ZodNull: () => df, $ZodNonOptional: () => If, $ZodNever: () => ff, $ZodNanoID: () => Vp, $ZodNaN: () => Of, $ZodMap: () => bf, $ZodLiteral: () => xf, $ZodLazy: () => Df, $ZodKSUID: () => Jp, $ZodJWT: () => of, $ZodIntersection: () => yf, $ZodISOTime: () => Bb, $ZodISODuration: () => qb, $ZodISODateTime: () => Fb, $ZodISODate: () => Hb, $ZodIPv6: () => Yp, $ZodIPv4: () => Xp, $ZodGUID: () => zp, $ZodFunction: () => VS, $ZodFile: () => wf, $ZodError: () => Zc, $ZodEnum: () => vf, $ZodEmoji: () => qp, $ZodEmail: () => Hp, $ZodE164: () => nf, $ZodDiscriminatedUnion: () => hf, $ZodDefault: () => Tf, $ZodDate: () => gf, $ZodCustomStringFormat: () => sf, $ZodCustom: () => Nf, $ZodCheckUpperCase: () => Cb, $ZodCheckStringFormat: () => gs, $ZodCheckStartsWith: () => Mb, $ZodCheckSizeEquals: () => Tb, $ZodCheckRegex: () => Ab, $ZodCheckProperty: () => Nb, $ZodCheckOverwrite: () => Lb, $ZodCheckNumberFormat: () => xb, $ZodCheckMultipleOf: () => vb, $ZodCheckMinSize: () => Eb, $ZodCheckMinLength: () => Ib, $ZodCheckMimeType: () => Ub, $ZodCheckMaxSize: () => kb, $ZodCheckMaxLength: () => Pb, $ZodCheckLowerCase: () => Ob, $ZodCheckLessThan: () => Dp, $ZodCheckLengthEquals: () => Rb, $ZodCheckIncludes: () => $b, $ZodCheckGreaterThan: () => Np, $ZodCheckEndsWith: () => Db, $ZodCheckBigIntFormat: () => wb, $ZodCheck: () => Me, $ZodCatch: () => Af, $ZodCUID2: () => Zp, $ZodCUID: () => Kp, $ZodCIDRv6: () => ef, $ZodCIDRv4: () => Qp, $ZodBoolean: () => hs, $ZodBigIntFormat: () => cf, $ZodBigInt: () => Gc, $ZodBase64URL: () => rf, $ZodBase64: () => tf, $ZodAsyncError: () => en, $ZodArray: () => ys, $ZodAny: () => pf });
   Ep = Object.freeze({ status: "aborted" });
   Tp = Symbol("zod_brand");
   en = class en extends Error {
@@ -28070,10 +28070,10 @@ Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resour
 });
 
 // src/sidecar/ipc.ts
-import { spawn as spawn4 } from "child_process";
+import { spawn as spawn5 } from "child_process";
 import { rmSync as rmSync3 } from "fs";
-import { readdir as readdir4, readFile as readFile7, writeFile as writeFile3 } from "fs/promises";
-import { extname, join as join18, resolve as resolve2 } from "path";
+import { readdir as readdir5, readFile as readFile8, writeFile as writeFile4 } from "fs/promises";
+import { extname, join as join20, resolve as resolve2 } from "path";
 
 // src/sidecar/approvals.ts
 import { randomUUID } from "crypto";
@@ -28101,12 +28101,12 @@ function userDataDir() {
 
 // src/sidecar/settings-store.ts
 var DEFAULTS = {
-  defaultModel: null,
-  defaultPermissionMode: "default",
+  defaultModel: "claude-opus-4-8[1m]",
+  defaultPermissionMode: "bypassPermissions",
   defaultProvider: "anthropic",
   openrouterModel: null,
   notifications: true,
-  allowSelfSkills: false,
+  allowSelfSkills: true,
   autoCompact: false,
   compactThreshold: 60000,
   autoRetrospective: false,
@@ -28120,16 +28120,32 @@ var DEFAULTS = {
   terminalFontSize: 13,
   editorFontSize: 13,
   smoothStreaming: true,
-  reopenLastProject: false
+  reopenLastProject: false,
+  chatWidth: "wide",
+  defaultThinkingLevel: "high"
 };
 var file = () => join2(userDataDir(), "settings.json");
+var THINKING_LEGACY = {
+  think: "low",
+  "think-harder": "medium",
+  ultrathink: "ultra"
+};
+function sanitize(s) {
+  const migrated = THINKING_LEGACY[s.defaultThinkingLevel];
+  if (migrated)
+    s.defaultThinkingLevel = migrated;
+  return s;
+}
 var cache = null;
 var settingsStore = {
   get() {
     if (cache)
       return cache;
     try {
-      cache = { ...DEFAULTS, ...JSON.parse(readFileSync(file(), "utf8")) };
+      cache = sanitize({
+        ...DEFAULTS,
+        ...JSON.parse(readFileSync(file(), "utf8"))
+      });
     } catch {
       cache = { ...DEFAULTS };
     }
@@ -28140,7 +28156,7 @@ var settingsStore = {
     try {
       onDisk = JSON.parse(readFileSync(file(), "utf8"));
     } catch {}
-    cache = { ...DEFAULTS, ...onDisk, ...patch };
+    cache = sanitize({ ...DEFAULTS, ...onDisk, ...patch });
     writeFileSync(file(), JSON.stringify(cache, null, 2));
     return cache;
   }
@@ -28448,6 +28464,100 @@ var changes = {
   }
 };
 
+// src/sidecar/commands.ts
+import { mkdir, readdir, readFile as readFile2, rm, writeFile } from "fs/promises";
+import { homedir as homedir3 } from "os";
+import { join as join6, relative, sep } from "path";
+function commandsDir(cwd, scope) {
+  return scope === "project" ? join6(cwd, ".claude", "commands") : join6(homedir3(), ".claude", "commands");
+}
+var safeName = (name) => !!name && !name.includes("..") && !name.startsWith("/") && !name.startsWith("\\");
+function nameToFile(dir, name) {
+  return join6(dir, ...name.split(":")) + ".md";
+}
+function parse(raw) {
+  const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!m)
+    return { body: raw.trim() };
+  const out = { body: m[2].trim() };
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = line.match(/^\s*([\w-]+)\s*:\s*(.*)$/);
+    if (!kv)
+      continue;
+    const val = kv[2].replace(/^["']|["']$/g, "").trim();
+    if (kv[1] === "description")
+      out.description = val;
+    else if (kv[1] === "argument-hint")
+      out.argumentHint = val;
+  }
+  return out;
+}
+async function walk(dir, scope) {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true, recursive: true });
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const e of entries) {
+    if (e.isDirectory() || !e.name.endsWith(".md"))
+      continue;
+    const full = join6(e.parentPath ?? dir, e.name);
+    const name = relative(dir, full).replace(/\.md$/, "").split(sep).join(":");
+    try {
+      const parsed = parse(await readFile2(full, "utf8"));
+      out.push({ name, scope, ...parsed });
+    } catch {}
+  }
+  return out;
+}
+var userCommands = {
+  async list(cwd) {
+    const [project, user] = await Promise.all([
+      walk(commandsDir(cwd, "project"), "project"),
+      walk(commandsDir(cwd, "user"), "user")
+    ]);
+    const seen = new Set(project.map((c) => c.name));
+    const commands = [...project, ...user.filter((c) => !seen.has(c.name))].sort((a, b) => a.name.localeCompare(b.name));
+    return { commands };
+  },
+  async save(cwd, scope, name, description, argumentHint, body) {
+    if (!safeName(name))
+      return { error: "Bad command name" };
+    const file3 = nameToFile(commandsDir(cwd, scope), name);
+    const fm = [];
+    if (description.trim())
+      fm.push(`description: ${description.trim()}`);
+    if (argumentHint.trim())
+      fm.push(`argument-hint: ${argumentHint.trim()}`);
+    const content = (fm.length ? `---
+${fm.join(`
+`)}
+---
+
+` : "") + body.trim() + `
+`;
+    try {
+      await mkdir(join6(file3, ".."), { recursive: true });
+      await writeFile(file3, content, "utf8");
+      return { ok: true };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+  async remove(cwd, scope, name) {
+    if (!safeName(name))
+      return { error: "Bad command name" };
+    try {
+      await rm(nameToFile(commandsDir(cwd, scope), name));
+      return { ok: true };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+};
+
 // src/sidecar/dictation.ts
 import { spawn as spawn2 } from "child_process";
 var SCRIPT = [
@@ -28472,8 +28582,8 @@ function startDictation() {
 }
 
 // src/sidecar/file-index.ts
-import { readdir } from "fs/promises";
-import { join as join6 } from "path";
+import { readdir as readdir2 } from "fs/promises";
+import { join as join7 } from "path";
 var SKIP_DIRS = new Set([
   "node_modules",
   ".git",
@@ -28491,12 +28601,12 @@ var MAX_FILES = 5000;
 var MAX_DEPTH = 8;
 async function listProjectFiles(root) {
   const files = [];
-  async function walk(rel, depth) {
+  async function walk2(rel, depth) {
     if (depth > MAX_DEPTH || files.length >= MAX_FILES)
       return;
     let dirents;
     try {
-      dirents = await readdir(join6(root, rel), { withFileTypes: true });
+      dirents = await readdir2(join7(root, rel), { withFileTypes: true });
     } catch {
       return;
     }
@@ -28506,13 +28616,13 @@ async function listProjectFiles(root) {
       const childRel = rel ? `${rel}/${d.name}` : d.name;
       if (d.isDirectory()) {
         if (!SKIP_DIRS.has(d.name) && !d.name.startsWith("."))
-          await walk(childRel, depth + 1);
+          await walk2(childRel, depth + 1);
       } else {
         files.push(childRel);
       }
     }
   }
-  await walk("", 0);
+  await walk2("", 0);
   return files;
 }
 
@@ -28557,13 +28667,13 @@ var history = {
 };
 
 // src/sidecar/instructions.ts
-import { mkdir, readFile as readFile2, writeFile } from "fs/promises";
-import { homedir as homedir3 } from "os";
-import { dirname, join as join8 } from "path";
+import { mkdir as mkdir2, readFile as readFile3, writeFile as writeFile2 } from "fs/promises";
+import { homedir as homedir4 } from "os";
+import { dirname, join as join9 } from "path";
 function pathFor(scope, cwd) {
   if (scope === "global")
-    return join8(homedir3(), ".claude", "CLAUDE.md");
-  return cwd ? join8(cwd, "CLAUDE.md") : null;
+    return join9(homedir4(), ".claude", "CLAUDE.md");
+  return cwd ? join9(cwd, "CLAUDE.md") : null;
 }
 var instructions = {
   async get(scope, cwd) {
@@ -28571,7 +28681,7 @@ var instructions = {
     if (!path)
       return { error: "No project folder for this session" };
     try {
-      return { content: await readFile2(path, "utf8"), path };
+      return { content: await readFile3(path, "utf8"), path };
     } catch {
       return { content: "", path };
     }
@@ -28581,8 +28691,8 @@ var instructions = {
     if (!path)
       return { error: "No project folder for this session" };
     try {
-      await mkdir(dirname(path), { recursive: true });
-      await writeFile(path, content, "utf8");
+      await mkdir2(dirname(path), { recursive: true });
+      await writeFile2(path, content, "utf8");
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -28592,8 +28702,8 @@ var instructions = {
 
 // src/sidecar/desktop-mcp.ts
 import { existsSync as existsSync4, readdirSync as readdirSync2, readFileSync as readFileSync4 } from "fs";
-import { join as join9 } from "path";
-var claudeDir = () => join9(appDataDir(), "Claude");
+import { join as join10 } from "path";
+var claudeDir = () => join10(appDataDir(), "Claude");
 function readJson(path) {
   try {
     return JSON.parse(readFileSync4(path, "utf8"));
@@ -28615,7 +28725,7 @@ function substitute(value, dir, userConfig) {
 }
 function loadConfigServers(statuses) {
   const result = {};
-  const config = readJson(join9(claudeDir(), "claude_desktop_config.json"));
+  const config = readJson(join10(claudeDir(), "claude_desktop_config.json"));
   for (const [name, server] of Object.entries(config?.mcpServers ?? {})) {
     if (!server?.command) {
       statuses.push({ name, source: "config", imported: false, note: "not a local server" });
@@ -28633,20 +28743,20 @@ function loadConfigServers(statuses) {
 }
 function loadExtensionServers(statuses) {
   const result = {};
-  const extRoot = join9(claudeDir(), "Claude Extensions");
-  const settingsRoot = join9(claudeDir(), "Claude Extensions Settings");
+  const extRoot = join10(claudeDir(), "Claude Extensions");
+  const settingsRoot = join10(claudeDir(), "Claude Extensions Settings");
   if (!existsSync4(extRoot))
     return result;
   for (const id2 of readdirSync2(extRoot)) {
-    const dir = join9(extRoot, id2);
-    const manifest = readJson(join9(dir, "manifest.json"));
+    const dir = join10(extRoot, id2);
+    const manifest = readJson(join10(dir, "manifest.json"));
     if (!manifest)
       continue;
     const name = manifest.display_name || manifest.name || id2;
     const push = (imported, note) => {
       statuses.push({ name, source: "extension", imported, note });
     };
-    const settings = readJson(join9(settingsRoot, `${id2}.json`));
+    const settings = readJson(join10(settingsRoot, `${id2}.json`));
     if (settings?.isEnabled === false) {
       push(false, "disabled in Claude Desktop");
       continue;
@@ -28727,24 +28837,24 @@ async function listOpenRouterModels() {
 }
 
 // src/sidecar/memory-files.ts
-import { readdir as readdir2, readFile as readFile3, rm as rm2, stat, writeFile as writeFile2 } from "fs/promises";
-import { homedir as homedir4 } from "os";
-import { join as join10 } from "path";
+import { readdir as readdir3, readFile as readFile4, rm as rm3, stat, writeFile as writeFile3 } from "fs/promises";
+import { homedir as homedir5 } from "os";
+import { join as join11 } from "path";
 function mungeCwd(cwd) {
   return cwd.replace(/[^a-zA-Z0-9]/g, "-");
 }
 function memoryDir(cwd) {
-  return join10(homedir4(), ".claude", "projects", mungeCwd(cwd), "memory");
+  return join11(homedir5(), ".claude", "projects", mungeCwd(cwd), "memory");
 }
-var safeName = (name) => !!name && !name.includes("/") && !name.includes("\\") && !name.includes("..");
+var safeName2 = (name) => !!name && !name.includes("/") && !name.includes("\\") && !name.includes("..");
 var memoryFiles = {
   async list(cwd) {
     const dir = memoryDir(cwd);
     try {
-      const names = (await readdir2(dir)).filter((n) => n.endsWith(".md"));
+      const names = (await readdir3(dir)).filter((n) => n.endsWith(".md"));
       const files = [];
       for (const name of names) {
-        const st2 = await stat(join10(dir, name));
+        const st2 = await stat(join11(dir, name));
         files.push({ name, size: st2.size, modified: st2.mtimeMs });
       }
       files.sort((a, b) => a.name === "MEMORY.md" ? -1 : b.name === "MEMORY.md" ? 1 : b.modified - a.modified);
@@ -28754,29 +28864,29 @@ var memoryFiles = {
     }
   },
   async read(cwd, name) {
-    if (!safeName(name))
+    if (!safeName2(name))
       return { error: "Bad file name" };
     try {
-      return { content: await readFile3(join10(memoryDir(cwd), name), "utf8") };
+      return { content: await readFile4(join11(memoryDir(cwd), name), "utf8") };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
     }
   },
   async write(cwd, name, content) {
-    if (!safeName(name))
+    if (!safeName2(name))
       return { error: "Bad file name" };
     try {
-      await writeFile2(join10(memoryDir(cwd), name), content, "utf8");
+      await writeFile3(join11(memoryDir(cwd), name), content, "utf8");
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
     }
   },
   async remove(cwd, name) {
-    if (!safeName(name))
+    if (!safeName2(name))
       return { error: "Bad file name" };
     try {
-      await rm2(join10(memoryDir(cwd), name));
+      await rm3(join11(memoryDir(cwd), name));
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -28786,8 +28896,8 @@ var memoryFiles = {
 
 // src/sidecar/pins.ts
 import { readFileSync as readFileSync5, writeFileSync as writeFileSync3 } from "fs";
-import { join as join11 } from "path";
-var file3 = () => join11(userDataDir(), "pins.json");
+import { join as join12 } from "path";
+var file3 = () => join12(userDataDir(), "pins.json");
 function load() {
   try {
     const parsed = JSON.parse(readFileSync5(file3(), "utf8"));
@@ -28863,12 +28973,135 @@ var ports = {
   }
 };
 
+// src/sidecar/devserver.ts
+import { spawn as spawn4 } from "child_process";
+import { existsSync as existsSync5, readFileSync as readFileSync6 } from "fs";
+import { join as join13 } from "path";
+var URL_RE = /(https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?[^\s'"]*)/i;
+var SCRIPT_PRIORITY = ["dev", "start", "serve", "preview"];
+function detectPackageManager(cwd) {
+  if (existsSync5(join13(cwd, "bun.lockb")) || existsSync5(join13(cwd, "bun.lock")))
+    return "bun";
+  if (existsSync5(join13(cwd, "pnpm-lock.yaml")))
+    return "pnpm";
+  if (existsSync5(join13(cwd, "yarn.lock")))
+    return "yarn";
+  return "npm";
+}
+function detectScript(cwd) {
+  try {
+    const pkg = JSON.parse(readFileSync6(join13(cwd, "package.json"), "utf8"));
+    const scripts = pkg.scripts ?? {};
+    return SCRIPT_PRIORITY.find((s) => typeof scripts[s] === "string");
+  } catch {
+    return;
+  }
+}
+var devserver = {
+  procs: new Map,
+  status(cwd) {
+    const proc = this.procs.get(cwd);
+    if (!proc || proc.exited) {
+      return { running: false, starting: false, log: proc?.log ?? [], error: proc?.error };
+    }
+    return {
+      running: true,
+      starting: !proc.url,
+      command: proc.command,
+      url: proc.url,
+      pid: proc.child.pid,
+      log: proc.log,
+      error: proc.error
+    };
+  },
+  start(cwd) {
+    const existing = this.procs.get(cwd);
+    if (existing && !existing.exited)
+      return this.status(cwd);
+    if (!existsSync5(join13(cwd, "package.json"))) {
+      return { running: false, starting: false, log: [], error: "No package.json in this project" };
+    }
+    const script = detectScript(cwd);
+    if (!script) {
+      return {
+        running: false,
+        starting: false,
+        log: [],
+        error: "No dev/start/serve/preview script found in package.json"
+      };
+    }
+    const pm2 = detectPackageManager(cwd);
+    const command = `${pm2} run ${script}`;
+    let child;
+    try {
+      child = spawn4(command, {
+        cwd,
+        shell: true,
+        windowsHide: true,
+        env: { ...process.env, FORCE_COLOR: "0", BROWSER: "none" }
+      });
+    } catch (err) {
+      return {
+        running: false,
+        starting: false,
+        log: [],
+        error: err instanceof Error ? err.message : String(err)
+      };
+    }
+    const proc = { child, command, log: [], exited: false };
+    this.procs.set(cwd, proc);
+    const onData = (buf) => {
+      const text = buf.toString();
+      for (const line of text.split(/\r?\n/)) {
+        if (!line.trim())
+          continue;
+        proc.log.push(line);
+        if (proc.log.length > 60)
+          proc.log.shift();
+        if (!proc.url) {
+          const m = line.match(URL_RE);
+          if (m)
+            proc.url = m[1].replace("0.0.0.0", "localhost").replace(/\/$/, "");
+        }
+      }
+    };
+    child.stdout?.on("data", onData);
+    child.stderr?.on("data", onData);
+    child.on("error", (err) => {
+      proc.error = err.message;
+      proc.exited = true;
+    });
+    child.on("exit", (code) => {
+      proc.exited = true;
+      if (code && code !== 0 && !proc.url) {
+        proc.error = `Dev server exited (code ${code})`;
+      }
+    });
+    return this.status(cwd);
+  },
+  stop(cwd) {
+    const proc = this.procs.get(cwd);
+    if (proc && !proc.exited && proc.child.pid) {
+      spawn4("taskkill", ["/PID", String(proc.child.pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore"
+      });
+    }
+    this.procs.delete(cwd);
+    return { ok: true };
+  },
+  stopAll() {
+    for (const cwd of this.procs.keys())
+      this.stop(cwd);
+  }
+};
+
 // src/sidecar/previews.ts
 import { execFile as execFile2 } from "child_process";
 import { createHash } from "crypto";
-import { existsSync as existsSync5, mkdirSync as mkdirSync3 } from "fs";
-import { readFile as readFile4 } from "fs/promises";
-import { join as join12 } from "path";
+import { existsSync as existsSync6, mkdirSync as mkdirSync3 } from "fs";
+import { readFile as readFile5 } from "fs/promises";
+import { join as join14 } from "path";
 var LANG_COLORS = {
   ts: ["#3178c6", "TypeScript"],
   tsx: ["#3178c6", "TypeScript"],
@@ -28897,14 +29130,14 @@ var LANG_COLORS = {
 };
 var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 function shotPath(cwd) {
-  const dir = join12(userDataDir(), "previews");
+  const dir = join14(userDataDir(), "previews");
   mkdirSync3(dir, { recursive: true });
   const hash = createHash("sha1").update(cwd.toLowerCase()).digest("hex").slice(0, 12);
-  return join12(dir, `${hash}.png`);
+  return join14(dir, `${hash}.png`);
 }
 async function readmeLine(cwd) {
   try {
-    const raw = await readFile4(join12(cwd, "README.md"), "utf8");
+    const raw = await readFile5(join14(cwd, "README.md"), "utf8");
     const line = raw.split(`
 `).map((l4) => l4.trim()).find((l4) => l4 && !l4.startsWith("#") && !l4.startsWith("!") && !l4.startsWith("<"));
     return line?.replace(/[*_`[\]]/g, "").slice(0, 90) ?? "";
@@ -28964,7 +29197,7 @@ function findEdge() {
     "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
     "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
   ]) {
-    if (existsSync5(p))
+    if (existsSync6(p))
       return p;
   }
   return null;
@@ -28973,7 +29206,7 @@ function captureShot(url, outPath, width = 1280, height = 800) {
   const edge = findEdge();
   if (!edge)
     return Promise.resolve(false);
-  const profile = join12(userDataDir(), "previews", "edge-profile");
+  const profile = join14(userDataDir(), "previews", "edge-profile");
   mkdirSync3(profile, { recursive: true });
   return new Promise((resolve2) => {
     execFile2(edge, [
@@ -28985,7 +29218,7 @@ function captureShot(url, outPath, width = 1280, height = 800) {
       `--window-size=${width},${height}`,
       `--screenshot=${outPath}`,
       url
-    ], { timeout: 25000, windowsHide: true }, (err) => resolve2(!err && existsSync5(outPath)));
+    ], { timeout: 25000, windowsHide: true }, (err) => resolve2(!err && existsSync6(outPath)));
   });
 }
 var previews = {
@@ -28996,8 +29229,8 @@ var previews = {
       const svg = await projectCard(p.realPath, name).catch(() => `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="320"><rect width="640" height="320" fill="#0a0a0a"/><text x="32" y="112" font-size="34" fill="#ededed">${esc(name)}</text></svg>`);
       const shot = shotPath(p.realPath);
       let screenshot;
-      if (existsSync5(shot)) {
-        screenshot = (await readFile4(shot)).toString("base64");
+      if (existsSync6(shot)) {
+        screenshot = (await readFile5(shot)).toString("base64");
       }
       return {
         cwd: p.realPath,
@@ -29022,13 +29255,13 @@ var previews = {
 // src/sidecar/project-explain.ts
 init_sdk();
 import { createHash as createHash2 } from "crypto";
-import { mkdirSync as mkdirSync4, readFileSync as readFileSync7, writeFileSync as writeFileSync4 } from "fs";
-import { join as join14 } from "path";
+import { mkdirSync as mkdirSync4, readFileSync as readFileSync8, writeFileSync as writeFileSync4 } from "fs";
+import { join as join16 } from "path";
 
 // src/sidecar/project-map.ts
-import { readFile as readFile5 } from "fs/promises";
-import { existsSync as existsSync6, readFileSync as readFileSync6 } from "fs";
-import { join as join13 } from "path";
+import { readFile as readFile6 } from "fs/promises";
+import { existsSync as existsSync7, readFileSync as readFileSync7 } from "fs";
+import { join as join15 } from "path";
 var SOURCE_EXT = new Set([
   "ts",
   "tsx",
@@ -29090,7 +29323,7 @@ function moduleOf(rel) {
 function detectStack(cwd) {
   const stack = [];
   try {
-    const pkg = JSON.parse(readFileSync6(join13(cwd, "package.json"), "utf8"));
+    const pkg = JSON.parse(readFileSync7(join15(cwd, "package.json"), "utf8"));
     const deps = { ...pkg.dependencies, ...pkg.devDependencies };
     const known = [
       ["react", "React"],
@@ -29112,13 +29345,13 @@ function detectStack(cwd) {
       if (deps[dep])
         stack.push(label);
   } catch {}
-  if (existsSync6(join13(cwd, "Cargo.toml")) || existsSync6(join13(cwd, "src-tauri", "Cargo.toml")))
+  if (existsSync7(join15(cwd, "Cargo.toml")) || existsSync7(join15(cwd, "src-tauri", "Cargo.toml")))
     stack.push("Rust");
-  if (existsSync6(join13(cwd, "requirements.txt")) || existsSync6(join13(cwd, "pyproject.toml")))
+  if (existsSync7(join15(cwd, "requirements.txt")) || existsSync7(join15(cwd, "pyproject.toml")))
     stack.push("Python");
-  if (existsSync6(join13(cwd, "bun.lock")) || existsSync6(join13(cwd, "bunfig.toml")))
+  if (existsSync7(join15(cwd, "bun.lock")) || existsSync7(join15(cwd, "bunfig.toml")))
     stack.push("Bun");
-  if (existsSync6(join13(cwd, ".git")))
+  if (existsSync7(join15(cwd, ".git")))
     stack.push("git");
   return [...new Set(stack)];
 }
@@ -29126,7 +29359,7 @@ function loadAliases(cwd) {
   const aliases = [];
   for (const name of ["tsconfig.json", "tsconfig.web.json", "tsconfig.base.json"]) {
     try {
-      const raw = readFileSync6(join13(cwd, name), "utf8").replace(/\/\/[^\n"]*$/gm, "");
+      const raw = readFileSync7(join15(cwd, name), "utf8").replace(/\/\/[^\n"]*$/gm, "");
       const paths = JSON.parse(raw).compilerOptions?.paths;
       for (const [key, targets] of Object.entries(paths ?? {})) {
         if (!targets[0])
@@ -29158,7 +29391,7 @@ function resolveImportModule(fromRel, spec, aliases) {
   return moduleOf(parts.join("/"));
 }
 var IMPORT_RE = /(?:import\s[^'"]*from\s*|import\s*\(\s*|require\s*\(\s*|export\s[^'"]*from\s*)['"]([^'"]+)['"]/g;
-var URL_RE = /(https?|wss?):\/\/([a-zA-Z0-9.-]+(?::\d+)?)/g;
+var URL_RE2 = /(https?|wss?):\/\/([a-zA-Z0-9.-]+(?::\d+)?)/g;
 async function analyzeProject(cwd) {
   const files = await listProjectFiles(cwd);
   const aliases = loadAliases(cwd);
@@ -29177,7 +29410,7 @@ async function analyzeProject(cwd) {
     read++;
     let text;
     try {
-      const buf = await readFile5(join13(cwd, rel));
+      const buf = await readFile6(join15(cwd, rel));
       if (buf.length > MAX_FILE_BYTES)
         continue;
       text = buf.toString("utf8");
@@ -29204,7 +29437,7 @@ async function analyzeProject(cwd) {
         edgeAgg.set(key, (edgeAgg.get(key) ?? 0) + 1);
       }
     }
-    for (const match of text.matchAll(URL_RE)) {
+    for (const match of text.matchAll(URL_RE2)) {
       const host = match[2];
       if (host === "www.w3.org" || host === "schema.tauri.app")
         continue;
@@ -29232,14 +29465,14 @@ async function analyzeProject(cwd) {
 
 // src/sidecar/project-explain.ts
 function cachePath(cwd) {
-  const dir = join14(userDataDir(), "explain");
+  const dir = join16(userDataDir(), "explain");
   mkdirSync4(dir, { recursive: true });
-  return join14(dir, `${createHash2("sha1").update(cwd.toLowerCase()).digest("hex")}.json`);
+  return join16(dir, `${createHash2("sha1").update(cwd.toLowerCase()).digest("hex")}.json`);
 }
 function readGrounding(cwd) {
   for (const name of ["README.md", "readme.md", "README.txt"]) {
     try {
-      return readFileSync7(join14(cwd, name), "utf8").slice(0, 5000);
+      return readFileSync8(join16(cwd, name), "utf8").slice(0, 5000);
     } catch {}
   }
   return "(no README)";
@@ -29281,12 +29514,12 @@ ${e.different.map((d) => `- ${d}`).join(`
 
 _Auto-updated by Claude Shell: ${new Date(e.generatedAt).toISOString().slice(0, 10)}_
 `;
-  writeFileSync4(join14(dir, "project-overview.md"), body, "utf8");
-  const indexPath = join14(dir, "MEMORY.md");
+  writeFileSync4(join16(dir, "project-overview.md"), body, "utf8");
+  const indexPath = join16(dir, "MEMORY.md");
   const line = "- [Project Overview](project-overview.md) \u2014 how this project works, auto-updated by Claude Shell";
   let index;
   try {
-    index = readFileSync7(indexPath, "utf8");
+    index = readFileSync8(indexPath, "utf8");
   } catch {
     index = `# Memory Index
 `;
@@ -29306,7 +29539,7 @@ function isExplanation(v7) {
 var projectExplain = {
   cached(cwd) {
     try {
-      const parsed = JSON.parse(readFileSync7(cachePath(cwd), "utf8"));
+      const parsed = JSON.parse(readFileSync8(cachePath(cwd), "utf8"));
       return isExplanation(parsed) ? parsed : null;
     } catch {
       return null;
@@ -29450,10 +29683,10 @@ class AsyncQueue {
 }
 
 // src/sidecar/retrospective.ts
-import { existsSync as existsSync7, mkdirSync as mkdirSync5, writeFileSync as writeFileSync5 } from "fs";
-import { homedir as homedir5 } from "os";
-import { join as join15 } from "path";
-var SKILL_DIR = join15(homedir5(), ".claude", "skills", "shell-retrospective");
+import { existsSync as existsSync8, mkdirSync as mkdirSync5, writeFileSync as writeFileSync5 } from "fs";
+import { homedir as homedir6 } from "os";
+import { join as join17 } from "path";
+var SKILL_DIR = join17(homedir6(), ".claude", "skills", "shell-retrospective");
 var SKILL_MD = `---
 name: shell-retrospective
 description: Brief end-of-turn retrospective \u2014 capture durable lessons from the exchange that just happened into persistent memory. Invoked automatically by Claude Shell when auto-retrospective is enabled.
@@ -29469,10 +29702,10 @@ Hard limits: no code changes, no file edits outside the memory directory, reply 
 `;
 function ensureRetrospectiveSkill() {
   try {
-    if (!existsSync7(SKILL_DIR))
+    if (!existsSync8(SKILL_DIR))
       mkdirSync5(SKILL_DIR, { recursive: true });
-    const file4 = join15(SKILL_DIR, "SKILL.md");
-    if (!existsSync7(file4))
+    const file4 = join17(SKILL_DIR, "SKILL.md");
+    if (!existsSync8(file4))
       writeFileSync5(file4, SKILL_MD);
   } catch (err) {
     console.error("failed to install shell-retrospective skill:", err);
@@ -29481,15 +29714,15 @@ function ensureRetrospectiveSkill() {
 var RETRO_PROMPT = "Run your shell-retrospective skill now for the exchange above. At most 3 short lines.";
 
 // src/sidecar/usage-store.ts
-import { readFileSync as readFileSync8, writeFileSync as writeFileSync6 } from "fs";
-import { join as join16 } from "path";
-var file4 = () => join16(userDataDir(), "usage.json");
+import { readFileSync as readFileSync9, writeFileSync as writeFileSync6 } from "fs";
+import { join as join18 } from "path";
+var file4 = () => join18(userDataDir(), "usage.json");
 var cache3 = null;
 function load2() {
   if (cache3)
     return cache3;
   try {
-    cache3 = JSON.parse(readFileSync8(file4(), "utf8"));
+    cache3 = JSON.parse(readFileSync9(file4(), "utf8"));
   } catch {
     cache3 = {};
   }
@@ -29512,8 +29745,21 @@ var usageStore = {
 };
 
 // src/sidecar/session-manager.ts
-var SELF_SKILLS_PROMPT = `
-When you find yourself repeating a multi-step workflow, or when a reusable capability would make future work in this project faster or more reliable, proactively create a project skill (a .claude/skills/<name>/SKILL.md file) or a custom slash command (.claude/commands/<name>.md) that captures it. Tell the user what you created and how to invoke it. Prefer small, composable skills with clear descriptions.`.trim();
+var THINKING_BUDGETS = {
+  off: 0,
+  low: 4000,
+  medium: 1e4,
+  high: 18000,
+  ultra: 31999
+};
+var SELF_EXTEND_PROMPT = `
+You are encouraged to extend your own capabilities as you work, proactively and without waiting to be asked:
+- Skills: when you repeat a multi-step workflow, or solve a hard problem you may face again, capture it as a project skill (.claude/skills/<name>/SKILL.md) with a clear description of when to use it.
+- Slash commands: when a task is something the user may want to trigger on demand, add a custom command (.claude/commands/<name>.md).
+- Subagents: when a recurring job benefits from an isolated, focused context (a code reviewer, a test runner, a doc writer), define one in .claude/agents/<name>.md with its own prompt and tool list.
+- Tools: when no existing tool fits a task, build one \u2014 a script in the project (wire it up as a slash command or npm script), or a small MCP server registered in .mcp.json for capabilities every future session should have.
+- Plugins & MCP servers: when a well-known plugin or MCP server solves the task better than building from scratch, install or register it (claude plugin install, or add it to .mcp.json) and say what you added and why.
+Always tell the user what you created or installed and how to invoke it. Prefer small, composable pieces with clear descriptions over monoliths.`.trim();
 var broadcast4 = () => {};
 function setBroadcast(fn) {
   broadcast4 = fn;
@@ -29553,16 +29799,18 @@ class SessionHandle {
     this.chatOnly = opts.chatOnly ?? false;
     const settings = settingsStore.get();
     const defaultModel = this.provider === "openrouter" ? settings.openrouterModel ?? undefined : settings.defaultModel ?? undefined;
+    const thinkingLevel = opts.thinkingLevel ?? settings.defaultThinkingLevel ?? "off";
     const options = {
       cwd: opts.cwd,
       resume: opts.resume,
       permissionMode: opts.permissionMode,
       model: opts.model ?? defaultModel,
+      ...THINKING_BUDGETS[thinkingLevel] > 0 ? { thinking: { type: "enabled", budgetTokens: THINKING_BUDGETS[thinkingLevel] } } : {},
       includePartialMessages: true,
       enableFileCheckpointing: true,
       allowDangerouslySkipPermissions: true,
       settingSources: ["user", "project", "local"],
-      ...settings.allowSelfSkills && !this.chatOnly ? { appendSystemPrompt: SELF_SKILLS_PROMPT } : {},
+      ...settings.allowSelfSkills && !this.chatOnly ? { appendSystemPrompt: SELF_EXTEND_PROMPT } : {},
       ...this.chatOnly ? { tools: [...CHAT_ONLY_TOOLS] } : {},
       ...settings.importDesktopMcp && !this.chatOnly && !process.env.CLAUDE_SHELL_USER_DATA ? { mcpServers: loadDesktopMcpServers() } : {},
       canUseTool: (toolName, input, ctx) => {
@@ -30044,9 +30292,17 @@ class SessionHandle {
   setModel(model) {
     return this.q.setModel(model);
   }
+  setThinking(level) {
+    const budget = THINKING_BUDGETS[level] ?? 0;
+    return this.q.setMaxThinkingTokens(budget > 0 ? budget : 0);
+  }
   async supportedModels() {
     const models = await this.q.supportedModels();
-    return models.map((m) => ({ id: m.value, displayName: m.displayName }));
+    return models.map((m) => ({
+      id: m.value,
+      displayName: m.displayName,
+      description: m.description
+    }));
   }
   dispose() {
     approvals.cancelAll(this.tabId);
@@ -30105,10 +30361,10 @@ async function refreshPlanLimits(handle) {
 }
 
 // src/sidecar/transcript-search.ts
-import { readdir as readdir3, readFile as readFile6, stat as stat2 } from "fs/promises";
-import { homedir as homedir6 } from "os";
-import { join as join17 } from "path";
-var projectsRoot = () => join17(homedir6(), ".claude", "projects");
+import { readdir as readdir4, readFile as readFile7, stat as stat2 } from "fs/promises";
+import { homedir as homedir7 } from "os";
+import { join as join19 } from "path";
+var projectsRoot = () => join19(homedir7(), ".claude", "projects");
 var cache4 = new Map;
 function extractText(content) {
   if (typeof content === "string")
@@ -30129,7 +30385,7 @@ async function parseFile(path, mtimeMs) {
     return cached;
   const entry = { mtimeMs, texts: [] };
   try {
-    const raw = await readFile6(path, "utf8");
+    const raw = await readFile7(path, "utf8");
     for (const line of raw.split(`
 `)) {
       if (!line.trim())
@@ -30166,17 +30422,17 @@ var transcriptSearch = {
     const root = projectsRoot();
     let projectDirs;
     try {
-      projectDirs = (await readdir3(root, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => join17(root, d.name));
+      projectDirs = (await readdir4(root, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => join19(root, d.name));
     } catch {
       return [];
     }
     const files = [];
     for (const dir of projectDirs) {
       try {
-        for (const f of await readdir3(dir)) {
+        for (const f of await readdir4(dir)) {
           if (!f.endsWith(".jsonl"))
             continue;
-          const path = join17(dir, f);
+          const path = join19(dir, f);
           const st2 = await stat2(path);
           files.push({ path, sessionId: f.slice(0, -6), mtimeMs: st2.mtimeMs });
         }
@@ -30208,10 +30464,10 @@ var transcriptSearch = {
     const root = projectsRoot();
     let found = null;
     try {
-      for (const d of await readdir3(root, { withFileTypes: true })) {
+      for (const d of await readdir4(root, { withFileTypes: true })) {
         if (!d.isDirectory())
           continue;
-        const candidate = join17(root, d.name, `${sessionId}.jsonl`);
+        const candidate = join19(root, d.name, `${sessionId}.jsonl`);
         try {
           await stat2(candidate);
           found = candidate;
@@ -30225,7 +30481,7 @@ var transcriptSearch = {
       return null;
     const lines = [];
     let cwd;
-    const raw = await readFile6(found, "utf8");
+    const raw = await readFile7(found, "utf8");
     for (const line of raw.split(`
 `)) {
       if (!line.trim())
@@ -30304,6 +30560,9 @@ var handlers = {
   "session:setModel": async (a) => {
     await sessionManager.get(a.tabId)?.setModel(a.model);
   },
+  "session:setThinking": async (a) => {
+    await sessionManager.get(a.tabId)?.setThinking(a.level);
+  },
   "session:supportedModels": async (a) => {
     return await sessionManager.get(a.tabId)?.supportedModels() ?? [];
   },
@@ -30320,7 +30579,7 @@ var handlers = {
   },
   "fs:readFile": async (a) => {
     try {
-      const content = await readFile7(a.path, "utf8");
+      const content = await readFile8(a.path, "utf8");
       return { content };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -30331,7 +30590,7 @@ var handlers = {
       const mediaType = IMAGE_MEDIA[extname(a.path).toLowerCase()];
       if (!mediaType)
         return { error: "Not a supported image type" };
-      const buf = await readFile7(a.path);
+      const buf = await readFile8(a.path);
       return { data: buf.toString("base64"), mediaType };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -30437,26 +30696,41 @@ var handlers = {
   "previews:cards": () => previews.cards(),
   "previews:capture": (a) => previews.capture(a.cwd, a.url),
   "shots:captureFile": async (a) => {
-    const tmp = join18(userDataDir(), "previews", `file-shot-${process.pid}-${Math.random().toString(36).slice(2)}.png`);
+    const tmp = join20(userDataDir(), "previews", `file-shot-${process.pid}-${Math.random().toString(36).slice(2)}.png`);
     const ok = await captureShot(`file:///${a.path.replace(/\\/g, "/")}`, tmp, a.width ?? 1280, a.height ?? 800);
     if (!ok)
       return { error: "File capture failed" };
-    const data = (await readFile7(tmp)).toString("base64");
+    const data = (await readFile8(tmp)).toString("base64");
     rmSync3(tmp, { force: true });
     return { data };
   },
   "ports:list": () => ports.list(),
   "ports:kill": (a) => ports.kill(a.pid),
   "ports:open": (a) => ports.open(a.port),
+  "dev:start": (a) => devserver.start(a.cwd),
+  "dev:status": (a) => devserver.status(a.cwd),
+  "dev:stop": (a) => devserver.stop(a.cwd),
+  "commands:list": (a) => {
+    const h = sessionManager.get(a.tabId);
+    return h ? userCommands.list(h.cwd) : { error: "Session not found" };
+  },
+  "commands:save": (a) => {
+    const h = sessionManager.get(a.tabId);
+    return h ? userCommands.save(h.cwd, a.scope, a.name, a.description, a.argumentHint, a.body) : { error: "Session not found" };
+  },
+  "commands:delete": (a) => {
+    const h = sessionManager.get(a.tabId);
+    return h ? userCommands.remove(h.cwd, a.scope, a.name) : { error: "Session not found" };
+  },
   "fs:listDir": async (a) => {
     const h = sessionManager.get(a.tabId);
     if (!h)
       return { error: "Session not found" };
-    const target = resolve2(join18(h.cwd, a.rel));
+    const target = resolve2(join20(h.cwd, a.rel));
     if (!target.startsWith(resolve2(h.cwd)))
       return { error: "Path outside project" };
     try {
-      const dirents = await readdir4(target, { withFileTypes: true });
+      const dirents = await readdir5(target, { withFileTypes: true });
       const entries = dirents.map((d) => ({ name: d.name, isDir: d.isDirectory() })).sort((x, y) => Number(y.isDir) - Number(x.isDir) || x.name.localeCompare(y.name));
       return { entries };
     } catch (err) {
@@ -30473,22 +30747,22 @@ var handlers = {
     const h = sessionManager.get(a.tabId);
     if (!h)
       return { error: "Session not found" };
-    const target = resolve2(join18(h.cwd, a.rel));
+    const target = resolve2(join20(h.cwd, a.rel));
     if (!target.startsWith(resolve2(h.cwd)))
       return { error: "Path outside project" };
     try {
-      await writeFile3(target, a.content, "utf8");
+      await writeFile4(target, a.content, "utf8");
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
     }
   },
   "app:openDataFolder": () => {
-    spawn4("explorer.exe", [userDataDir()], { detached: true, stdio: "ignore" }).unref();
+    spawn5("explorer.exe", [userDataDir()], { detached: true, stdio: "ignore" }).unref();
   },
   "previews:clearCache": () => {
     try {
-      rmSync3(join18(userDataDir(), "previews"), { recursive: true, force: true });
+      rmSync3(join20(userDataDir(), "previews"), { recursive: true, force: true });
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
@@ -30556,6 +30830,7 @@ var server = Bun.serve({
 console.log(`SIDECAR_PORT=${server.port}`);
 function shutdown() {
   sessionManager.disposeAll();
+  devserver.stopAll();
   usageStore.flush();
   process.exit(0);
 }

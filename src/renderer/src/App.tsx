@@ -7,11 +7,14 @@ import { ApprovalModal } from './components/ApprovalModal'
 import { ChangesPanel } from './components/ChangesPanel'
 import { ChatView } from './components/ChatView'
 import { CommandPalette } from './components/CommandPalette'
+import { CommandsManager } from './components/CommandsManager'
 import { OnboardingView } from './components/OnboardingView'
 import { ProjectGallery } from './components/ProjectGallery'
 import { SettingsView } from './components/SettingsView'
 import { Sidebar } from './components/Sidebar'
+import { Toaster } from './components/Toaster'
 import { UsagePanel } from './components/UsagePanel'
+import { useUi } from './stores/ui'
 
 function Welcome(): React.JSX.Element {
   const [opening, setOpening] = useState(false)
@@ -66,6 +69,7 @@ export default function App(): React.JSX.Element {
   const [changesOpen, setChangesOpen] = useState(false)
   const [usageOpen, setUsageOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const commandsManagerOpen = useUi((s) => s.commandsManager)
   const settingsLoaded = useSettings((s) => s.loaded)
   const reopenLast = useSettings((s) => s.settings.reopenLastProject)
   const reopened = useRef(false)
@@ -99,12 +103,14 @@ export default function App(): React.JSX.Element {
       )}
       {usageOpen && <UsagePanel onClose={() => setUsageOpen(false)} />}
       {settingsOpen && <SettingsView onClose={() => setSettingsOpen(false)} />}
+      {commandsManagerOpen && activeTab && <CommandsManager tabId={activeTab.tabId} />}
       <CommandPalette
         onShowSettings={() => setSettingsOpen(true)}
         onShowUsage={() => setUsageOpen(true)}
         onToggleChanges={() => setChangesOpen((v) => !v)}
       />
       <ApprovalModal />
+      <Toaster />
     </div>
   )
 }

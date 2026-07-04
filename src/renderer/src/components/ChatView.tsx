@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Blocks,
   BookOpen,
@@ -7,18 +7,21 @@ import {
   Eye,
   Folder,
   FolderTree,
+  History,
   MessagesSquare,
   SquareTerminal,
   Waypoints
 } from 'lucide-react'
 import clsx from 'clsx'
 import { contextWindow } from '../lib/models'
-import { interrupt, sendMessage, type TabState } from '../stores/sessions'
+import { dispatchMessage, mergeSuggestions, useCommands } from '../stores/commands'
+import { interrupt, type TabState } from '../stores/sessions'
 import { useUi } from '../stores/ui'
 
 function basename(p: string): string {
   return p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
 }
+import { Checkpoints } from './Checkpoints'
 import { Composer } from './Composer'
 import { ContextPopover } from './ContextPopover'
 import { EditorPane } from './EditorPane'
@@ -44,6 +47,18 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
   const [instructionsOpen, setInstructionsOpen] = useState(false)
   const [contextOpen, setContextOpen] = useState(false)
   const [seenArtifact, setSeenArtifact] = useState<string | undefined>()
+
+  // Load this project's custom slash commands and merge them with the app's
+  // native commands and the SDK's builtins for the composer autocomplete.
+  const loadCommands = useCommands((s) => s.load)
+  const userCommands = useCommands((s) => s.byTab[tab.tabId])
+  useEffect(() => {
+    void loadCommands(tab.tabId)
+  }, [tab.tabId, loadCommands])
+  const suggestions = useMemo(
+    () => mergeSuggestions(userCommands, tab.slashCommands),
+    [userCommands, tab.slashCommands]
+  )
 
   const statusDot =
     tab.status === 'error' ? 'bg-red-500' : busy ? 'bg-accent pulse-dot' : 'bg-green-600/80'
@@ -127,22 +142,28 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             <Waypoints size={14} />
             Workflow
           </button>
-          {tab.lastArtifact && (
-            <button
-              onClick={() => {
-                setSeenArtifact(tab.lastArtifact)
-                setPanel('preview')
-              }}
-              title={`Preview ${tab.lastArtifact}`}
-              className={clsx(tabBtn(panel === 'preview'), 'relative')}
-            >
-              <Eye size={14} />
-              Preview
-              {panel !== 'preview' && tab.lastArtifact !== seenArtifact && (
-                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
-              )}
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setSeenArtifact(tab.lastArtifact)
+              setPanel('preview')
+            }}
+            title="Live preview — your dev server or the last file Claude wrote"
+            className={clsx(tabBtn(panel === 'preview'), 'relative')}
+          >
+            <Eye size={14} />
+            Preview
+            {panel !== 'preview' && tab.lastArtifact && tab.lastArtifact !== seenArtifact && (
+              <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
+            )}
+          </button>
+          <button
+            onClick={() => setPanel('checkpoints')}
+            title="Checkpoints — restore your files to any earlier turn"
+            className={tabBtn(panel === 'checkpoints')}
+          >
+            <History size={14} />
+            Checkpoints
+          </button>
         </div>
 
         <span className="ml-auto flex items-center gap-1.5">
@@ -217,9 +238,9 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             tabId={tab.tabId}
             disabled={tab.status === 'error'}
             streaming={streaming || tab.status === 'awaitingApproval'}
-            slashCommands={tab.slashCommands}
+            slashCommands={suggestions}
             onSend={(text, images) =>
-              sendMessage(tab.tabId, text, images.length ? images : undefined)
+              void dispatchMessage(tab.tabId, text, images.length ? images : undefined)
             }
             onStop={() => interrupt(tab.tabId)}
           />
@@ -244,7 +265,7 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             <SideChatPanel cwd={tab.cwd} />
           </SidePanelShell>
         )}
-        {panel === 'preview' && tab.lastArtifact && (
+        {panel === 'preview' && (
           <SidePanelShell storageKey="preview" defaultWidth={520}>
             <PreviewPanel path={tab.lastArtifact} cwd={tab.cwd} />
           </SidePanelShell>
@@ -257,6 +278,11 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
         {panel === 'workflow' && (
           <SidePanelShell storageKey="workflow" defaultWidth={620}>
             <WorkflowPanel tabId={tab.tabId} />
+          </SidePanelShell>
+        )}
+        {panel === 'checkpoints' && (
+          <SidePanelShell storageKey="checkpoints" defaultWidth={380}>
+            <Checkpoints tabId={tab.tabId} />
           </SidePanelShell>
         )}
       </div>

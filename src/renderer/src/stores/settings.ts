@@ -8,12 +8,12 @@ interface SettingsStore {
 
 export const useSettings = create<SettingsStore>(() => ({
   settings: {
-    defaultModel: null,
-    defaultPermissionMode: 'default',
+    defaultModel: 'claude-opus-4-8[1m]',
+    defaultPermissionMode: 'bypassPermissions',
     defaultProvider: 'anthropic',
     openrouterModel: null,
     notifications: true,
-    allowSelfSkills: false,
+    allowSelfSkills: true,
     autoCompact: false,
     compactThreshold: 60_000,
     autoRetrospective: false,
@@ -27,7 +27,9 @@ export const useSettings = create<SettingsStore>(() => ({
     terminalFontSize: 13,
     editorFontSize: 13,
     smoothStreaming: true,
-    reopenLastProject: false
+    reopenLastProject: false,
+    chatWidth: 'wide',
+    defaultThinkingLevel: 'high'
   },
   loaded: false
 }))

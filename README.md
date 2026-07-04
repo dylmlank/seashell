@@ -5,7 +5,12 @@ A Windows desktop app for Claude Code — like Claude Desktop, but it drives the
 ## Features
 
 - **Streaming chat** with markdown rendering and live tool-call cards (inputs, results, success/error state)
-- **Multi-session tabs** — run several conversations side-by-side, each in its own project folder
+- **Slash commands** — native `/` actions that drive the app (`/commit`, `/run`, `/model`, `/mode`, `/kill`, panel toggles) plus your own reusable prompt macros stored in `.claude/commands/*.md` (portable to the CLI), all in one rich autocomplete with a built-in manager
+- **Multi-session tabs** — run several conversations side-by-side, each in its own project folder, with at-a-glance status (working / needs you / ready / error) in the sidebar
+- **Thinking controls** — pick how hard Claude reasons per session (No thinking → Low → Medium → High → Ultra, like Claude Code), changeable live
+- **Self-extending** — Claude proactively creates project skills for repeated or hard tasks, slash commands, subagents, and its own tools, and installs plugins/MCP servers when they fit (toggleable in Settings)
+- **Live preview** — an embedded browser pointed at your dev server: it auto-detects running ports and, if none is up, **starts your project's dev server for you** (`dev`/`start`/`serve`/`preview` script, right package manager) when you open the pane — with refresh/auto-refresh, open-in-browser, and a file mode for the last HTML/SVG/Markdown Claude wrote
+- **Checkpoints / time-travel** — a timeline of every turn showing which files it changed; restore your project's files to any earlier checkpoint in one click (the conversation is kept)
 - **Tool approval UI** — visual prompts when Claude wants to edit files (with diff preview) or run commands, plus permission modes: Ask / Auto-edit / Plan / Bypass
 - **Session history** — browse and resume past Claude Code sessions (including ones from the terminal CLI); resumed chats rebuild their full transcript
 - **Usage dashboard** — per-session tokens, cache hits, cost, and a live context-window gauge
@@ -23,7 +28,7 @@ A Windows desktop app for Claude Code — like Claude Desktop, but it drives the
 ```powershell
 bun install
 bun run dev      # tauri dev: vite + cargo + Bun sidecar, hot reload
-bun run build    # tauri build (NSIS installer; sidecar bundling not wired yet)
+bun run build    # tauri build → NSIS installer with the sidecar bundled
 bun run typecheck
 ```
 
@@ -52,3 +57,7 @@ Key design points:
 ## Note on Claude-account login
 
 Anthropic permits subscription (claude.ai) auth for your **own** use. Distributing an app that offers claude.ai login to other users requires Anthropic's approval — if you share this app, others should use their own Claude Code login or an API key.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

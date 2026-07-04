@@ -58,7 +58,7 @@ export function SideChatPanel({ cwd }: { cwd: string }): React.JSX.Element {
             tabId={sideTab.tabId}
             disabled={sideTab.status === 'error'}
             streaming={sideTab.status === 'streaming' || sideTab.status === 'awaitingApproval'}
-            slashCommands={sideTab.slashCommands}
+            slashCommands={sideTab.slashCommands.map((name) => ({ name, source: 'builtin' }))}
             hideModeControls
             onSend={(text, images) =>
               sendMessage(sideTab.tabId, text, images.length ? images : undefined)

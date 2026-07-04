@@ -6,6 +6,7 @@ import type {
   ChangedFile,
   ContextBreakdown,
   DesktopConnector,
+  DevServerStatus,
   DirEntry,
   ImageAttachment,
   MemoryFile,
@@ -21,8 +22,10 @@ import type {
   SearchHit,
   SessionStatus,
   SessionSummary,
+  ThinkingLevel,
   UiEvent,
-  UsageTotals
+  UsageTotals,
+  UserCommand
 } from './types'
 
 // ---- renderer -> main (ipcRenderer.invoke / ipcMain.handle) ----
@@ -37,6 +40,8 @@ export interface Invokes {
     provider?: Provider
     /** Read-and-answer only: no file edits, commands, or MCP tools. */
     chatOnly?: boolean
+    /** Initial extended-thinking level. */
+    thinkingLevel?: ThinkingLevel
   }) => { ok: true } | { ok: false; error: string }
   'session:send': (a: { tabId: string; text: string; images?: ImageAttachment[] }) => void
   'session:interrupt': (a: { tabId: string }) => void
@@ -46,6 +51,7 @@ export interface Invokes {
   }) => { ok: boolean; detail: string }
   'session:setPermissionMode': (a: { tabId: string; mode: PermissionMode }) => void
   'session:setModel': (a: { tabId: string; model: string }) => void
+  'session:setThinking': (a: { tabId: string; level: ThinkingLevel }) => void
   'session:supportedModels': (a: { tabId: string }) => ModelInfo[]
   'session:contextUsage': (a: { tabId: string }) => ContextBreakdown | { error: string }
   'session:close': (a: { tabId: string }) => void
@@ -156,6 +162,26 @@ export interface Invokes {
   'ports:kill': (a: { pid: number }) => { ok: true } | { error: string }
   'ports:open': (a: { port: number }) => void
 
+  /** Auto-launch (or inspect) the project's dev server for the live preview. */
+  'dev:start': (a: { cwd: string }) => DevServerStatus
+  'dev:status': (a: { cwd: string }) => DevServerStatus
+  'dev:stop': (a: { cwd: string }) => { ok: true }
+
+  /** User-authored slash commands (.claude/commands/*.md), project + user scope. */
+  'commands:list': (a: { tabId: string }) => { commands: UserCommand[] } | { error: string }
+  'commands:save': (a: {
+    tabId: string
+    scope: 'project' | 'user'
+    name: string
+    description: string
+    argumentHint: string
+    body: string
+  }) => { ok: true } | { error: string }
+  'commands:delete': (a: {
+    tabId: string
+    scope: 'project' | 'user'
+    name: string
+  }) => { ok: true } | { error: string }
 }
 
 // ---- main -> renderer (webContents.send / window.api.on) ----

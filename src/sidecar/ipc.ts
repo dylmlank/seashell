@@ -6,6 +6,7 @@ import type { Invokes } from '../shared/ipc-contract'
 import { approvals } from './approvals'
 import { auth } from './auth'
 import { changes } from './changes'
+import { userCommands } from './commands'
 import { startDictation } from './dictation'
 import { listProjectFiles } from './file-index'
 import { history } from './history'
@@ -16,6 +17,7 @@ import { memoryFiles } from './memory-files'
 import { userDataDir } from './paths'
 import { pins } from './pins'
 import { ports } from './ports'
+import { devserver } from './devserver'
 import { captureShot, previews } from './previews'
 import { projectExplain } from './project-explain'
 import { analyzeProject } from './project-map'
@@ -60,6 +62,9 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   },
   'session:setModel': async (a) => {
     await sessionManager.get(a.tabId)?.setModel(a.model)
+  },
+  'session:setThinking': async (a) => {
+    await sessionManager.get(a.tabId)?.setThinking(a.level)
   },
   'session:supportedModels': async (a) => {
     return (await sessionManager.get(a.tabId)?.supportedModels()) ?? []
@@ -220,6 +225,25 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   'ports:list': () => ports.list(),
   'ports:kill': (a) => ports.kill(a.pid),
   'ports:open': (a) => ports.open(a.port),
+
+  'dev:start': (a) => devserver.start(a.cwd),
+  'dev:status': (a) => devserver.status(a.cwd),
+  'dev:stop': (a) => devserver.stop(a.cwd),
+
+  'commands:list': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? userCommands.list(h.cwd) : { error: 'Session not found' }
+  },
+  'commands:save': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h
+      ? userCommands.save(h.cwd, a.scope, a.name, a.description, a.argumentHint, a.body)
+      : { error: 'Session not found' }
+  },
+  'commands:delete': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? userCommands.remove(h.cwd, a.scope, a.name) : { error: 'Session not found' }
+  },
 
   'fs:listDir': async (a) => {
     const h = sessionManager.get(a.tabId)

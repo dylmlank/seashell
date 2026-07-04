@@ -4,12 +4,12 @@ import type { AppSettings } from '../shared/types'
 import { userDataDir } from './paths'
 
 const DEFAULTS: AppSettings = {
-  defaultModel: null,
-  defaultPermissionMode: 'default',
+  defaultModel: 'claude-opus-4-8[1m]',
+  defaultPermissionMode: 'bypassPermissions',
   defaultProvider: 'anthropic',
   openrouterModel: null,
   notifications: true,
-  allowSelfSkills: false,
+  allowSelfSkills: true,
   autoCompact: false,
   compactThreshold: 60_000,
   autoRetrospective: false,
@@ -23,10 +23,25 @@ const DEFAULTS: AppSettings = {
   terminalFontSize: 13,
   editorFontSize: 13,
   smoothStreaming: true,
-  reopenLastProject: false
+  reopenLastProject: false,
+  chatWidth: 'wide',
+  defaultThinkingLevel: 'high'
 }
 
 const file = (): string => join(userDataDir(), 'settings.json')
+
+// First cut of the thinking feature used CLI keyword names — map to the ladder.
+const THINKING_LEGACY: Record<string, AppSettings['defaultThinkingLevel']> = {
+  think: 'low',
+  'think-harder': 'medium',
+  ultrathink: 'ultra'
+}
+
+function sanitize(s: AppSettings): AppSettings {
+  const migrated = THINKING_LEGACY[s.defaultThinkingLevel as string]
+  if (migrated) s.defaultThinkingLevel = migrated
+  return s
+}
 
 let cache: AppSettings | null = null
 
@@ -34,7 +49,10 @@ export const settingsStore = {
   get(): AppSettings {
     if (cache) return cache
     try {
-      cache = { ...DEFAULTS, ...(JSON.parse(readFileSync(file(), 'utf8')) as Partial<AppSettings>) }
+      cache = sanitize({
+        ...DEFAULTS,
+        ...(JSON.parse(readFileSync(file(), 'utf8')) as Partial<AppSettings>)
+      })
     } catch {
       cache = { ...DEFAULTS }
     }
@@ -50,7 +68,7 @@ export const settingsStore = {
     } catch {
       // no file yet
     }
-    cache = { ...DEFAULTS, ...onDisk, ...patch }
+    cache = sanitize({ ...DEFAULTS, ...onDisk, ...patch })
     // Surface write failures instead of silently keeping memory-only settings.
     writeFileSync(file(), JSON.stringify(cache, null, 2))
     return cache

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X, Settings2, LogIn, LogOut, KeyRound, SquareTerminal, Trash2 } from 'lucide-react'
-import type { PermissionMode, Provider } from '@shared/types'
+import type { PermissionMode, Provider, ThinkingLevel } from '@shared/types'
 import { updateSettings, useSettings } from '../stores/settings'
 import { useAuth } from '../stores/auth'
 
@@ -299,8 +299,26 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
               </select>
             </Row>
             <Row
-              label="Let Claude create its own skills"
-              hint="Claude may write reusable project skills and slash commands (.claude/skills, .claude/commands) when it spots a repeatable workflow."
+              label="Default thinking"
+              hint="Extended-thinking budget for new sessions — adjustable per session from the composer."
+            >
+              <select
+                value={settings.defaultThinkingLevel}
+                onChange={(e) =>
+                  void updateSettings({ defaultThinkingLevel: e.target.value as ThinkingLevel })
+                }
+                className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm outline-none"
+              >
+                <option value="off">No thinking</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="ultra">Ultra</option>
+              </select>
+            </Row>
+            <Row
+              label="Let Claude extend itself"
+              hint="Claude may create skills for repeated or hard tasks, slash commands, subagents, and its own tools, and install plugins/MCP servers when they fit — it always tells you what it added."
             >
               <Toggle
                 checked={settings.allowSelfSkills}
@@ -401,6 +419,24 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
                     }
                   >
                     {size.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </Row>
+            <Row label="Chat width" hint="How wide the conversation and composer fill the window.">
+              <div className="flex overflow-hidden rounded-lg border border-border text-xs">
+                {(['comfortable', 'wide', 'full'] as const).map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => void updateSettings({ chatWidth: w })}
+                    className={
+                      'px-3 py-1.5 capitalize ' +
+                      (settings.chatWidth === w
+                        ? 'bg-accent-dim/40 text-accent'
+                        : 'bg-surface-2 text-text-dim hover:text-text')
+                    }
+                  >
+                    {w}
                   </button>
                 ))}
               </div>

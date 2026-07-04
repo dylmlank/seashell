@@ -96,10 +96,15 @@ export function ModelSelector({ tabId }: { tabId: string }): React.JSX.Element |
                 key={m.id}
                 onClick={() => pick(m.id)}
                 title={m.id}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-border/50"
+                className="flex w-full items-start gap-2 px-3 py-1.5 text-left text-sm hover:bg-border/50"
               >
-                <span className="flex-1 truncate">{m.displayName}</span>
-                {m.id === current?.id && <Check size={13} className="shrink-0 text-accent" />}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{m.displayName}</span>
+                  {m.description && (
+                    <span className="block truncate text-[11px] text-text-dim">{m.description}</span>
+                  )}
+                </span>
+                {m.id === current?.id && <Check size={13} className="mt-0.5 shrink-0 text-accent" />}
               </button>
             ))}
             {shown.length === 0 && (

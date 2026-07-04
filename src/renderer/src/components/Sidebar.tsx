@@ -6,9 +6,12 @@ import {
   GitBranch,
   BarChart3,
   Settings2,
-  FolderOpen
+  BellRing,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react'
 import clsx from 'clsx'
+import type { SessionStatus } from '@shared/types'
 import { closeTab, createTab, useSessions } from '../stores/sessions'
 import { LimitBars } from './LimitBars'
 import { SessionList } from './SessionSidebar'
@@ -16,6 +19,39 @@ import { alertDialog } from '../lib/dialogs'
 
 function basename(p: string): string {
   return p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
+}
+
+/** Icon + accessible label for a session's live state, so the Open list reads
+ *  at a glance: working / needs you / ready / error. */
+function statusMeta(status: SessionStatus): { icon: React.ReactNode; label: string } {
+  switch (status) {
+    case 'streaming':
+      return {
+        icon: <Loader2 size={12} className="shrink-0 animate-spin text-accent" />,
+        label: 'Working…'
+      }
+    case 'awaitingApproval':
+      return {
+        icon: <BellRing size={12} className="shrink-0 text-amber-400" />,
+        label: 'Needs your approval'
+      }
+    case 'error':
+      return {
+        icon: <AlertCircle size={12} className="shrink-0 text-red-400" />,
+        label: 'Error'
+      }
+    case 'starting':
+      return {
+        icon: <Loader2 size={12} className="shrink-0 animate-spin text-text-dim" />,
+        label: 'Starting…'
+      }
+    case 'idle':
+    default:
+      return {
+        icon: <CheckCircle2 size={12} className="shrink-0 text-green-500/80" />,
+        label: 'Ready'
+      }
+  }
 }
 
 export function Sidebar({
@@ -84,33 +120,36 @@ export function Sidebar({
           <div className="space-y-0.5">
             {tabs.map((tab) => {
               const active = tab.tabId === activeTabId
-              const busy = tab.status === 'streaming' || tab.status === 'awaitingApproval'
+              const needsInput = tab.status === 'awaitingApproval'
+              const meta = statusMeta(tab.status)
               return (
                 <div
                   key={tab.tabId}
                   data-testid="tab"
                   onClick={() => setActive(tab.tabId)}
-                  title={tab.cwd}
+                  title={`${basename(tab.cwd)} — ${meta.label}\n${tab.cwd}`}
                   className={clsx(
                     'group flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
+                    needsInput && !active && 'ring-1 ring-inset ring-amber-400/30',
                     active
                       ? 'bg-surface-2 text-text'
                       : 'text-text-dim hover:bg-surface hover:text-text'
                   )}
                 >
-                  {busy ? (
-                    <Loader2 size={12} className="shrink-0 animate-spin text-accent" />
-                  ) : (
-                    <FolderOpen size={12} className="shrink-0 opacity-60" />
+                  {meta.icon}
+                  <span className="min-w-0 flex-1 truncate">{basename(tab.cwd)}</span>
+                  {needsInput && (
+                    <span className="shrink-0 rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 group-hover:hidden">
+                      Needs you
+                    </span>
                   )}
-                  <span className="truncate">{basename(tab.cwd)}</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       closeTab(tab.tabId)
                     }}
                     title="Close session"
-                    className="ml-auto rounded p-0.5 opacity-0 hover:bg-border group-hover:opacity-100"
+                    className="shrink-0 rounded p-0.5 opacity-0 hover:bg-border group-hover:opacity-100"
                   >
                     <X size={12} />
                   </button>
