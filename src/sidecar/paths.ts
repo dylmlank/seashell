@@ -2,9 +2,12 @@ import { mkdirSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 
-/** %APPDATA% (Roaming) — also where Claude Desktop keeps its config. */
+/** Per-OS config root — also where Claude Desktop keeps its config. */
 export function appDataDir(): string {
-  return process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming')
+  if (process.platform === 'win32')
+    return process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming')
+  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support')
+  return process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config')
 }
 
 let ensured = false

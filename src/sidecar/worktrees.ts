@@ -32,8 +32,10 @@ export const worktrees = {
   async merge(worktreeCwd: string): Promise<{ ok: true } | { error: string }> {
     try {
       const branch = await git(worktreeCwd, 'rev-parse', '--abbrev-ref', 'HEAD')
+      // git prints forward slashes everywhere; node's dirname handles them on
+      // every platform, so no separator munging needed.
       const commonDir = await git(worktreeCwd, 'rev-parse', '--git-common-dir')
-      const mainRoot = dirname(commonDir.replace(/\//g, '\\'))
+      const mainRoot = dirname(commonDir)
       if (await git(worktreeCwd, 'status', '--porcelain')) {
         await git(worktreeCwd, 'add', '-A')
         await git(worktreeCwd, 'commit', '-m', 'Seashell worktree changes')

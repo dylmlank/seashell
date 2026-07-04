@@ -1,9 +1,9 @@
-import { spawn } from 'child_process'
 import { existsSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 import type { Events } from '../shared/ipc-contract'
 import type { AuthState } from '../shared/types'
+import { openTerminalWith } from './platform'
 import { secrets } from './secrets'
 
 type Broadcast = <C extends keyof Events>(channel: C, payload: Events[C]) => void
@@ -57,11 +57,7 @@ export const auth = {
 
   /** Open a visible terminal running `claude setup-token` for the user to complete. */
   openTerminalLogin(): void {
-    spawn('cmd.exe', ['/c', 'start', 'cmd', '/k', 'claude setup-token'], {
-      detached: true,
-      shell: false,
-      stdio: 'ignore'
-    }).unref()
+    openTerminalWith('claude setup-token')
   },
 
   looksLikeAuthError(text: string): boolean {

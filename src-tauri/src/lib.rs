@@ -68,10 +68,17 @@ fn pty_create(
         })
         .map_err(|e| e.to_string())?;
 
+    #[cfg(windows)]
     let shell_exe = match shell.as_deref() {
         Some("powershell") => "powershell.exe".to_string(),
         Some("pwsh") => "pwsh.exe".to_string(),
         _ => std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".into()),
+    };
+    // Unix: honor an absolute path from settings, else the user's login shell.
+    #[cfg(not(windows))]
+    let shell_exe = match shell.as_deref() {
+        Some(s) if s.starts_with('/') => s.to_string(),
+        _ => std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".into()),
     };
     let mut cmd = CommandBuilder::new(shell_exe);
     cmd.cwd(cwd);
@@ -155,10 +162,15 @@ fn pty_kill(state: State<AppState>, id: String) {
 /// Fallback when the embedded terminal can't be used: real console window.
 #[tauri::command]
 fn open_terminal(cwd: String) {
+    #[cfg(windows)]
     let _ = Command::new("cmd.exe")
         .args(["/c", "start", "cmd"])
         .current_dir(cwd)
         .spawn();
+    #[cfg(target_os = "macos")]
+    let _ = Command::new("open").args(["-a", "Terminal", &cwd]).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let _ = Command::new("x-terminal-emulator").current_dir(cwd).spawn();
 }
 
 /// Detach a session into its own OS window. The renderer spots the pop-*
@@ -186,11 +198,13 @@ fn open_external(url: String) -> Result<(), String> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
         return Err("only http(s) links".into());
     }
-    Command::new("cmd.exe")
-        .args(["/c", "start", "", &url])
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    #[cfg(windows)]
+    let spawned = Command::new("cmd.exe").args(["/c", "start", "", &url]).spawn();
+    #[cfg(target_os = "macos")]
+    let spawned = Command::new("open").arg(&url).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let spawned = Command::new("xdg-open").arg(&url).spawn();
+    spawned.map(|_| ()).map_err(|e| e.to_string())
 }
 
 /// Used by "export chat" — the save dialog runs in the frontend, we do the write.

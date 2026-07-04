@@ -20,10 +20,17 @@
 
 ## Requirements
 
-- Windows 11
+- Windows 11, macOS, or Linux
 - [Bun](https://bun.sh) (runs the sidecar and the tooling)
-- Rust toolchain (stable-msvc, for the Tauri shell)
+- Rust toolchain (for the Tauri shell — stable-msvc on Windows)
 - [Claude Code CLI](https://docs.claude.com/en/docs/claude-code) installed (`npm i -g @anthropic-ai/claude-code`) with a Claude Pro/Max subscription (or an API key)
+
+Platform notes: Windows is the primary, battle-tested target. macOS and Linux
+are supported code paths (keys go to Keychain / libsecret instead of DPAPI,
+ports/terminals/openers use the native tools, ptys use your `$SHELL`) but are
+not yet CI-tested — issues welcome. Auto-screenshots need a Chromium-family
+browser; the in-window webview capture is Windows-only for now. Voice
+dictation is Windows-only.
 
 ## Run
 

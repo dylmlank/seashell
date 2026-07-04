@@ -28070,7 +28070,6 @@ Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resour
 });
 
 // src/sidecar/ipc.ts
-import { spawn as spawn5 } from "child_process";
 import { rmSync as rmSync3 } from "fs";
 import { readdir as readdir5, readFile as readFile8, writeFile as writeFile4 } from "fs/promises";
 import { extname, join as join21, resolve as resolve2 } from "path";
@@ -28087,7 +28086,11 @@ import { mkdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 function appDataDir() {
-  return process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
+  if (process.platform === "win32")
+    return process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
+  if (process.platform === "darwin")
+    return join(homedir(), "Library", "Application Support");
+  return process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config");
 }
 var ensured = false;
 function userDataDir() {
@@ -28240,10 +28243,62 @@ var approvals = {
 };
 
 // src/sidecar/auth.ts
-import { spawn } from "child_process";
 import { existsSync as existsSync2 } from "fs";
 import { homedir as homedir2 } from "os";
 import { join as join4 } from "path";
+
+// src/sidecar/platform.ts
+import { spawn } from "child_process";
+var IS_WIN = process.platform === "win32";
+var IS_MAC = process.platform === "darwin";
+function fire(cmd, args, cwd) {
+  spawn(cmd, args, { cwd, detached: true, stdio: "ignore", windowsHide: true }).unref();
+}
+function openPath(path) {
+  if (IS_WIN)
+    fire("explorer.exe", [path]);
+  else if (IS_MAC)
+    fire("open", [path]);
+  else
+    fire("xdg-open", [path]);
+}
+function openUrl(url) {
+  if (IS_WIN)
+    fire("cmd.exe", ["/c", "start", "", url]);
+  else if (IS_MAC)
+    fire("open", [url]);
+  else
+    fire("xdg-open", [url]);
+}
+function openInVsCode(cwd) {
+  if (IS_WIN)
+    fire("cmd.exe", ["/c", "code", "."], cwd);
+  else
+    fire("code", ["."], cwd);
+}
+function openTerminalWith(command, cwd) {
+  if (IS_WIN) {
+    fire("cmd.exe", ["/c", "start", "cmd", "/k", command], cwd);
+  } else if (IS_MAC) {
+    fire("osascript", [
+      "-e",
+      `tell application "Terminal" to do script "${cwd ? `cd ${JSON.stringify(cwd)} && ` : ""}${command}"`,
+      "-e",
+      'tell application "Terminal" to activate'
+    ]);
+  } else {
+    for (const [term, args] of [
+      ["x-terminal-emulator", ["-e", `bash -c '${command}; exec bash'`]],
+      ["gnome-terminal", ["--", "bash", "-c", `${command}; exec bash`]],
+      ["konsole", ["-e", `bash -c '${command}; exec bash'`]]
+    ]) {
+      try {
+        fire(term, args, cwd);
+        return;
+      } catch {}
+    }
+  }
+}
 
 // src/sidecar/secrets.ts
 import { spawnSync } from "child_process";
@@ -28267,11 +28322,46 @@ function dpapi(direction, b64In) {
     return null;
   return result.stdout.trim();
 }
-function encrypt(plain) {
-  return dpapi("Protect", Buffer.from(plain, "utf8").toString("base64"));
+var KEYRING = "os-keyring";
+function keyringSave(field, value) {
+  if (process.platform === "darwin") {
+    const r2 = spawnSync("security", ["add-generic-password", "-U", "-a", "seashell", "-s", `seashell.${field}`, "-w", value], { timeout: 15000 });
+    return r2.status === 0;
+  }
+  const r = spawnSync("secret-tool", ["store", "--label=Seashell", "service", "seashell", "field", field], { input: value, encoding: "utf8", timeout: 15000 });
+  return r.status === 0;
 }
-function decrypt(stored) {
+function keyringRead(field) {
+  const r = process.platform === "darwin" ? spawnSync("security", ["find-generic-password", "-a", "seashell", "-s", `seashell.${field}`, "-w"], { encoding: "utf8", timeout: 15000 }) : spawnSync("secret-tool", ["lookup", "service", "seashell", "field", field], {
+    encoding: "utf8",
+    timeout: 15000
+  });
+  if (r.status !== 0)
+    return null;
+  const out = r.stdout.replace(/\n$/, "");
+  return out || null;
+}
+function keyringClear(field) {
+  if (process.platform === "darwin") {
+    spawnSync("security", ["delete-generic-password", "-a", "seashell", "-s", `seashell.${field}`], {
+      timeout: 15000
+    });
+  } else {
+    spawnSync("secret-tool", ["clear", "service", "seashell", "field", field], { timeout: 15000 });
+  }
+}
+function encrypt(field, plain) {
+  if (process.platform === "win32") {
+    return dpapi("Protect", Buffer.from(plain, "utf8").toString("base64"));
+  }
+  return keyringSave(field, plain) ? KEYRING : null;
+}
+function decrypt(field, stored) {
   if (!stored)
+    return null;
+  if (stored === KEYRING)
+    return keyringRead(field);
+  if (process.platform !== "win32")
     return null;
   const b64 = dpapi("Unprotect", stored);
   return b64 ? Buffer.from(b64, "base64").toString("utf8") : null;
@@ -28285,7 +28375,7 @@ function readSecrets() {
 }
 function save(field, value) {
   memory[field] = value;
-  const blob = encrypt(value);
+  const blob = encrypt(field, value);
   if (!blob)
     return false;
   const data = readSecrets();
@@ -28295,6 +28385,8 @@ function save(field, value) {
 }
 function clear(field) {
   memory[field] = null;
+  if (process.platform !== "win32")
+    keyringClear(field);
   const data = readSecrets();
   delete data[field];
   if (Object.keys(data).length === 0) {
@@ -28306,7 +28398,7 @@ function clear(field) {
 }
 var secrets = {
   getToken() {
-    return memory.oauthToken ??= decrypt(readSecrets().oauthToken);
+    return memory.oauthToken ??= decrypt("oauthToken", readSecrets().oauthToken);
   },
   saveToken(token) {
     return save("oauthToken", token);
@@ -28315,7 +28407,7 @@ var secrets = {
     clear("oauthToken");
   },
   getOpenRouterKey() {
-    return memory.openrouterKey ??= decrypt(readSecrets().openrouterKey);
+    return memory.openrouterKey ??= decrypt("openrouterKey", readSecrets().openrouterKey);
   },
   saveOpenRouterKey(key) {
     return save("openrouterKey", key);
@@ -28324,7 +28416,7 @@ var secrets = {
     clear("openrouterKey");
   },
   getCustomKey() {
-    return memory.customKey ??= decrypt(readSecrets().customKey);
+    return memory.customKey ??= decrypt("customKey", readSecrets().customKey);
   },
   saveCustomKey(key) {
     return save("customKey", key);
@@ -28375,11 +28467,7 @@ var auth = {
     broadcast3("auth:state", this.getState());
   },
   openTerminalLogin() {
-    spawn("cmd.exe", ["/c", "start", "cmd", "/k", "claude setup-token"], {
-      detached: true,
-      shell: false,
-      stdio: "ignore"
-    }).unref();
+    openTerminalWith("claude setup-token");
   },
   looksLikeAuthError(text) {
     return /401|unauthor|invalid.*(api key|token)|authentication|not.*logged.*in|please.*login/i.test(text);
@@ -28979,62 +29067,82 @@ var pins = {
 };
 
 // src/sidecar/ports.ts
-import { exec as exec2, spawn as spawn3 } from "child_process";
+import { exec as exec2 } from "child_process";
 import { promisify } from "util";
 var run = promisify(exec2);
+var LOCAL = ["0.0.0.0", "127.0.0.1", "[::]", "[::1]", "::", "*"];
+async function listWindows() {
+  const [netstat, tasklist] = await Promise.all([
+    run("netstat -ano -p TCP", { windowsHide: true, maxBuffer: 4000000 }),
+    run("tasklist /FO CSV /NH", { windowsHide: true, maxBuffer: 4000000 })
+  ]);
+  const nameByPid = new Map;
+  for (const line of tasklist.stdout.split(`
+`)) {
+    const m = line.match(/^"([^"]+)","(\d+)"/);
+    if (m)
+      nameByPid.set(Number(m[2]), m[1]);
+  }
+  const byPort = new Map;
+  for (const line of netstat.stdout.split(`
+`)) {
+    const m = line.match(/^\s*TCP\s+(\S+):(\d+)\s+\S+\s+LISTENING\s+(\d+)/);
+    if (!m)
+      continue;
+    if (!LOCAL.includes(m[1]))
+      continue;
+    const port = Number(m[2]);
+    const pid = Number(m[3]);
+    if (!byPort.has(port)) {
+      byPort.set(port, { port, pid, process: nameByPid.get(pid) ?? `pid ${pid}` });
+    }
+  }
+  return [...byPort.values()];
+}
+async function listUnix() {
+  const { stdout } = await run("lsof -iTCP -sTCP:LISTEN -P -n", { maxBuffer: 4000000 });
+  const byPort = new Map;
+  for (const line of stdout.split(`
+`).slice(1)) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 9)
+      continue;
+    const port = Number(parts[parts.length - 2].match(/:(\d+)$/)?.[1]);
+    if (!port)
+      continue;
+    if (!byPort.has(port)) {
+      byPort.set(port, { port, pid: Number(parts[1]), process: parts[0] });
+    }
+  }
+  return [...byPort.values()];
+}
 var ports = {
   async list() {
     try {
-      const [netstat, tasklist] = await Promise.all([
-        run("netstat -ano -p TCP", { windowsHide: true, maxBuffer: 4000000 }),
-        run("tasklist /FO CSV /NH", { windowsHide: true, maxBuffer: 4000000 })
-      ]);
-      const nameByPid = new Map;
-      for (const line of tasklist.stdout.split(`
-`)) {
-        const m = line.match(/^"([^"]+)","(\d+)"/);
-        if (m)
-          nameByPid.set(Number(m[2]), m[1]);
-      }
-      const byPort = new Map;
-      for (const line of netstat.stdout.split(`
-`)) {
-        const m = line.match(/^\s*TCP\s+(\S+):(\d+)\s+\S+\s+LISTENING\s+(\d+)/);
-        if (!m)
-          continue;
-        const address = m[1];
-        if (!["0.0.0.0", "127.0.0.1", "[::]", "[::1]", "::"].includes(address))
-          continue;
-        const port = Number(m[2]);
-        const pid = Number(m[3]);
-        if (!byPort.has(port)) {
-          byPort.set(port, { port, pid, process: nameByPid.get(pid) ?? `pid ${pid}` });
-        }
-      }
-      return [...byPort.values()].sort((a, b) => a.port - b.port);
+      const found = IS_WIN ? await listWindows() : await listUnix();
+      return found.sort((a, b) => a.port - b.port);
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
     }
   },
   async kill(pid) {
     try {
-      await run(`taskkill /PID ${pid} /T /F`, { windowsHide: true });
+      if (IS_WIN)
+        await run(`taskkill /PID ${pid} /T /F`, { windowsHide: true });
+      else
+        process.kill(pid, IS_MAC ? "SIGKILL" : "SIGTERM");
       return { ok: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
     }
   },
   open(port) {
-    spawn3("cmd.exe", ["/c", "start", "", `http://localhost:${port}`], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true
-    }).unref();
+    openUrl(`http://localhost:${port}`);
   }
 };
 
 // src/sidecar/devserver.ts
-import { spawn as spawn4 } from "child_process";
+import { spawn as spawn3 } from "child_process";
 import { existsSync as existsSync5, readFileSync as readFileSync6 } from "fs";
 import { join as join13 } from "path";
 var URL_RE = /(https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?[^\s'"]*)/i;
@@ -29094,7 +29202,7 @@ var devserver = {
     const command = `${pm2} run ${script}`;
     let child;
     try {
-      child = spawn4(command, {
+      child = spawn3(command, {
         cwd,
         shell: true,
         windowsHide: true,
@@ -29142,7 +29250,7 @@ var devserver = {
   stop(cwd) {
     const proc = this.procs.get(cwd);
     if (proc && !proc.exited && proc.child.pid) {
-      spawn4("taskkill", ["/PID", String(proc.child.pid), "/T", "/F"], {
+      spawn3("taskkill", ["/PID", String(proc.child.pid), "/T", "/F"], {
         windowsHide: true,
         stdio: "ignore"
       });
@@ -29253,10 +29361,20 @@ async function projectCard(cwd, name) {
 </svg>`;
 }
 function findEdge() {
-  for (const p of [
+  const candidates = process.platform === "win32" ? [
     "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
     "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
-  ]) {
+  ] : process.platform === "darwin" ? [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium"
+  ] : [
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/microsoft-edge"
+  ];
+  for (const p of candidates) {
     if (existsSync6(p))
       return p;
   }
@@ -30709,7 +30827,7 @@ var worktrees = {
     try {
       const branch = await git2(worktreeCwd, "rev-parse", "--abbrev-ref", "HEAD");
       const commonDir = await git2(worktreeCwd, "rev-parse", "--git-common-dir");
-      const mainRoot = dirname2(commonDir.replace(/\//g, "\\"));
+      const mainRoot = dirname2(commonDir);
       if (await git2(worktreeCwd, "status", "--porcelain")) {
         await git2(worktreeCwd, "add", "-A");
         await git2(worktreeCwd, "commit", "-m", "Seashell worktree changes");
@@ -30851,11 +30969,10 @@ var handlers = {
     const h = sessionManager.get(a.tabId);
     if (!h)
       return;
-    if (a.app === "vscode") {
-      spawn5("cmd.exe", ["/c", "code", "."], { cwd: h.cwd, detached: true, stdio: "ignore" }).unref();
-    } else {
-      spawn5("explorer.exe", [h.cwd], { detached: true, stdio: "ignore" }).unref();
-    }
+    if (a.app === "vscode")
+      openInVsCode(h.cwd);
+    else
+      openPath(h.cwd);
   },
   "providers:getState": () => ({
     openrouterKeySet: secrets.getOpenRouterKey() !== null,
@@ -30983,7 +31100,7 @@ var handlers = {
     }
   },
   "app:openDataFolder": () => {
-    spawn5("explorer.exe", [userDataDir()], { detached: true, stdio: "ignore" }).unref();
+    openPath(userDataDir());
   },
   "previews:clearCache": () => {
     try {

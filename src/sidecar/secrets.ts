@@ -39,12 +39,65 @@ function dpapi(direction: 'Protect' | 'Unprotect', b64In: string): string | null
   return result.stdout.trim()
 }
 
-function encrypt(plain: string): string | null {
-  return dpapi('Protect', Buffer.from(plain, 'utf8').toString('base64'))
+// macOS Keychain / Linux libsecret: the OS keyring holds the value itself;
+// secrets.json just records the KEYRING marker so we know to look there.
+const KEYRING = 'os-keyring'
+
+function keyringSave(field: string, value: string): boolean {
+  if (process.platform === 'darwin') {
+    const r = spawnSync(
+      'security',
+      ['add-generic-password', '-U', '-a', 'seashell', '-s', `seashell.${field}`, '-w', value],
+      { timeout: 15000 }
+    )
+    return r.status === 0
+  }
+  const r = spawnSync(
+    'secret-tool',
+    ['store', '--label=Seashell', 'service', 'seashell', 'field', field],
+    { input: value, encoding: 'utf8', timeout: 15000 }
+  )
+  return r.status === 0
 }
 
-function decrypt(stored: string | undefined): string | null {
+function keyringRead(field: string): string | null {
+  const r =
+    process.platform === 'darwin'
+      ? spawnSync(
+          'security',
+          ['find-generic-password', '-a', 'seashell', '-s', `seashell.${field}`, '-w'],
+          { encoding: 'utf8', timeout: 15000 }
+        )
+      : spawnSync('secret-tool', ['lookup', 'service', 'seashell', 'field', field], {
+          encoding: 'utf8',
+          timeout: 15000
+        })
+  if (r.status !== 0) return null
+  const out = r.stdout.replace(/\n$/, '')
+  return out || null
+}
+
+function keyringClear(field: string): void {
+  if (process.platform === 'darwin') {
+    spawnSync('security', ['delete-generic-password', '-a', 'seashell', '-s', `seashell.${field}`], {
+      timeout: 15000
+    })
+  } else {
+    spawnSync('secret-tool', ['clear', 'service', 'seashell', 'field', field], { timeout: 15000 })
+  }
+}
+
+function encrypt(field: string, plain: string): string | null {
+  if (process.platform === 'win32') {
+    return dpapi('Protect', Buffer.from(plain, 'utf8').toString('base64'))
+  }
+  return keyringSave(field, plain) ? KEYRING : null
+}
+
+function decrypt(field: string, stored: string | undefined): string | null {
   if (!stored) return null
+  if (stored === KEYRING) return keyringRead(field)
+  if (process.platform !== 'win32') return null // DPAPI blob on the wrong OS
   const b64 = dpapi('Unprotect', stored)
   return b64 ? Buffer.from(b64, 'base64').toString('utf8') : null
 }
@@ -60,7 +113,7 @@ function readSecrets(): SecretsFile {
 /** Returns false when encryption is unavailable (value kept in memory only). */
 function save(field: keyof SecretsFile, value: string): boolean {
   memory[field] = value
-  const blob = encrypt(value)
+  const blob = encrypt(field, value)
   if (!blob) return false
   const data = readSecrets()
   data[field] = blob
@@ -70,6 +123,7 @@ function save(field: keyof SecretsFile, value: string): boolean {
 
 function clear(field: keyof SecretsFile): void {
   memory[field] = null
+  if (process.platform !== 'win32') keyringClear(field)
   const data = readSecrets()
   delete data[field]
   if (Object.keys(data).length === 0) {
@@ -81,7 +135,7 @@ function clear(field: keyof SecretsFile): void {
 
 export const secrets = {
   getToken(): string | null {
-    return (memory.oauthToken ??= decrypt(readSecrets().oauthToken))
+    return (memory.oauthToken ??= decrypt('oauthToken', readSecrets().oauthToken))
   },
   saveToken(token: string): boolean {
     return save('oauthToken', token)
@@ -91,7 +145,7 @@ export const secrets = {
   },
 
   getOpenRouterKey(): string | null {
-    return (memory.openrouterKey ??= decrypt(readSecrets().openrouterKey))
+    return (memory.openrouterKey ??= decrypt('openrouterKey', readSecrets().openrouterKey))
   },
   saveOpenRouterKey(key: string): boolean {
     return save('openrouterKey', key)
@@ -101,7 +155,7 @@ export const secrets = {
   },
 
   getCustomKey(): string | null {
-    return (memory.customKey ??= decrypt(readSecrets().customKey))
+    return (memory.customKey ??= decrypt('customKey', readSecrets().customKey))
   },
   saveCustomKey(key: string): boolean {
     return save('customKey', key)

@@ -27,7 +27,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": ["nsis", "app", "dmg", "appimage", "deb"],
     "icon": ["icons/icon.ico"],
     "resources": {
       "resources/sidecar/": "sidecar/"

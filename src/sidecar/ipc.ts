@@ -1,4 +1,3 @@
-import { spawn } from 'child_process'
 import { rmSync } from 'fs'
 import { readdir, readFile, writeFile } from 'fs/promises'
 import { extname, join, resolve } from 'path'
@@ -16,6 +15,7 @@ import { listOpenRouterModels } from './openrouter'
 import { memoryFiles } from './memory-files'
 import { userDataDir } from './paths'
 import { pins } from './pins'
+import { openInVsCode, openPath } from './platform'
 import { ports } from './ports'
 import { devserver } from './devserver'
 import { captureShot, previews } from './previews'
@@ -168,11 +168,8 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   'project:open': (a) => {
     const h = sessionManager.get(a.tabId)
     if (!h) return
-    if (a.app === 'vscode') {
-      spawn('cmd.exe', ['/c', 'code', '.'], { cwd: h.cwd, detached: true, stdio: 'ignore' }).unref()
-    } else {
-      spawn('explorer.exe', [h.cwd], { detached: true, stdio: 'ignore' }).unref()
-    }
+    if (a.app === 'vscode') openInVsCode(h.cwd)
+    else openPath(h.cwd)
   },
 
   'providers:getState': () => ({
@@ -311,7 +308,7 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   },
 
   'app:openDataFolder': () => {
-    spawn('explorer.exe', [userDataDir()], { detached: true, stdio: 'ignore' }).unref()
+    openPath(userDataDir())
   },
   'previews:clearCache': () => {
     try {
