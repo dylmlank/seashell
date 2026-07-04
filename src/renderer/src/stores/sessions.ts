@@ -69,6 +69,8 @@ export interface TabState {
   worktree?: { branch: string }
   /** Chat title — the first thing the user asked (Claude Desktop-style). */
   title?: string
+  /** Last time the user or Claude did something here (sidebar recency). */
+  lastActiveAt?: number
   /** Messages typed while a turn was running — sent automatically when idle. */
   queue?: { text: string; images?: ImageAttachment[] }[]
   /** Path of the last previewable file (HTML/SVG/Markdown) Claude wrote. */
@@ -422,7 +424,11 @@ if (!window.__sessionsWired) {
     }
   })
   window.api.on('session:status', ({ tabId, status, error }) => {
-    useSessions.getState().update(tabId, { status, error })
+    useSessions.getState().update(tabId, {
+      status,
+      error,
+      ...(status === 'idle' ? { lastActiveAt: Date.now() } : {})
+    })
     // Turn finished with messages waiting — send the next one.
     if (status === 'idle') {
       const tab = useSessions.getState().tabs.find((t) => t.tabId === tabId)
@@ -502,6 +508,7 @@ export function sendMessage(tabId: string, text: string, images?: ImageAttachmen
       { kind: 'user', id: nextId(), text, imageCount: images?.length || undefined }
     ],
     status: 'streaming',
+    lastActiveAt: Date.now(),
     // First message names the chat, like Claude Desktop.
     ...(tab.title ? {} : { title: text.trim().slice(0, 60) })
   })

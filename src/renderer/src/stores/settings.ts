@@ -37,7 +37,8 @@ export const useSettings = create<SettingsStore>(() => ({
     leanSessions: false,
     templates: [],
     responseStyle: 'normal',
-    speakReplies: false
+    speakReplies: false,
+    autoTidySessions: true
   },
   loaded: false
 }))

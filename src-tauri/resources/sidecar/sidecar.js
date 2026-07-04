@@ -28133,7 +28133,8 @@ var DEFAULTS = {
   leanSessions: false,
   templates: [],
   responseStyle: "normal",
-  speakReplies: false
+  speakReplies: false,
+  autoTidySessions: true
 };
 var file = () => join2(userDataDir(), "settings.json");
 var THINKING_LEGACY = {
@@ -28811,6 +28812,24 @@ var history = {
       sessions = (await yze({ limit: 200 })).filter((s) => (s.cwd ?? "").replace(/[\\/]+$/, "").toLowerCase() === want);
     }
     return sessions.map(toSummary).sort((a, b) => b.lastModified - a.lastModified);
+  },
+  async tidy(openSdkIds) {
+    const { deleteSession } = await Promise.resolve().then(() => (init_sdk(), exports_sdk));
+    const sessions = await yze({ limit: 500 });
+    const cutoff = Date.now() - 86400000;
+    let removed = 0;
+    for (const s of sessions) {
+      const empty = !s.firstPrompt?.trim() && !s.summary?.trim();
+      if (!empty || s.lastModified > cutoff)
+        continue;
+      if (openSdkIds.includes(s.sessionId))
+        continue;
+      try {
+        await deleteSession(s.sessionId);
+        removed++;
+      } catch {}
+    }
+    return removed;
   }
 };
 
@@ -30611,6 +30630,9 @@ var sessionManager = {
   async limits() {
     const first = handles.values().next().value;
     return first ? refreshPlanLimits(first) : lastLimits;
+  },
+  activeSdkIds() {
+    return [...handles.values()].map((h) => h.sdkSessionId).filter((id2) => !!id2);
   }
 };
 var lastLimits = { available: false, fetchedAt: 0 };
@@ -31170,6 +31192,19 @@ var server = Bun.serve({
   }
 });
 console.log(`SIDECAR_PORT=${server.port}`);
+async function tidySweep() {
+  try {
+    if (!settingsStore.get().autoTidySessions)
+      return;
+    const removed = await history.tidy(sessionManager.activeSdkIds());
+    if (removed > 0)
+      console.log(`[tidy] removed ${removed} empty session(s)`);
+  } catch (err) {
+    console.error("[tidy] sweep failed:", err);
+  }
+}
+setTimeout(() => void tidySweep(), 90000);
+setInterval(() => void tidySweep(), 6 * 60 * 60 * 1000);
 function shutdown() {
   sessionManager.disposeAll();
   devserver.stopAll();
