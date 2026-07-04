@@ -114,6 +114,8 @@ export interface Invokes {
   'changes:createPr': (a: { tabId: string }) => { url: string } | { error: string }
   /** Open the project folder in Explorer or VS Code. */
   'project:open': (a: { tabId: string; app: 'explorer' | 'vscode' }) => void
+  /** Create a new project folder under the projects root. */
+  'project:create': (a: { name: string }) => { path: string } | { error: string }
 
   'providers:getState': () => { openrouterKeySet: boolean; customKeySet: boolean }
   'providers:saveOpenRouterKey': (a: { key: string }) => { ok: boolean; error?: string }

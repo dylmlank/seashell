@@ -482,6 +482,18 @@ export async function createTab(cwd: string, resume?: string, side?: boolean): P
   return tabId
 }
 
+/** Carry this conversation into a different (usually brand-new) project
+ *  folder: resume the same session there, then retire the old tab. */
+export async function moveTabToProject(tabId: string, newCwd: string): Promise<void> {
+  const store = useSessions.getState()
+  const tab = store.tabs.find((t) => t.tabId === tabId)
+  if (!tab) return
+  const newId = await createTab(newCwd, tab.sdkSessionId)
+  if (tab.title) useSessions.getState().update(newId, { title: tab.title })
+  closeTab(tabId)
+  useSessions.getState().setActive(newId)
+}
+
 /** Create an isolated git-worktree session for a project: its own branch and
  *  sibling folder — merge back (or abandon) from the session header. */
 export async function createWorktreeTab(cwd: string): Promise<void> {

@@ -6,7 +6,6 @@ import type { ProjectExplanation, ProjectMap } from '../shared/types'
 import { memoryDir } from './memory-files'
 import { userDataDir } from './paths'
 import { analyzeProject } from './project-map'
-import { settingsStore } from './settings-store'
 
 // The narrative layer of the Workflow tab: one Claude call, grounded in the
 // static project map + README, that explains how the project actually works
@@ -175,7 +174,9 @@ Rules: flow = 4 to 7 steps tracing what happens end to end when the project is u
         prompt,
         options: {
           cwd,
-          model: settingsStore.get().defaultModel ?? undefined,
+          // Summarization, not coding — Sonnet does this well at a fraction
+          // of the heavyweight model's quota cost (it regenerates on its own).
+          model: 'sonnet',
           maxTurns: 1,
           // Bare session: no CLAUDE.md, plugins, or MCP servers — keeps this
           // call as small as possible since it answers purely from the prompt.

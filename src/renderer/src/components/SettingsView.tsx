@@ -506,6 +506,18 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
               />
             </Row>
             <Row
+              label="Projects folder"
+              hint="Where /new-project creates folders. Leave empty for ~/Projects."
+            >
+              <input
+                type="text"
+                value={settings.projectsRoot ?? ''}
+                onChange={(e) => void updateSettings({ projectsRoot: e.target.value.trim() || null })}
+                placeholder="~/Projects"
+                className="w-56 rounded-lg border border-border bg-surface-2 px-3 py-1.5 font-mono text-sm outline-none focus:border-accent-dim"
+              />
+            </Row>
+            <Row
               label="Auto-tidy sessions"
               hint="Quietly delete session transcripts that were never used (no first message, older than a day). Real conversations are never touched."
             >

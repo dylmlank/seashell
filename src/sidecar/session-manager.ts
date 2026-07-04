@@ -151,8 +151,11 @@ class SessionHandle {
     this.provider = opts.provider ?? 'anthropic'
     this.chatOnly = opts.chatOnly ?? false
     const settings = settingsStore.get()
-    const defaultModel =
-      this.provider === 'openrouter'
+    // Side chats answer questions — they run on Sonnet (Haiku selectable),
+    // never the heavyweight coding model.
+    const defaultModel = this.chatOnly
+      ? 'sonnet'
+      : this.provider === 'openrouter'
         ? (settings.openrouterModel ?? undefined)
         : this.provider === 'custom'
           ? (settings.customModel ?? undefined)
@@ -167,7 +170,7 @@ class SessionHandle {
       cwd: opts.cwd,
       resume: opts.resume,
       permissionMode: opts.permissionMode,
-      model: opts.model ?? defaultModel,
+      model: this.chatOnly ? defaultModel : (opts.model ?? defaultModel),
       ...(THINKING_BUDGETS[thinkingLevel] > 0
         ? { thinking: { type: 'enabled', budgetTokens: THINKING_BUDGETS[thinkingLevel] } }
         : {}),
@@ -787,6 +790,8 @@ class SessionHandle {
   }
 
   setModel(model: string): Promise<void> {
+    // Side chats stay on the Q&A tier — heavyweight models are for coding tabs.
+    if (this.chatOnly && !/haiku|sonnet/i.test(model)) return Promise.resolve()
     return this.q.setModel(model)
   }
 

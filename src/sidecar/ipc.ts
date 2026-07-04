@@ -1,5 +1,6 @@
 import { rmSync } from 'fs'
-import { readdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, readdir, readFile, writeFile } from 'fs/promises'
+import { homedir } from 'os'
 import { extname, join, resolve } from 'path'
 import type { Invokes } from '../shared/ipc-contract'
 import { approvals } from './approvals'
@@ -170,6 +171,18 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
     if (!h) return
     if (a.app === 'vscode') openInVsCode(h.cwd)
     else openPath(h.cwd)
+  },
+  'project:create': async (a) => {
+    const name = a.name.trim().replace(/[<>:"/\\|?*]/g, '-').slice(0, 60)
+    if (!name) return { error: 'Give the project a name: /new-project my-app' }
+    const root = settingsStore.get().projectsRoot ?? join(homedir(), 'Projects')
+    const path = join(root, name)
+    try {
+      await mkdir(path, { recursive: true })
+      return { path }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) }
+    }
   },
 
   'providers:getState': () => ({

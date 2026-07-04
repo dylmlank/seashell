@@ -8,6 +8,8 @@ export function ModelSelector({ tabId }: { tabId: string }): React.JSX.Element |
   const provider = useSessions(
     (s) => s.tabs.find((t) => t.tabId === tabId)?.provider ?? 'anthropic'
   )
+  // Side chats are for questions, not coding — only the fast tiers are offered.
+  const chatOnly = useSessions((s) => s.tabs.find((t) => t.tabId === tabId)?.side ?? false)
   const [models, setModels] = useState<ModelInfo[]>([])
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState('')
@@ -41,15 +43,16 @@ export function ModelSelector({ tabId }: { tabId: string }): React.JSX.Element |
 
   const searchable = provider === 'openrouter'
   const shown = useMemo(() => {
-    if (!searchable) return models
+    const pool = chatOnly ? models.filter((m) => /haiku|sonnet/i.test(m.id)) : models
+    if (!searchable) return pool
     const needle = filter.trim().toLowerCase()
     const list = needle
-      ? models.filter(
+      ? pool.filter(
           (m) => m.id.toLowerCase().includes(needle) || m.displayName.toLowerCase().includes(needle)
         )
-      : models
+      : pool
     return list.slice(0, 40)
-  }, [models, filter, searchable])
+  }, [models, filter, searchable, chatOnly])
 
   if (models.length === 0) return null
 

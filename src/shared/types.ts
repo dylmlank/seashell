@@ -141,6 +141,8 @@ export interface AppSettings {
   speakReplies: boolean
   /** Auto-delete never-used session transcripts (no first prompt, >1 day old). */
   autoTidySessions: boolean
+  /** Where /new-project creates folders (null = ~/Projects). */
+  projectsRoot: string | null
 }
 
 /** A saved way to start a session: folder + optional first prompt. */
