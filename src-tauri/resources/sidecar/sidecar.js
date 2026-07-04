@@ -28071,7 +28071,8 @@ Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resour
 
 // src/sidecar/ipc.ts
 import { rmSync as rmSync3 } from "fs";
-import { readdir as readdir5, readFile as readFile8, writeFile as writeFile4 } from "fs/promises";
+import { mkdir as mkdir3, readdir as readdir5, readFile as readFile8, writeFile as writeFile4 } from "fs/promises";
+import { homedir as homedir8 } from "os";
 import { extname, join as join21, resolve as resolve2 } from "path";
 
 // src/sidecar/approvals.ts
@@ -28134,7 +28135,8 @@ var DEFAULTS = {
   templates: [],
   responseStyle: "normal",
   speakReplies: false,
-  autoTidySessions: true
+  autoTidySessions: true,
+  projectsRoot: null
 };
 var file = () => join2(userDataDir(), "settings.json");
 var THINKING_LEGACY = {
@@ -29797,7 +29799,7 @@ Rules: flow = 4 to 7 steps tracing what happens end to end when the project is u
         prompt,
         options: {
           cwd,
-          model: settingsStore.get().defaultModel ?? undefined,
+          model: "sonnet",
           maxTurns: 1,
           settingSources: [],
           allowedTools: []
@@ -30051,7 +30053,7 @@ class SessionHandle {
     this.provider = opts.provider ?? "anthropic";
     this.chatOnly = opts.chatOnly ?? false;
     const settings = settingsStore.get();
-    const defaultModel = this.provider === "openrouter" ? settings.openrouterModel ?? undefined : this.provider === "custom" ? settings.customModel ?? undefined : settings.defaultModel ?? undefined;
+    const defaultModel = this.chatOnly ? "sonnet" : this.provider === "openrouter" ? settings.openrouterModel ?? undefined : this.provider === "custom" ? settings.customModel ?? undefined : settings.defaultModel ?? undefined;
     const thinkingLevel = this.chatOnly ? "off" : opts.thinkingLevel ?? settings.defaultThinkingLevel ?? "off";
     this.thinkingLevel = thinkingLevel;
     this.appliedThinking = thinkingLevel;
@@ -30059,7 +30061,7 @@ class SessionHandle {
       cwd: opts.cwd,
       resume: opts.resume,
       permissionMode: opts.permissionMode,
-      model: opts.model ?? defaultModel,
+      model: this.chatOnly ? defaultModel : opts.model ?? defaultModel,
       ...THINKING_BUDGETS[thinkingLevel] > 0 ? { thinking: { type: "enabled", budgetTokens: THINKING_BUDGETS[thinkingLevel] } } : {},
       includePartialMessages: true,
       enableFileCheckpointing: true,
@@ -30576,6 +30578,8 @@ class SessionHandle {
     return this.q.setPermissionMode(mode);
   }
   setModel(model) {
+    if (this.chatOnly && !/haiku|sonnet/i.test(model))
+      return Promise.resolve();
     return this.q.setModel(model);
   }
   setThinking(level) {
@@ -30995,6 +30999,19 @@ var handlers = {
       openInVsCode(h.cwd);
     else
       openPath(h.cwd);
+  },
+  "project:create": async (a) => {
+    const name = a.name.trim().replace(/[<>:"/\\|?*]/g, "-").slice(0, 60);
+    if (!name)
+      return { error: "Give the project a name: /new-project my-app" };
+    const root = settingsStore.get().projectsRoot ?? join21(homedir8(), "Projects");
+    const path = join21(root, name);
+    try {
+      await mkdir3(path, { recursive: true });
+      return { path };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
   },
   "providers:getState": () => ({
     openrouterKeySet: secrets.getOpenRouterKey() !== null,

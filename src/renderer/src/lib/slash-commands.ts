@@ -138,6 +138,20 @@ export const NATIVE_COMMANDS: NativeCommand[] = [
     }
   },
   {
+    name: 'new-project',
+    description: 'Create a project folder and move this conversation into it',
+    argHint: '<name>',
+    run: async (args, { tabId }) => {
+      const name = args.trim()
+      if (!name) return toast('Usage: /new-project <name>', 'error')
+      const res = await window.api.invoke('project:create', { name })
+      if ('error' in res) return toast(res.error, 'error')
+      const { moveTabToProject } = await import('../stores/sessions')
+      await moveTabToProject(tabId, res.path)
+      toast(`Project created — this chat now lives in ${res.path}`)
+    }
+  },
+  {
     name: 'commands',
     description: 'Manage your custom slash commands',
     run: () => useUi.getState().setCommandsManager(true)
