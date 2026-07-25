@@ -14,4 +14,4 @@ jobs:
       - run: bun install
       - run: bun run typecheck
       - run: bun run lint
-      - run: bun test tests/heuristics.test.ts tests/reduce-event.test.ts
+      - run: bun test tests/heuristics.test.ts tests/reduce-event.test.ts tests/json-file.test.ts

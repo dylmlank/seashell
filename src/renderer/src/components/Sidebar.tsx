@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import {
   Plus,
   X,
@@ -9,12 +9,13 @@ import {
   BellRing,
   CheckCircle2,
   Columns2,
+  Moon,
   PictureInPicture2,
   AlertCircle
 } from 'lucide-react'
 import clsx from 'clsx'
 import type { SessionStatus } from '@shared/types'
-import { closeTab, createTab, popOutTab, useSessions } from '../stores/sessions'
+import { activateTab, closeTab, createTab, popOutTab, useSessions } from '../stores/sessions'
 import { useUi } from '../stores/ui'
 import { LimitBars } from './LimitBars'
 import { SessionList } from './SessionSidebar'
@@ -100,7 +101,7 @@ function statusMeta(status: SessionStatus): { icon: React.ReactNode; label: stri
   }
 }
 
-export function Sidebar({
+export const Sidebar = memo(function Sidebar({
   changesOpen,
   onToggleChanges,
   onShowUsage,
@@ -114,7 +115,6 @@ export function Sidebar({
   const allTabs = useSessions((s) => s.tabs)
   const tabs = allTabs.filter((t) => !t.side)
   const activeTabId = useSessions((s) => s.activeTabId)
-  const setActive = useSessions((s) => s.setActive)
   const [opening, setOpening] = useState(false)
   const split = useUi((s) => s.split)
   const setSplit = useUi((s) => s.setSplit)
@@ -176,12 +176,17 @@ export function Sidebar({
                 {list.map(({ tab, label }) => {
                   const active = tab.tabId === activeTabId
                   const needsInput = tab.status === 'awaitingApproval'
-                  const meta = statusMeta(tab.status)
+                  const meta = tab.dormant
+                    ? {
+                        icon: <Moon size={12} className="shrink-0 text-text-dim/50" />,
+                        label: 'Sleeping — click to resume'
+                      }
+                    : statusMeta(tab.status)
                   return (
                     <div
                       key={tab.tabId}
                       data-testid="tab"
-                      onClick={() => setActive(tab.tabId)}
+                      onClick={() => activateTab(tab.tabId)}
                       title={`${label} — ${meta.label}\n${tab.cwd}`}
                       className={clsx(
                         'group ml-1.5 flex cursor-pointer items-center gap-2 rounded-lg border-l-2 py-1 pl-2 pr-1.5 text-sm transition-colors',
@@ -294,4 +299,4 @@ export function Sidebar({
       </div>
     </div>
   )
-}
+})

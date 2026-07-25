@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FolderOpen, Loader2, Plus, X, Zap } from 'lucide-react'
 import type { SessionTemplate } from '@shared/types'
 import { useAuth } from './stores/auth'
@@ -196,6 +196,9 @@ export default function App(): React.JSX.Element {
   const [usageOpen, setUsageOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const commandsManagerOpen = useUi((s) => s.commandsManager)
+  const toggleChanges = useCallback(() => setChangesOpen((v) => !v), [])
+  const showUsage = useCallback(() => setUsageOpen(true), [])
+  const showSettings = useCallback(() => setSettingsOpen(true), [])
   const splitId = useUi((s) => s.split)
   const splitTab = tabs.find((t) => t.tabId === splitId)
   const settingsLoaded = useSettings((s) => s.loaded)
@@ -213,13 +216,20 @@ export default function App(): React.JSX.Element {
         | { cwd: string; sessionId?: string; title?: string }[]
         | null
       if (saved && saved.length > 0) {
-        for (const t of saved.slice(0, 6)) {
-          void createTab(t.cwd, t.sessionId)
-            .then((tabId) => {
+        // Only the first session starts for real; the rest come back as
+        // dormant tabs that wake when you click them. Otherwise launching
+        // spawns a Claude CLI (and all its MCP servers) per tab at once.
+        void (async () => {
+          for (const [i, t] of saved.slice(0, 6).entries()) {
+            try {
+              const tabId = await createTab(t.cwd, t.sessionId, false, i > 0)
               if (t.title) useSessions.getState().update(tabId, { title: t.title })
-            })
-            .catch(() => {})
-        }
+              if (i === 0) useSessions.getState().setActive(tabId)
+            } catch {
+              // folder gone or session unavailable — skip it
+            }
+          }
+        })()
         return
       }
       if (saved) return // user closed everything on purpose — respect it
@@ -318,9 +328,9 @@ export default function App(): React.JSX.Element {
     <div className="flex h-full">
       <Sidebar
         changesOpen={changesOpen}
-        onToggleChanges={() => setChangesOpen(!changesOpen)}
-        onShowUsage={() => setUsageOpen(true)}
-        onShowSettings={() => setSettingsOpen(true)}
+        onToggleChanges={toggleChanges}
+        onShowUsage={showUsage}
+        onShowSettings={showSettings}
       />
       <div className="flex min-w-0 flex-1">
         <div className="min-w-0 flex-1">

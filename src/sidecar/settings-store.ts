@@ -1,6 +1,7 @@
-import { readFileSync, writeFileSync } from 'fs'
+import { writeFileSync } from 'fs'
 import { join } from 'path'
 import type { AppSettings } from '../shared/types'
+import { readJsonFile } from './json-file'
 import { userDataDir } from './paths'
 
 const DEFAULTS: AppSettings = {
@@ -60,10 +61,7 @@ export const settingsStore = {
   get(): AppSettings {
     if (cache) return cache
     try {
-      cache = sanitize({
-        ...DEFAULTS,
-        ...(JSON.parse(readFileSync(file(), 'utf8')) as Partial<AppSettings>)
-      })
+      cache = sanitize({ ...DEFAULTS, ...readJsonFile<Partial<AppSettings>>(file()) })
     } catch {
       cache = { ...DEFAULTS }
     }
@@ -75,7 +73,7 @@ export const settingsStore = {
     // settings since we loaded, our stale cache must not clobber its changes.
     let onDisk: Partial<AppSettings> = {}
     try {
-      onDisk = JSON.parse(readFileSync(file(), 'utf8')) as Partial<AppSettings>
+      onDisk = readJsonFile<Partial<AppSettings>>(file())
     } catch {
       // no file yet
     }
