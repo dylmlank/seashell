@@ -28079,8 +28079,15 @@ import { extname, join as join21, resolve as resolve2 } from "path";
 import { randomUUID } from "crypto";
 
 // src/sidecar/settings-store.ts
-import { readFileSync, writeFileSync } from "fs";
+import { writeFileSync } from "fs";
 import { join as join2 } from "path";
+
+// src/sidecar/json-file.ts
+import { readFileSync } from "fs";
+function readJsonFile(path) {
+  const raw = readFileSync(path, "utf8");
+  return JSON.parse(raw.charCodeAt(0) === 65279 ? raw.slice(1) : raw);
+}
 
 // src/sidecar/paths.ts
 import { mkdirSync } from "fs";
@@ -28157,10 +28164,7 @@ var settingsStore = {
     if (cache)
       return cache;
     try {
-      cache = sanitize({
-        ...DEFAULTS,
-        ...JSON.parse(readFileSync(file(), "utf8"))
-      });
+      cache = sanitize({ ...DEFAULTS, ...readJsonFile(file()) });
     } catch {
       cache = { ...DEFAULTS };
     }
@@ -28169,7 +28173,7 @@ var settingsStore = {
   set(patch) {
     let onDisk = {};
     try {
-      onDisk = JSON.parse(readFileSync(file(), "utf8"));
+      onDisk = readJsonFile(file());
     } catch {}
     cache = sanitize({ ...DEFAULTS, ...onDisk, ...patch });
     writeFileSync(file(), JSON.stringify(cache, null, 2));
@@ -29065,12 +29069,12 @@ var memoryFiles = {
 };
 
 // src/sidecar/pins.ts
-import { readFileSync as readFileSync5, writeFileSync as writeFileSync3 } from "fs";
+import { writeFileSync as writeFileSync3 } from "fs";
 import { join as join12 } from "path";
 var file3 = () => join12(userDataDir(), "pins.json");
 function load() {
   try {
-    const parsed = JSON.parse(readFileSync5(file3(), "utf8"));
+    const parsed = readJsonFile(file3());
     return Array.isArray(parsed) ? parsed.filter((p) => typeof p === "string") : [];
   } catch {
     return [];
@@ -29165,7 +29169,7 @@ var ports = {
 
 // src/sidecar/devserver.ts
 import { spawn as spawn3 } from "child_process";
-import { existsSync as existsSync5, readFileSync as readFileSync6 } from "fs";
+import { existsSync as existsSync5, readFileSync as readFileSync5 } from "fs";
 import { join as join13 } from "path";
 var URL_RE = /(https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?[^\s'"]*)/i;
 var SCRIPT_PRIORITY = ["dev", "start", "serve", "preview"];
@@ -29180,7 +29184,7 @@ function detectPackageManager(cwd) {
 }
 function detectScript(cwd) {
   try {
-    const pkg = JSON.parse(readFileSync6(join13(cwd, "package.json"), "utf8"));
+    const pkg = JSON.parse(readFileSync5(join13(cwd, "package.json"), "utf8"));
     const scripts = pkg.scripts ?? {};
     return SCRIPT_PRIORITY.find((s) => typeof scripts[s] === "string");
   } catch {
@@ -29455,12 +29459,12 @@ var previews = {
 // src/sidecar/project-explain.ts
 init_sdk();
 import { createHash as createHash2 } from "crypto";
-import { mkdirSync as mkdirSync4, readFileSync as readFileSync8, writeFileSync as writeFileSync4 } from "fs";
+import { mkdirSync as mkdirSync4, readFileSync as readFileSync7, writeFileSync as writeFileSync4 } from "fs";
 import { join as join16 } from "path";
 
 // src/sidecar/project-map.ts
 import { readFile as readFile6 } from "fs/promises";
-import { existsSync as existsSync7, readFileSync as readFileSync7 } from "fs";
+import { existsSync as existsSync7, readFileSync as readFileSync6 } from "fs";
 import { join as join15 } from "path";
 var SOURCE_EXT = new Set([
   "ts",
@@ -29523,7 +29527,7 @@ function moduleOf(rel) {
 function detectStack(cwd) {
   const stack = [];
   try {
-    const pkg = JSON.parse(readFileSync7(join15(cwd, "package.json"), "utf8"));
+    const pkg = JSON.parse(readFileSync6(join15(cwd, "package.json"), "utf8"));
     const deps = { ...pkg.dependencies, ...pkg.devDependencies };
     const known = [
       ["react", "React"],
@@ -29559,7 +29563,7 @@ function loadAliases(cwd) {
   const aliases = [];
   for (const name of ["tsconfig.json", "tsconfig.web.json", "tsconfig.base.json"]) {
     try {
-      const raw = readFileSync7(join15(cwd, name), "utf8").replace(/\/\/[^\n"]*$/gm, "");
+      const raw = readFileSync6(join15(cwd, name), "utf8").replace(/\/\/[^\n"]*$/gm, "");
       const paths = JSON.parse(raw).compilerOptions?.paths;
       for (const [key, targets] of Object.entries(paths ?? {})) {
         if (!targets[0])
@@ -29672,7 +29676,7 @@ function cachePath(cwd) {
 function readGrounding(cwd) {
   for (const name of ["README.md", "readme.md", "README.txt"]) {
     try {
-      return readFileSync8(join16(cwd, name), "utf8").slice(0, 5000);
+      return readFileSync7(join16(cwd, name), "utf8").slice(0, 5000);
     } catch {}
   }
   return "(no README)";
@@ -29719,7 +29723,7 @@ _Auto-updated by Seashell: ${new Date(e.generatedAt).toISOString().slice(0, 10)}
   const line = "- [Project Overview](project-overview.md) \u2014 how this project works, auto-updated by Seashell";
   let index;
   try {
-    index = readFileSync8(indexPath, "utf8");
+    index = readFileSync7(indexPath, "utf8");
   } catch {
     index = `# Memory Index
 `;
@@ -29739,7 +29743,7 @@ function isExplanation(v7) {
 var projectExplain = {
   cached(cwd) {
     try {
-      const parsed = JSON.parse(readFileSync8(cachePath(cwd), "utf8"));
+      const parsed = JSON.parse(readFileSync7(cachePath(cwd), "utf8"));
       return isExplanation(parsed) ? parsed : null;
     } catch {
       return null;
@@ -29914,7 +29918,7 @@ function ensureRetrospectiveSkill() {
 var RETRO_PROMPT = "Run your shell-retrospective skill now for the exchange above. At most 3 short lines.";
 
 // src/sidecar/usage-store.ts
-import { readFileSync as readFileSync9, writeFileSync as writeFileSync6 } from "fs";
+import { writeFileSync as writeFileSync6 } from "fs";
 import { join as join18 } from "path";
 var file4 = () => join18(userDataDir(), "usage.json");
 var historyFile = () => join18(userDataDir(), "usage-history.json");
@@ -29924,7 +29928,7 @@ function loadHistory() {
   if (historyCache)
     return historyCache;
   try {
-    historyCache = JSON.parse(readFileSync9(historyFile(), "utf8"));
+    historyCache = readJsonFile(historyFile());
   } catch {
     historyCache = {};
   }
@@ -29934,7 +29938,7 @@ function load2() {
   if (cache3)
     return cache3;
   try {
-    cache3 = JSON.parse(readFileSync9(file4(), "utf8"));
+    cache3 = readJsonFile(file4());
   } catch {
     cache3 = {};
   }
@@ -30057,6 +30061,7 @@ class SessionHandle {
   appliedThinking = "off";
   preferredModel;
   appliedModel;
+  everSent = false;
   usage = {
     inputTokens: 0,
     outputTokens: 0,
@@ -30195,6 +30200,8 @@ class SessionHandle {
   }
   async pump() {
     try {
+      if (!this.everSent)
+        broadcast4("session:status", { tabId: this.tabId, status: "idle" });
       for await (const msg of this.q) {
         this.handleMessage(msg);
       }
@@ -30557,6 +30564,7 @@ class SessionHandle {
     this.turnHadMutations = false;
     this.turnConfirmedOut = 0;
     this.turnStreamChars = 0;
+    this.everSent = true;
     const settings = settingsStore.get();
     if (!this.chatOnly && settings.smartThinking) {
       const effective = smartThinkingLevel(text, this.thinkingLevel);

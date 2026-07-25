@@ -1,6 +1,7 @@
-import { readFileSync, writeFileSync } from 'fs'
+import { writeFileSync } from 'fs'
 import { join } from 'path'
 import type { DayUsage, UsageTotals } from '../shared/types'
+import { readJsonFile } from './json-file'
 import { userDataDir } from './paths'
 
 const file = (): string => join(userDataDir(), 'usage.json')
@@ -12,7 +13,7 @@ let historyCache: Record<string, DayUsage> | null = null
 function loadHistory(): Record<string, DayUsage> {
   if (historyCache) return historyCache
   try {
-    historyCache = JSON.parse(readFileSync(historyFile(), 'utf8')) as Record<string, DayUsage>
+    historyCache = readJsonFile<Record<string, DayUsage>>(historyFile())
   } catch {
     historyCache = {}
   }
@@ -22,7 +23,7 @@ function loadHistory(): Record<string, DayUsage> {
 function load(): Record<string, UsageTotals> {
   if (cache) return cache
   try {
-    cache = JSON.parse(readFileSync(file(), 'utf8')) as Record<string, UsageTotals>
+    cache = readJsonFile<Record<string, UsageTotals>>(file())
   } catch {
     cache = {}
   }

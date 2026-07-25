@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronRight,
   GitBranchPlus,
@@ -76,7 +76,7 @@ function RenameInput({
 const SECTION_HEADER =
   'flex items-center gap-1.5 px-2 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-text-dim/50'
 
-export function SessionList({
+export const SessionList = memo(function SessionList({
   dir,
   onResume,
   compact
@@ -100,8 +100,11 @@ export function SessionList({
   const [renaming, setRenaming] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [hits, setHits] = useState<SearchHit[] | null>(null)
-  const tabs = useSessions((s) => s.tabs)
-  const openSessionIds = tabs.map((t) => t.sdkSessionId)
+  // Subscribe to a primitive signature, not the tab objects: the tabs array is
+  // rebuilt on every streamed token, and re-rendering this whole list 30×/sec
+  // is what made typing feel sticky mid-turn.
+  const openIdsSig = useSessions((s) => s.tabs.map((t) => t.sdkSessionId ?? '').join(','))
+  const openSessionIds = useMemo(() => openIdsSig.split(','), [openIdsSig])
 
   // Debounced full-text search across every past transcript.
   useEffect(() => {
@@ -453,7 +456,7 @@ export function SessionList({
       )}
     </div>
   )
-}
+})
 
 export function SessionSidebar({ dir }: { dir: string }): React.JSX.Element {
   return (

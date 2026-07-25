@@ -1,5 +1,6 @@
-import { readFileSync, writeFileSync } from 'fs'
+import { writeFileSync } from 'fs'
 import { join } from 'path'
+import { readJsonFile } from './json-file'
 import { userDataDir } from './paths'
 
 // Pinned chat sessions — a plain list of session ids the user starred,
@@ -9,7 +10,7 @@ const file = (): string => join(userDataDir(), 'pins.json')
 
 function load(): string[] {
   try {
-    const parsed = JSON.parse(readFileSync(file(), 'utf8')) as unknown
+    const parsed = readJsonFile<unknown>(file()) as unknown
     return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === 'string') : []
   } catch {
     return []

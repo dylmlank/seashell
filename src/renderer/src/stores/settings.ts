@@ -61,11 +61,24 @@ declare global {
   }
 }
 
+let markLoaded = (): void => {}
+/** Resolves once real settings are in — anything that reads defaults (like
+ *  creating a session) must await this, or it silently uses Ask mode and the
+ *  wrong model because the sidecar hadn't answered yet. Falls through after a
+ *  few seconds so a dead sidecar can't wedge the UI. */
+export const settingsReady: Promise<void> = Promise.race([
+  new Promise<void>((resolve) => {
+    markLoaded = resolve
+  }),
+  new Promise<void>((resolve) => setTimeout(resolve, 8000))
+])
+
 if (!window.__settingsWired) {
   window.__settingsWired = true
   void window.api.invoke('settings:get').then((settings) => {
     useSettings.setState({ settings, loaded: true })
     applyToDocument(settings)
+    markLoaded()
   })
 }
 

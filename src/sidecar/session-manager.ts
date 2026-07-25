@@ -171,6 +171,8 @@ class SessionHandle {
    *  simpler messages drop to sonnet/haiku. */
   private preferredModel?: string
   private appliedModel?: string
+  /** Whether a user message has ever been sent (guards the ready broadcast). */
+  private everSent = false
   private usage: UsageTotals = {
     inputTokens: 0,
     outputTokens: 0,
@@ -359,6 +361,10 @@ class SessionHandle {
 
   private async pump(): Promise<void> {
     try {
+      // The CLI accepts input the moment the query handle exists — it only
+      // emits its init message after the first turn. Waiting for that left
+      // every fresh/restored session spinning "starting" forever.
+      if (!this.everSent) broadcast('session:status', { tabId: this.tabId, status: 'idle' })
       for await (const msg of this.q) {
         this.handleMessage(msg)
       }
@@ -779,6 +785,7 @@ class SessionHandle {
     this.turnHadMutations = false
     this.turnConfirmedOut = 0
     this.turnStreamChars = 0
+    this.everSent = true
     const settings = settingsStore.get()
     // Smart thinking: budget this message by its complexity, capped at the
     // chosen level — "whats up" shouldn't spend an 18k thinking budget.

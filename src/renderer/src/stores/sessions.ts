@@ -34,6 +34,8 @@ export interface TabState {
   title?: string
   /** Last time the user or Claude did something here (sidebar recency). */
   lastActiveAt?: number
+  /** Restored but not yet started — its Claude session spins up on first use. */
+  dormant?: boolean
   /** Messages typed while a turn was running — sent automatically when idle. */
   queue?: { text: string; images?: ImageAttachment[] }[]
   /** Path of the last previewable file (HTML/SVG/Markdown) Claude wrote. */
@@ -238,26 +240,27 @@ if (!window.__sessionsWired) {
 
 // ---- actions ----
 
-export async function createTab(cwd: string, resume?: string, side?: boolean): Promise<string> {
+export async function createTab(
+  cwd: string,
+  resume?: string,
+  side?: boolean,
+  /** Add the tab without starting its Claude session — it wakes on first use.
+   *  Restoring several tabs at launch would otherwise spawn a CLI (and every
+   *  MCP server) per tab at once, which pins the machine for a minute. */
+  dormant?: boolean
+): Promise<string> {
   const tabId = crypto.randomUUID()
-  const { useSettings } = await import('./settings')
+  const { settingsReady, useSettings } = await import('./settings')
+  await settingsReady // never start a session on placeholder defaults
   const settings = useSettings.getState().settings
   const permissionMode: PermissionMode = settings.defaultPermissionMode
   const provider: Provider = settings.defaultProvider ?? 'anthropic'
   const thinkingLevel: ThinkingLevel = settings.defaultThinkingLevel ?? 'off'
-  const result = await window.api.invoke('session:create', {
-    tabId,
-    cwd,
-    resume,
-    permissionMode,
-    provider,
-    thinkingLevel,
-    chatOnly: side // side chats are read-and-answer only
-  })
-  if (!result.ok) {
-    throw new Error(result.error)
-  }
   if (!side) localStorage.setItem('last-project', cwd)
+  // Register the tab BEFORE starting the session: the sidecar reports "ready"
+  // (and replays a resumed transcript) within milliseconds, and any event that
+  // arrives before the tab exists is dropped — which is what left sessions
+  // stuck on "starting" forever.
   useSessions.getState().addTab({
     tabId,
     cwd,
@@ -266,6 +269,8 @@ export async function createTab(cwd: string, resume?: string, side?: boolean): P
     provider,
     thinkingLevel,
     side,
+    dormant,
+    sdkSessionId: dormant ? resume : undefined,
     items: [],
     slashCommands: [],
     tools: [],
@@ -274,7 +279,49 @@ export async function createTab(cwd: string, resume?: string, side?: boolean): P
     plugins: [],
     agents: []
   })
+  if (!dormant) {
+    const result = await window.api.invoke('session:create', {
+      tabId,
+      cwd,
+      resume,
+      permissionMode,
+      provider,
+      thinkingLevel,
+      chatOnly: side // side chats are read-and-answer only
+    })
+    if (!result.ok) {
+      useSessions.getState().update(tabId, { status: 'error', error: result.error })
+      throw new Error(result.error)
+    }
+  }
   return tabId
+}
+
+/** Start a dormant tab's session (restored-but-not-yet-opened). Safe to call
+ *  on any tab — live ones return immediately. */
+export async function wakeTab(tabId: string): Promise<void> {
+  const store = useSessions.getState()
+  const tab = store.tabs.find((t) => t.tabId === tabId)
+  if (!tab?.dormant) return
+  store.update(tabId, { dormant: false, status: 'starting' })
+  const result = await window.api.invoke('session:create', {
+    tabId,
+    cwd: tab.cwd,
+    resume: tab.sdkSessionId,
+    permissionMode: tab.permissionMode,
+    provider: tab.provider,
+    thinkingLevel: tab.thinkingLevel,
+    chatOnly: tab.side
+  })
+  if (!result.ok) {
+    useSessions.getState().update(tabId, { dormant: true, status: 'error', error: result.error })
+  }
+}
+
+/** Focus a session, starting it first if it's still dormant. */
+export function activateTab(tabId: string): void {
+  useSessions.getState().setActive(tabId)
+  void wakeTab(tabId)
 }
 
 /** Carry this conversation into a different (usually brand-new) project
@@ -303,6 +350,11 @@ export function sendMessage(tabId: string, text: string, images?: ImageAttachmen
   const tab = store.tabs.find((t) => t.tabId === tabId)
   if (!tab) return
   speechSynthesis.cancel() // a new message interrupts any read-aloud
+  // Typing into a restored-but-dormant tab wakes it, then sends.
+  if (tab.dormant) {
+    void wakeTab(tabId).then(() => sendMessage(tabId, text, images))
+    return
+  }
   // Busy? Queue it — sent automatically the moment this turn (and its
   // follow-ups) finish. Keeps typing flowing without interrupting Claude.
   if (tab.status === 'streaming' || tab.status === 'awaitingApproval') {
