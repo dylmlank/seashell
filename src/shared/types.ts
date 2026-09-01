@@ -367,3 +367,49 @@ export interface ProjectPreview {
   /** base64 PNG screenshot, when one has been captured for this project. */
   screenshot?: string
 }
+
+// ---- mission control ----
+
+/** Git state of a project, as read by the mission-control scanner. */
+export interface MissionGit {
+  branch: string
+  /** Number of files with uncommitted changes. */
+  dirty: number
+  ahead: number
+  behind: number
+  lastCommit: { hash: string; subject: string; date: string; author: string } | null
+}
+
+/** An agent kit: an MCP server and/or standalone entrypoint Claude can drive. */
+export interface MissionAgent {
+  mcpServer: string | null
+  entrypoint: string | null
+  launcher: string | null
+  python: string | null
+  /** Registered in claude_desktop_config.json under the project's name. */
+  connected: boolean
+  running: { pid: number } | null
+}
+
+export interface MissionProject {
+  name: string
+  label: string
+  note: string
+  path: string
+  stack: string
+  flagship: boolean
+  tags: string[]
+  modified: number
+  sessions: number
+  lastActive: number
+  git: MissionGit | null
+  agent: MissionAgent | null
+}
+
+export interface MissionState {
+  scannedAt: number
+  root: string
+  /** MCP servers wired into Claude Desktop with no matching project on disk. */
+  orphanConnectors: string[]
+  projects: MissionProject[]
+}

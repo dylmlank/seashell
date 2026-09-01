@@ -14,6 +14,7 @@ import { instructions } from './instructions'
 import { listDesktopMcp } from './desktop-mcp'
 import { listOpenRouterModels } from './openrouter'
 import { memoryFiles } from './memory-files'
+import { missionControl } from './mission-control'
 import { userDataDir } from './paths'
 import { pins } from './pins'
 import { openInVsCode, openPath } from './platform'
@@ -247,6 +248,11 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
     const result = await projectExplain.generate(h.cwd)
     return 'error' in result ? result : { explanation: result }
   },
+
+  'mission:state': (a) => missionControl.state(a?.refresh),
+  'mission:flagship': (a) => missionControl.setFlagship(a.name, a.flagship),
+  'mission:startAgent': (a) => missionControl.startAgent(a.name),
+  'mission:stopAgent': (a) => missionControl.stopAgent(a.pid),
 
   'previews:cards': () => previews.cards(),
   'previews:capture': (a) => previews.capture(a.cwd, a.url),

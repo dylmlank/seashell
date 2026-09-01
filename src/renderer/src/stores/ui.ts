@@ -9,6 +9,7 @@ export type SidePanel =
   | 'editor'
   | 'workflow'
   | 'checkpoints'
+  | 'mission'
   | null
 
 export interface Toast {
