@@ -28,7 +28,16 @@ export interface NativeCommand {
 const toast = (text: string, kind: 'info' | 'error' = 'info'): void =>
   useUi.getState().toast(text, kind)
 
-const PANELS = ['files', 'editor', 'terminal', 'sidechat', 'preview', 'memory', 'workflow'] as const
+const PANELS = [
+  'files',
+  'editor',
+  'terminal',
+  'sidechat',
+  'preview',
+  'memory',
+  'workflow',
+  'mission'
+] as const
 
 const MODE_ALIASES: Record<string, PermissionMode> = {
   ask: 'default',

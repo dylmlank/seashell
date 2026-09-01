@@ -11,6 +11,7 @@ import type {
   DirEntry,
   ImageAttachment,
   MemoryFile,
+  MissionState,
   ModelInfo,
   PermissionMode,
   PlanLimits,
@@ -173,6 +174,15 @@ export interface Invokes {
     width?: number
     height?: number
   }) => { data: string } | { error: string }
+
+  /** Every project on the projects drive, with git, agent, and session state. */
+  'mission:state': (a: { refresh?: boolean }) => MissionState | { error: string }
+  'mission:flagship': (a: {
+    name: string
+    flagship: boolean
+  }) => { ok: true } | { error: string }
+  'mission:startAgent': (a: { name: string }) => { ok: true } | { error: string }
+  'mission:stopAgent': (a: { pid: number }) => { ok: true } | { error: string }
 
   'ports:list': () => PortInfo[] | { error: string }
   'ports:kill': (a: { pid: number }) => { ok: true } | { error: string }

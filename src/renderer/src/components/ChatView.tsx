@@ -9,6 +9,7 @@ import {
   FolderTree,
   History,
   MessagesSquare,
+  Radar,
   SquareTerminal,
   Waypoints,
   X
@@ -30,6 +31,7 @@ import { EditorPane } from './EditorPane'
 import { FileExplorer } from './FileExplorer'
 import { InstructionsModal } from './InstructionsModal'
 import { MemoryPanel } from './MemoryPanel'
+import { MissionControlPanel } from './MissionControlPanel'
 import { MessageList } from './MessageList'
 import { PreviewPanel } from './PreviewPanel'
 import { SidePanelShell } from './Resizable'
@@ -255,6 +257,13 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             </button>
           )}
           <button
+            onClick={() => setPanel('mission')}
+            title="Mission control — all your agents and projects"
+            className={headerBtn(panel === 'mission')}
+          >
+            <Radar size={14} />
+          </button>
+          <button
             onClick={() => setPanel('memory')}
             title="What Claude remembers about this project"
             className={headerBtn(panel === 'memory')}
@@ -354,6 +363,11 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
         {panel === 'workflow' && (
           <SidePanelShell storageKey="workflow" defaultWidth={620}>
             <WorkflowPanel tabId={tab.tabId} />
+          </SidePanelShell>
+        )}
+        {panel === 'mission' && (
+          <SidePanelShell storageKey="mission" defaultWidth={380}>
+            <MissionControlPanel />
           </SidePanelShell>
         )}
         {panel === 'checkpoints' && (
