@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { CircleHelp, Eye, EyeOff, ShieldAlert, Check, X } from 'lucide-react'
+import { Check, CircleHelp, Eye, EyeOff, PencilLine, ShieldAlert, X } from 'lucide-react'
 import clsx from 'clsx'
 import type { ApprovalRequest } from '@shared/types'
 import { hasRedactableSecrets, redactSecrets } from '@shared/redact'
 import { respond, useApprovals } from '../stores/approvals'
+import { ApprovalEditor, buildAllowPayload, editableField } from './ApprovalEditor'
 import { DiffView } from './DiffView'
 
 interface AskQuestion {
@@ -238,8 +239,15 @@ export function ApprovalModal(): React.JSX.Element | null {
   const queue = useApprovals((s) => s.queue)
   const req = queue[0]
   const [denyReason, setDenyReason] = useState('')
+  const [editing, setEditing] = useState(false)
+  /** The user's rewrite, or null while it still matches what Claude proposed. */
+  const [edited, setEdited] = useState<string | null>(null)
 
-  useEffect(() => setDenyReason(''), [req?.requestId])
+  useEffect(() => {
+    setDenyReason('')
+    setEditing(false)
+    setEdited(null)
+  }, [req?.requestId])
 
   if (!req) return null
 
@@ -269,6 +277,8 @@ export function ApprovalModal(): React.JSX.Element | null {
       message: denyReason.trim() || 'The user declined this action.'
     })
 
+  const editable = editableField(req)
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-8">
       <div className="flex max-h-full w-full max-w-2xl flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-2xl">
@@ -288,7 +298,16 @@ export function ApprovalModal(): React.JSX.Element | null {
         </div>
 
         <div className="min-h-0 overflow-y-auto">
-          <RequestBody req={req} />
+          {editing && editable ? (
+            <ApprovalEditor
+              req={req}
+              field={editable.field}
+              label={editable.label}
+              onChange={setEdited}
+            />
+          ) : (
+            <RequestBody req={req} />
+          )}
         </div>
 
         <input
@@ -298,20 +317,31 @@ export function ApprovalModal(): React.JSX.Element | null {
           className="rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none placeholder:text-text-dim focus:border-accent-dim"
         />
 
-        <div className="flex justify-end gap-2">
-          <button
-            autoFocus
-            onClick={deny}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-4 py-2 text-sm hover:bg-border"
-          >
-            <X size={15} /> Deny
-          </button>
-          <button
-            onClick={() => respond(req.requestId, { behavior: 'allow' })}
-            className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dim"
-          >
-            <Check size={15} /> Allow
-          </button>
+        <div className="flex items-center gap-2">
+          {editable && (
+            <button
+              onClick={() => setEditing((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-text-dim hover:text-text"
+            >
+              <PencilLine size={14} />
+              {editing ? 'Back to diff' : 'Edit before allowing'}
+            </button>
+          )}
+          <div className="ml-auto flex gap-2">
+            <button
+              autoFocus
+              onClick={deny}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-4 py-2 text-sm hover:bg-border"
+            >
+              <X size={15} /> Deny
+            </button>
+            <button
+              onClick={() => respond(req.requestId, buildAllowPayload(req, edited))}
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dim"
+            >
+              <Check size={15} /> {edited === null ? 'Allow' : 'Apply your version'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
