@@ -7,11 +7,36 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is the primary target and used to be the one platform CI
+        # never exercised. Linux stays for the cheap fast feedback.
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install
       - run: bun run typecheck
       - run: bun run lint
-      - run: bun test tests/heuristics.test.ts tests/reduce-event.test.ts tests/json-file.test.ts
+      # sidecar.test.ts spawns a real sidecar and is excluded on purpose;
+      # everything else is pure and runs everywhere.
+      - run: bun test tests/heuristics.test.ts tests/reduce-event.test.ts tests/json-file.test.ts tests/fs-guard.test.ts
+
+  rust:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      # The renderer dist has to exist for tauri's build script to resolve it.
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bun run build:renderer
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
