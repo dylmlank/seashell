@@ -30,7 +30,7 @@
       "endpoints": [
         "https://github.com/dylmlank/seashell/releases/latest/download/latest.json"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENGMEY4QkY2Q0Q3OTlFODIKUldTQ25ubk45b3NQejJIclBuc1VKeW1ZK2FqallKbnBYbnpEY3hsYUxVYlRxd25hMk9WKzBIQzIK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU4QzAwREIwREQxMTdDNkEKUldScWZCSGRzQTNBNk84WStuVFcxRHozNlRHTFpxSGJyYUV1WW9VUW5XeFJkWktNK0hyekhYdnIK",
       "windows": {
         "installMode": "passive"
       }
