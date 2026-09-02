@@ -15,6 +15,7 @@ import { history } from './history'
 import { instructions } from './instructions'
 import { listDesktopMcp } from './desktop-mcp'
 import { listOpenRouterModels } from './openrouter'
+import { mcpServers } from './mcp-servers'
 import { memoryFiles } from './memory-files'
 import { missionControl } from './mission-control'
 import { userDataDir } from './paths'
@@ -310,6 +311,27 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   'commands:delete': (a) => {
     const h = sessionManager.get(a.tabId)
     return h ? userCommands.remove(h.cwd, a.scope, a.name) : { error: 'Session not found' }
+  },
+
+  'mcp:list': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? mcpServers.list(h.cwd) : { error: 'Session not found' }
+  },
+  'mcp:save': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? mcpServers.save(h.cwd, a.entry, a.previousName) : { error: 'Session not found' }
+  },
+  'mcp:remove': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? mcpServers.remove(h.cwd, a.name) : { error: 'Session not found' }
+  },
+  'mcp:setEnabled': (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? mcpServers.setEnabled(h.cwd, a.name, a.enabled) : { error: 'Session not found' }
+  },
+  'mcp:check': async (a) => {
+    const h = sessionManager.get(a.tabId)
+    return h ? mcpServers.check(h.cwd, a.name) : { error: 'Session not found' }
   },
 
   'fs:listDir': async (a) => {

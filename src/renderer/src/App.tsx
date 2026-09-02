@@ -9,6 +9,7 @@ import { ChangesPanel } from './components/ChangesPanel'
 import { ChatView } from './components/ChatView'
 import { CommandPalette } from './components/CommandPalette'
 import { CommandsManager } from './components/CommandsManager'
+import { McpManager } from './components/McpManager'
 import { OnboardingView } from './components/OnboardingView'
 import { ProjectGallery } from './components/ProjectGallery'
 import { SettingsView } from './components/SettingsView'
@@ -198,6 +199,8 @@ export default function App(): React.JSX.Element {
   const [usageOpen, setUsageOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const commandsManagerOpen = useUi((s) => s.commandsManager)
+  const mcpManagerOpen = useUi((s) => s.mcpManager)
+  const setMcpManager = useUi((s) => s.setMcpManager)
   const toggleChanges = useCallback(() => setChangesOpen((v) => !v), [])
   const showUsage = useCallback(() => setUsageOpen(true), [])
   const showSettings = useCallback(() => setSettingsOpen(true), [])
@@ -354,6 +357,9 @@ export default function App(): React.JSX.Element {
       {usageOpen && <UsagePanel onClose={() => setUsageOpen(false)} />}
       {settingsOpen && <SettingsView onClose={() => setSettingsOpen(false)} />}
       {commandsManagerOpen && activeTab && <CommandsManager tabId={activeTab.tabId} />}
+      {mcpManagerOpen && activeTab && (
+        <McpManager tabId={activeTab.tabId} onClose={() => setMcpManager(false)} />
+      )}
       <CommandPalette
         onShowSettings={() => setSettingsOpen(true)}
         onShowUsage={() => setUsageOpen(true)}

@@ -23,6 +23,8 @@ interface UiStore {
   panels: Record<string, SidePanel>
   /** Command palette overlay: action list, quick file open, or closed. */
   palette: 'commands' | 'files' | null
+  /** Whether the MCP server manager modal is open. */
+  mcpManager: boolean
   /** Whether the slash-command manager modal is open. */
   commandsManager: boolean
   /** Transient corner notifications (native slash-command feedback). */
@@ -34,6 +36,7 @@ interface UiStore {
   togglePanel: (tabId: string, panel: Exclude<SidePanel, null>) => void
   setPalette: (palette: 'commands' | 'files' | null) => void
   setCommandsManager: (open: boolean) => void
+  setMcpManager: (open: boolean) => void
   toast: (text: string, kind?: 'info' | 'error') => void
   dismissToast: (id: number) => void
 }
@@ -44,6 +47,7 @@ export const useUi = create<UiStore>((set) => ({
   panels: {},
   palette: null,
   commandsManager: false,
+  mcpManager: false,
   toasts: [],
   split: null,
   setSplit: (tabId) => set((s) => ({ split: s.split === tabId ? null : tabId })),
@@ -54,6 +58,7 @@ export const useUi = create<UiStore>((set) => ({
     })),
   setPalette: (palette) => set({ palette }),
   setCommandsManager: (open) => set({ commandsManager: open }),
+  setMcpManager: (open) => set({ mcpManager: open }),
   toast: (text, kind = 'info') => {
     const id = ++toastId
     set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))

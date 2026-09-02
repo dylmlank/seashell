@@ -10,6 +10,7 @@ import {
   MessagesSquare,
   Minimize2,
   Play,
+  Plug,
   Plus,
   Search,
   Settings2,
@@ -165,6 +166,7 @@ export function CommandPalette({
       },
       { id: 'changes', label: 'Toggle git changes', icon: <GitBranch size={13} />, run: onToggleChanges },
       { id: 'slash', label: 'Manage slash commands', hint: '/commands', icon: <Slash size={13} />, run: () => useUi.getState().setCommandsManager(true) },
+      { id: 'mcp', label: 'Manage MCP servers', hint: '/mcp', icon: <Plug size={13} />, run: () => useUi.getState().setMcpManager(true) },
       { id: 'usage', label: 'Usage & cost', icon: <BarChart3 size={13} />, run: onShowUsage },
       { id: 'settings', label: 'Settings', icon: <Settings2 size={13} />, run: onShowSettings }
     )

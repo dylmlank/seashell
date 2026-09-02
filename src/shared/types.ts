@@ -153,6 +153,24 @@ export interface AppSettings {
   sessionBudgetUsd: number | null
 }
 
+/** An MCP server as configured for this project. Active entries live in
+ *  `.mcp.json`; disabled ones are parked in `.claude/mcp-disabled.json`. */
+export interface McpServerEntry {
+  name: string
+  enabled: boolean
+  transport: 'stdio' | 'http' | 'sse'
+  command?: string
+  args?: string[]
+  env?: Record<string, string>
+  url?: string
+}
+
+/** Result of speaking MCP `initialize` to a configured server. */
+export interface McpCheckResult {
+  ok: boolean
+  detail: string
+}
+
 /** A spend threshold being crossed. Advisory — never blocks a running turn. */
 export interface BudgetAlert {
   scope: 'daily' | 'session'
