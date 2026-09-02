@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs'
+import { writeFileAtomicSync } from './atomic-write'
 import { join } from 'path'
 import type { DayUsage, UsageTotals } from '../shared/types'
 import { readJsonFile } from './json-file'
@@ -38,7 +38,7 @@ export const usageStore = {
     const data = load()
     data[sessionId] = totals
     try {
-      writeFileSync(file(), JSON.stringify(data))
+      writeFileAtomicSync(file(), JSON.stringify(data))
     } catch (err) {
       console.error('usage-store save failed:', err)
     }
@@ -59,7 +59,7 @@ export const usageStore = {
     bucket.turns += delta.turns
     data[day] = bucket
     try {
-      writeFileSync(historyFile(), JSON.stringify(data))
+      writeFileAtomicSync(historyFile(), JSON.stringify(data))
     } catch (err) {
       console.error('usage-history save failed:', err)
     }

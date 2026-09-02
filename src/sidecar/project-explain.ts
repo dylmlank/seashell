@@ -1,6 +1,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { createHash } from 'crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { mkdirSync, readFileSync } from 'fs'
+import { writeFileAtomicSync } from './atomic-write'
 import { join } from 'path'
 import type { ProjectExplanation, ProjectMap } from '../shared/types'
 import { memoryDir } from './memory-files'
@@ -68,7 +69,7 @@ ${e.different.map((d) => `- ${d}`).join('\n')}
 
 _Auto-updated by Seashell: ${new Date(e.generatedAt).toISOString().slice(0, 10)}_
 `
-  writeFileSync(join(dir, 'project-overview.md'), body, 'utf8')
+  writeFileAtomicSync(join(dir, 'project-overview.md'), body)
 
   // Make sure the memory index points at it (the index is what sessions load).
   const indexPath = join(dir, 'MEMORY.md')
@@ -80,7 +81,7 @@ _Auto-updated by Seashell: ${new Date(e.generatedAt).toISOString().slice(0, 10)}
     index = '# Memory Index\n'
   }
   if (!index.includes('project-overview.md')) {
-    writeFileSync(indexPath, `${index.trimEnd()}\n${line}\n`, 'utf8')
+    writeFileAtomicSync(indexPath, `${index.trimEnd()}\n${line}\n`)
   }
 }
 
@@ -205,7 +206,7 @@ Rules: flow = 4 to 7 steps tracing what happens end to end when the project is u
         generatedAt: Date.now(),
         fingerprint: fingerprintOf(map)
       }
-      writeFileSync(cachePath(cwd), JSON.stringify(explanation, null, 2), 'utf8')
+      writeFileAtomicSync(cachePath(cwd), JSON.stringify(explanation, null, 2))
       writeOverviewMemory(cwd, explanation)
       return explanation
     } catch (err) {

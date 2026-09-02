@@ -129,13 +129,13 @@ function WriteDiff({ req }: { req: ApprovalRequest }): React.JSX.Element {
 
   useEffect(() => {
     let alive = true
-    void window.api.invoke('fs:readFile', { path: filePath }).then((res) => {
+    void window.api.invoke('fs:readFile', { tabId: req.tabId, path: filePath }).then((res) => {
       if (alive) setCurrent('content' in res ? res.content : '')
     })
     return () => {
       alive = false
     }
-  }, [filePath])
+  }, [filePath, req.tabId])
 
   if (current === null) return <div className="text-sm text-text-dim">Loading current file…</div>
   return <DiffView oldValue={current} newValue={String(req.input.content ?? '')} />

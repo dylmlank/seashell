@@ -1,7 +1,7 @@
 import { rmSync } from 'fs'
 import { mkdir, readdir, readFile, writeFile } from 'fs/promises'
 import { homedir } from 'os'
-import { extname, join, resolve } from 'path'
+import { extname, join } from 'path'
 import type { Invokes } from '../shared/ipc-contract'
 import { approvals } from './approvals'
 import { auth } from './auth'
@@ -9,6 +9,7 @@ import { changes } from './changes'
 import { userCommands } from './commands'
 import { startDictation } from './dictation'
 import { listProjectFiles } from './file-index'
+import { resolveWithin } from './fs-guard'
 import { history } from './history'
 import { instructions } from './instructions'
 import { listDesktopMcp } from './desktop-mcp'
@@ -86,6 +87,14 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   },
 
   'fs:readFile': async (a) => {
+    const h = sessionManager.get(a.tabId)
+    if (!h) return { error: 'Session not found' }
+    // Reads stay inside the session's project, with one carve-out: a pending
+    // approval may legitimately concern a file outside it, and the approval
+    // modal has to diff against that file to be worth anything.
+    if (!resolveWithin(h.cwd, a.path) && !approvals.isPendingPath(a.tabId, a.path)) {
+      return { error: 'Path outside project' }
+    }
     try {
       const content = await readFile(a.path, 'utf8')
       return { content }
@@ -93,7 +102,11 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
       return { error: err instanceof Error ? err.message : String(err) }
     }
   },
+  // Attachments: the path comes from the user's own native file picker or a
+  // drag-drop, so it is deliberately not confined to the project — but it is
+  // bound to a live session and restricted to decodable image types.
   'fs:readFileBase64': async (a) => {
+    if (!sessionManager.get(a.tabId)) return { error: 'Session not found' }
     try {
       const mediaType = IMAGE_MEDIA[extname(a.path).toLowerCase()]
       if (!mediaType) return { error: 'Not a supported image type' }
@@ -296,8 +309,8 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   'fs:listDir': async (a) => {
     const h = sessionManager.get(a.tabId)
     if (!h) return { error: 'Session not found' }
-    const target = resolve(join(h.cwd, a.rel))
-    if (!target.startsWith(resolve(h.cwd))) return { error: 'Path outside project' }
+    const target = resolveWithin(h.cwd, a.rel)
+    if (!target) return { error: 'Path outside project' }
     try {
       const dirents = await readdir(target, { withFileTypes: true })
       const entries = dirents
@@ -316,8 +329,8 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   'fs:writeFile': async (a) => {
     const h = sessionManager.get(a.tabId)
     if (!h) return { error: 'Session not found' }
-    const target = resolve(join(h.cwd, a.rel))
-    if (!target.startsWith(resolve(h.cwd))) return { error: 'Path outside project' }
+    const target = resolveWithin(h.cwd, a.rel)
+    if (!target) return { error: 'Path outside project' }
     try {
       await writeFile(target, a.content, 'utf8')
       return { ok: true }

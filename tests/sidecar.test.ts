@@ -103,3 +103,27 @@ test('ports:list returns listeners', async () => {
   const res = await invoke('ports:list')
   expect(Array.isArray(res.result)).toBe(true)
 })
+
+test('rejects a browser Origin the webview would never send', async () => {
+  await expect(
+    new Promise((resolve, reject) => {
+      // Bun's client sends the header we ask for; a real page cannot forge it,
+      // which is the point — an unknown Origin means "not our webview".
+      const sock = new WebSocket(`ws://127.0.0.1:${port}/?s=${SECRET}`, {
+        headers: { Origin: 'https://evil.example' }
+      } as unknown as string[])
+      sock.onopen = () => resolve(sock)
+      sock.onerror = () => reject(new Error('refused'))
+    })
+  ).rejects.toThrow()
+})
+
+test('refuses to boot without a secret', async () => {
+  const bare = Bun.spawn({
+    cmd: ['bun', 'run', join(import.meta.dir, '..', 'src', 'sidecar', 'index.ts')],
+    env: { ...process.env, SIDECAR_SECRET: '', CLAUDE_SHELL_USER_DATA: userData },
+    stdout: 'pipe',
+    stderr: 'pipe'
+  })
+  expect(await bare.exited).toBe(1)
+})

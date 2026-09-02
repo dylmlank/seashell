@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs'
+import { writeFileAtomicSync } from './atomic-write'
 import { join } from 'path'
 import type { AppSettings } from '../shared/types'
 import { readJsonFile } from './json-file'
@@ -79,7 +79,7 @@ export const settingsStore = {
     }
     cache = sanitize({ ...DEFAULTS, ...onDisk, ...patch })
     // Surface write failures instead of silently keeping memory-only settings.
-    writeFileSync(file(), JSON.stringify(cache, null, 2))
+    writeFileAtomicSync(file(), JSON.stringify(cache, null, 2))
     return cache
   }
 }

@@ -92,7 +92,7 @@ function ScriptsMenu({ tabId, cwd, onRun }: { tabId: string; cwd: string; onRun:
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    void window.api.invoke('fs:readFile', { path: `${cwd}/package.json` }).then((result) => {
+    void window.api.invoke('fs:readFile', { tabId, path: `${cwd}/package.json` }).then((result) => {
       if ('error' in result) return
       try {
         const pkg = JSON.parse(result.content) as { scripts?: Record<string, string> }
@@ -101,7 +101,7 @@ function ScriptsMenu({ tabId, cwd, onRun }: { tabId: string; cwd: string; onRun:
         // unparseable package.json — no scripts menu
       }
     })
-  }, [cwd])
+  }, [cwd, tabId])
 
   if (scripts.length === 0) return null
   return (

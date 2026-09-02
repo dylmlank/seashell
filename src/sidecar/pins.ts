@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs'
+import { writeFileAtomicSync } from './atomic-write'
 import { join } from 'path'
 import { readJsonFile } from './json-file'
 import { userDataDir } from './paths'
@@ -27,7 +27,7 @@ export const pins = {
     const next = current.includes(sessionId)
       ? current.filter((id) => id !== sessionId)
       : [...current, sessionId]
-    writeFileSync(file(), JSON.stringify(next, null, 2), 'utf8')
+    writeFileAtomicSync(file(), JSON.stringify(next, null, 2))
     return next
   }
 }

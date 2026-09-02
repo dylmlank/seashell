@@ -104,7 +104,7 @@ export function CommandPalette({
       })
     } else {
       void window.api
-        .invoke('fs:readFile', { path: `${activeTab.cwd}/package.json` })
+        .invoke('fs:readFile', { tabId: activeTab.tabId, path: `${activeTab.cwd}/package.json` })
         .then((r) => {
           if ('error' in r) return setScripts([])
           try {

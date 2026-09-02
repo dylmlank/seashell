@@ -94,7 +94,7 @@ export function PreviewPanel({
 }: {
   path?: string
   cwd: string
-  tabId?: string
+  tabId: string
 }): React.JSX.Element {
   // Select the stable items reference; deriving (filtering) inside the
   // selector would return a fresh array every pass and loop the renderer.
@@ -240,14 +240,14 @@ export function PreviewPanel({
   const loadFile = useCallback(async (): Promise<void> => {
     if (!absPath) return
     setError(null)
-    const result = await window.api.invoke('fs:readFile', { path: absPath })
+    const result = await window.api.invoke('fs:readFile', { tabId, path: absPath })
     if ('error' in result) {
       setError(result.error)
       setContent(null)
     } else {
       setContent(result.content)
     }
-  }, [absPath])
+  }, [absPath, tabId])
 
   useEffect(() => {
     if (mode === 'file') void loadFile()
