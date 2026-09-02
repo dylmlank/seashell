@@ -164,6 +164,11 @@ export const NATIVE_COMMANDS: NativeCommand[] = [
     name: 'commands',
     description: 'Manage your custom slash commands',
     run: () => useUi.getState().setCommandsManager(true)
+  },
+  {
+    name: 'mcp',
+    description: "Manage this project's MCP servers",
+    run: () => useUi.getState().setMcpManager(true)
   }
 ]
 

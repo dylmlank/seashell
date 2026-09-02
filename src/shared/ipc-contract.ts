@@ -11,6 +11,8 @@ import type {
   DevServerStatus,
   DirEntry,
   ImageAttachment,
+  McpCheckResult,
+  McpServerEntry,
   MemoryFile,
   MissionState,
   ModelInfo,
@@ -126,6 +128,22 @@ export interface Invokes {
   'providers:clearCustomKey': () => void
   'providers:listOpenRouterModels': () => ModelInfo[] | { error: string }
   'providers:desktopMcp': () => DesktopConnector[]
+
+  /** Project MCP servers, read from and written to the project's .mcp.json. */
+  'mcp:list': (a: { tabId: string }) => { servers: McpServerEntry[]; path: string } | { error: string }
+  'mcp:save': (a: {
+    tabId: string
+    entry: McpServerEntry
+    previousName?: string
+  }) => { ok: true } | { error: string }
+  'mcp:remove': (a: { tabId: string; name: string }) => { ok: true } | { error: string }
+  'mcp:setEnabled': (a: {
+    tabId: string
+    name: string
+    enabled: boolean
+  }) => { ok: true } | { error: string }
+  /** Speak MCP initialize to the server and report what came back. */
+  'mcp:check': (a: { tabId: string; name: string }) => McpCheckResult | { error: string }
 
   'fs:listDir': (a: { tabId: string; rel: string }) => { entries: DirEntry[] } | { error: string }
   'fs:listFiles': (a: { tabId: string }) => { files: string[] } | { error: string }
