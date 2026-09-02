@@ -29,9 +29,13 @@ You'll also need [Bun](https://bun.sh) and the [Claude Code CLI](https://docs.cl
 (`npm i -g @anthropic-ai/claude-code`) on your PATH — Seashell checks on first
 run and walks you through anything missing.
 
+Seashell updates itself: it checks Releases at startup and offers the new
+version in-app, so the install dance below is a one-time cost.
+
 > **Unsigned-build warnings:** these builds aren't code-signed (certificates
 > cost real money). On Windows, SmartScreen will warn — click *More info →
-> Run anyway*. On macOS, right-click the app → *Open* the first time.
+> Run anyway*. On macOS, right-click the app → *Open* the first time. Every
+> release ships a `SHA256SUMS.txt` if you want to verify what you downloaded.
 
 ## Requirements
 

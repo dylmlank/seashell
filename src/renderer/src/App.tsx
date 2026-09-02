@@ -14,6 +14,7 @@ import { ProjectGallery } from './components/ProjectGallery'
 import { SettingsView } from './components/SettingsView'
 import { Sidebar } from './components/Sidebar'
 import { Toaster } from './components/Toaster'
+import { UpdateBanner } from './components/UpdateBanner'
 import { UsagePanel } from './components/UsagePanel'
 import { useUi } from './stores/ui'
 
@@ -325,26 +326,29 @@ export default function App(): React.JSX.Element {
   }
 
   return (
-    <div className="flex h-full">
-      <Sidebar
-        changesOpen={changesOpen}
-        onToggleChanges={toggleChanges}
-        onShowUsage={showUsage}
-        onShowSettings={showSettings}
-      />
-      <div className="flex min-w-0 flex-1">
-        <div className="min-w-0 flex-1">
-          {activeTab ? <ChatView key={activeTab.tabId} tab={activeTab} /> : <Welcome />}
-        </div>
-        {splitTab && splitTab.tabId !== activeTabId && (
-          <div className="min-w-0 flex-1 border-l border-border">
-            <ChatView key={splitTab.tabId} tab={splitTab} />
+    <div className="flex h-full flex-col">
+      <UpdateBanner />
+      <div className="flex min-h-0 flex-1">
+        <Sidebar
+          changesOpen={changesOpen}
+          onToggleChanges={toggleChanges}
+          onShowUsage={showUsage}
+          onShowSettings={showSettings}
+        />
+        <div className="flex min-w-0 flex-1">
+          <div className="min-w-0 flex-1">
+            {activeTab ? <ChatView key={activeTab.tabId} tab={activeTab} /> : <Welcome />}
           </div>
+          {splitTab && splitTab.tabId !== activeTabId && (
+            <div className="min-w-0 flex-1 border-l border-border">
+              <ChatView key={splitTab.tabId} tab={splitTab} />
+            </div>
+          )}
+        </div>
+        {changesOpen && activeTab && (
+          <ChangesPanel key={`changes-${activeTab.tabId}`} tabId={activeTab.tabId} />
         )}
       </div>
-      {changesOpen && activeTab && (
-        <ChangesPanel key={`changes-${activeTab.tabId}`} tabId={activeTab.tabId} />
-      )}
       {usageOpen && <UsagePanel onClose={() => setUsageOpen(false)} />}
       {settingsOpen && <SettingsView onClose={() => setSettingsOpen(false)} />}
       {commandsManagerOpen && activeTab && <CommandsManager tabId={activeTab.tabId} />}
