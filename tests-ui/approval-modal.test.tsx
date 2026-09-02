@@ -135,3 +135,92 @@ test('answering a queued request removes it from the queue', () => {
   fireEvent.click(screen.getByText('Allow'))
   expect(useApprovals.getState().queue).toHaveLength(0)
 })
+
+test('an Edit offers to be edited before allowing', () => {
+  queue({ file_path: '/p/a.ts', old_string: 'x', new_string: 'y' })
+  render(<ApprovalModal />)
+  expect(screen.getByText(/edit before allowing/i)).toBeTruthy()
+})
+
+test('a tool with no editable field is approve-or-deny only', () => {
+  queue({ pattern: '**/*.ts' }, 'Glob')
+  render(<ApprovalModal />)
+  expect(screen.queryByText(/edit before allowing/i)).toBeNull()
+})
+
+test('allowing without editing sends no updatedInput', () => {
+  queue({ file_path: '/p/a.ts', old_string: 'x', new_string: 'y' })
+  render(<ApprovalModal />)
+  fireEvent.click(screen.getByText('Allow'))
+  expect(invoked[0].arg).not.toHaveProperty('updatedInput')
+})
+
+test('the editor toggle swaps the diff for an editor and back', () => {
+  queue({ file_path: '/p/a.ts', old_string: 'x', new_string: 'y' })
+  render(<ApprovalModal />)
+  fireEvent.click(screen.getByText(/edit before allowing/i))
+  expect(screen.getByText(/replacement text/i)).toBeTruthy()
+  fireEvent.click(screen.getByText(/back to diff/i))
+  expect(screen.queryByText(/replacement text/i)).toBeNull()
+})
+
+test('the editor says values are unmasked — editing masked text would save the mask', () => {
+  queue({ file_path: '/p/.env', old_string: 'A=1', new_string: 'API_TOKEN=secret' })
+  render(<ApprovalModal />)
+  fireEvent.click(screen.getByText(/edit before allowing/i))
+  expect(screen.getByText(/values shown unmasked/i)).toBeTruthy()
+})
+
+test('Bash exposes its command as the editable field', () => {
+  queue({ command: 'rm -rf build' }, 'Bash')
+  render(<ApprovalModal />)
+  fireEvent.click(screen.getByText(/edit before allowing/i))
+  expect(screen.getByText(/^Command —/i)).toBeTruthy()
+})
+
+// The payload builder is where "edited" actually becomes an updatedInput, and
+// CodeMirror doesn't drive under happy-dom — so it's tested directly.
+const { buildAllowPayload, editableField } = await import(
+  '../src/renderer/src/components/ApprovalEditor'
+)
+
+const request = (input: Record<string, unknown>, toolName: string): ApprovalRequest =>
+  ({ requestId: 'r', tabId: 't', toolUseId: 'u', toolName, input }) as ApprovalRequest
+
+test('an untouched allow carries no updatedInput at all', () => {
+  const req = request({ file_path: '/p/a.ts', old_string: 'x', new_string: 'y' }, 'Edit')
+  expect(buildAllowPayload(req, null)).toEqual({ behavior: 'allow' })
+})
+
+test('an edited Edit sends the rewritten replacement', () => {
+  const req = request({ file_path: '/p/a.ts', old_string: 'x', new_string: 'y' }, 'Edit')
+  expect(buildAllowPayload(req, 'z')).toEqual({
+    behavior: 'allow',
+    updatedInput: { file_path: '/p/a.ts', old_string: 'x', new_string: 'z' }
+  })
+})
+
+test('editing preserves every other field of the tool input', () => {
+  const req = request({ file_path: '/p/a.ts', content: 'old', replace_all: true }, 'Write')
+  const payload = buildAllowPayload(req, 'new')
+  expect(payload.updatedInput).toMatchObject({ file_path: '/p/a.ts', replace_all: true })
+  expect(payload.updatedInput?.content).toBe('new')
+})
+
+test('an edited Bash sends the rewritten command', () => {
+  const req = request({ command: 'rm -rf /' }, 'Bash')
+  expect(buildAllowPayload(req, 'rm -rf build').updatedInput).toEqual({ command: 'rm -rf build' })
+})
+
+test('a tool with no editable field never gains an updatedInput', () => {
+  const req = request({ pattern: '**/*' }, 'Glob')
+  expect(buildAllowPayload(req, 'anything')).toEqual({ behavior: 'allow' })
+})
+
+test('editableField ignores a tool whose field is absent or not a string', () => {
+  expect(editableField(request({}, 'Edit'))).toBeNull()
+  expect(editableField(request({ new_string: 42 }, 'Edit'))).toBeNull()
+  expect(editableField(request({ new_string: 'y' }, 'Edit'))).toMatchObject({
+    field: 'new_string'
+  })
+})
