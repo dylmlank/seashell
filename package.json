@@ -14,7 +14,8 @@
     "build:renderer": "vite build",
     "build:sidecar": "bun build src/sidecar/index.ts --target=bun --outfile=src-tauri/resources/sidecar/sidecar.js",
     "build": "tauri build",
-    "test": "bun test tests/",
+    "test": "bun test tests/ && bun run test:ui",
+    "test:ui": "bun test tests-ui/",
     "sidecar": "bun run src/sidecar/index.ts",
     "tauri": "tauri",
     "canary": "bun scripts/sdk-canary.ts"
@@ -44,8 +45,11 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@happy-dom/global-registrator": "20.13.2",
     "@tailwindcss/vite": "4.3.2",
     "@tauri-apps/cli": "^2.11.4",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/react": "16.3.3",
     "@types/node": "^22.19.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

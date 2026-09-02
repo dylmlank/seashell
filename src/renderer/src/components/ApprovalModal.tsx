@@ -225,9 +225,13 @@ function RequestBody({ req }: { req: ApprovalRequest }): React.JSX.Element {
 }
 
 function headline(req: ApprovalRequest): string {
-  if (req.promptText) return req.promptText
+  // Masked unconditionally: the headline sits above the reveal toggle and has
+  // no way to opt in, and for Bash the "target" is the whole command line —
+  // which is exactly where an inline token tends to be.
+  if (req.promptText) return redactSecrets(req.promptText)
   const target = req.input.file_path ?? req.input.command ?? req.input.path ?? ''
-  return `Claude wants to use ${req.toolName}${target ? `: ${String(target).slice(0, 100)}` : ''}`
+  const shown = target ? redactSecrets(String(target).slice(0, 100)) : ''
+  return `Claude wants to use ${req.toolName}${shown ? `: ${shown}` : ''}`
 }
 
 export function ApprovalModal(): React.JSX.Element | null {
