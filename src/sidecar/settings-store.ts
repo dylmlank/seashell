@@ -37,7 +37,9 @@ const DEFAULTS: AppSettings = {
   responseStyle: 'normal',
   speakReplies: false,
   autoTidySessions: true,
-  projectsRoot: null
+  projectsRoot: null,
+  dailyBudgetUsd: null,
+  sessionBudgetUsd: null
 }
 
 const file = (): string => join(userDataDir(), 'settings.json')

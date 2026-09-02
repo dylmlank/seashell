@@ -40,7 +40,9 @@ export const useSettings = create<SettingsStore>(() => ({
     responseStyle: 'normal',
     speakReplies: false,
     autoTidySessions: true,
-    projectsRoot: null
+    projectsRoot: null,
+    dailyBudgetUsd: null,
+    sessionBudgetUsd: null
   },
   loaded: false
 }))

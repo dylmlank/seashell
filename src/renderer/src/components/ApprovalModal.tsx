@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { CircleHelp, ShieldAlert, Check, X } from 'lucide-react'
+import { CircleHelp, Eye, EyeOff, ShieldAlert, Check, X } from 'lucide-react'
 import clsx from 'clsx'
 import type { ApprovalRequest } from '@shared/types'
+import { hasRedactableSecrets, redactSecrets } from '@shared/redact'
 import { respond, useApprovals } from '../stores/approvals'
 import { DiffView } from './DiffView'
 
@@ -117,10 +118,52 @@ function QuestionForm({ req }: { req: ApprovalRequest }): React.JSX.Element {
   )
 }
 
+/** Wraps any approval preview in value-masking, with a way back out.
+ *
+ *  Hiding things in the one dialog whose job is "look at this before you say
+ *  yes" is a real trade, so the escape hatch is deliberate: the toggle only
+ *  appears when something was actually masked, and one click shows everything.
+ */
+function Redacted({
+  scans,
+  filePath,
+  children
+}: {
+  /** Every string the child will render — used only to decide whether
+   *  anything needs masking at all, so the toggle stays off ordinary files. */
+  scans: string[]
+  filePath?: string
+  children: (mask: (text: string) => string) => React.JSX.Element
+}): React.JSX.Element {
+  const [revealed, setRevealed] = useState(false)
+  const redactable = scans.some((s) => hasRedactableSecrets(s, filePath))
+  const mask = (text: string): string => (revealed ? text : redactSecrets(text, filePath))
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {redactable && (
+        <button
+          onClick={() => setRevealed((v) => !v)}
+          className="flex items-center gap-1.5 self-start rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:text-text"
+        >
+          {revealed ? <EyeOff size={12} /> : <Eye size={12} />}
+          {revealed ? 'Hide secret values' : 'Secret values hidden — reveal'}
+        </button>
+      )}
+      {children(mask)}
+    </div>
+  )
+}
+
 function EditDiff({ req }: { req: ApprovalRequest }): React.JSX.Element {
+  const filePath = String(req.input.file_path ?? '')
   const oldString = String(req.input.old_string ?? '')
   const newString = String(req.input.new_string ?? '')
-  return <DiffView oldValue={oldString} newValue={newString} />
+  return (
+    <Redacted scans={[oldString, newString]} filePath={filePath}>
+      {(mask) => <DiffView oldValue={mask(oldString)} newValue={mask(newString)} />}
+    </Redacted>
+  )
 }
 
 function WriteDiff({ req }: { req: ApprovalRequest }): React.JSX.Element {
@@ -138,7 +181,12 @@ function WriteDiff({ req }: { req: ApprovalRequest }): React.JSX.Element {
   }, [filePath, req.tabId])
 
   if (current === null) return <div className="text-sm text-text-dim">Loading current file…</div>
-  return <DiffView oldValue={current} newValue={String(req.input.content ?? '')} />
+  const next = String(req.input.content ?? '')
+  return (
+    <Redacted scans={[current, next]} filePath={filePath}>
+      {(mask) => <DiffView oldValue={mask(current)} newValue={mask(next)} />}
+    </Redacted>
+  )
 }
 
 function RequestBody({ req }: { req: ApprovalRequest }): React.JSX.Element {
@@ -147,18 +195,32 @@ function RequestBody({ req }: { req: ApprovalRequest }): React.JSX.Element {
       return <EditDiff req={req} />
     case 'Write':
       return <WriteDiff req={req} />
-    case 'Bash':
+    case 'Bash': {
+      // A command line is a common place for a token to show up inline
+      // (curl -H "Authorization: …"), so it gets the same treatment.
+      const command = String(req.input.command ?? '')
       return (
-        <pre className="max-h-96 overflow-auto rounded-lg border border-border bg-bg p-3 text-sm">
-          {String(req.input.command ?? '')}
-        </pre>
+        <Redacted scans={[command]}>
+          {(mask) => (
+            <pre className="max-h-96 overflow-auto rounded-lg border border-border bg-bg p-3 text-sm">
+              {mask(command)}
+            </pre>
+          )}
+        </Redacted>
       )
-    default:
+    }
+    default: {
+      const dump = JSON.stringify(req.input, null, 2)
       return (
-        <pre className="max-h-96 overflow-auto rounded-lg border border-border bg-bg p-3 text-xs">
-          {JSON.stringify(req.input, null, 2)}
-        </pre>
+        <Redacted scans={[dump]}>
+          {(mask) => (
+            <pre className="max-h-96 overflow-auto rounded-lg border border-border bg-bg p-3 text-xs">
+              {mask(dump)}
+            </pre>
+          )}
+        </Redacted>
       )
+    }
   }
 }
 

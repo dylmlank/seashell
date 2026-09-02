@@ -147,6 +147,18 @@ export interface AppSettings {
   autoTidySessions: boolean
   /** Where /new-project creates folders (null = ~/Projects). */
   projectsRoot: string | null
+  /** Warn when today's spend crosses this many USD (null = no limit). */
+  dailyBudgetUsd: number | null
+  /** Warn when one session's spend crosses this many USD (null = no limit). */
+  sessionBudgetUsd: number | null
+}
+
+/** A spend threshold being crossed. Advisory — never blocks a running turn. */
+export interface BudgetAlert {
+  scope: 'daily' | 'session'
+  level: 'warning' | 'exceeded'
+  spentUsd: number
+  limitUsd: number
 }
 
 /** A saved way to start a session: folder + optional first prompt. */

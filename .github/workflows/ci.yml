@@ -22,7 +22,7 @@ jobs:
       - run: bun run lint
       # sidecar.test.ts spawns a real sidecar and is excluded on purpose;
       # everything else is pure and runs everywhere.
-      - run: bun test tests/heuristics.test.ts tests/reduce-event.test.ts tests/json-file.test.ts tests/fs-guard.test.ts
+      - run: bun test tests/heuristics.test.ts tests/reduce-event.test.ts tests/json-file.test.ts tests/fs-guard.test.ts tests/redact.test.ts tests/budget.test.ts
 
   rust:
     runs-on: windows-latest
