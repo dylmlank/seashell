@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { smartModelChoice, smartThinkingLevel } from '../src/sidecar/session-manager'
+import { smartModelChoice, smartThinkingLevel } from '../src/sidecar/session-heuristics'
 
 const OPUS = 'claude-opus-4-8[1m]'
 

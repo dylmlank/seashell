@@ -388,64 +388,130 @@ fn sidecar_command(app: &AppHandle, secret: &str) -> Command {
 
 /// Keeps the sidecar alive for the app's lifetime — if the Bun process dies,
 /// the port resets (so the frontend's reconnect loop waits) and it respawns.
+/// Restart pacing for the sidecar supervisor.
+///
+/// The old loop respawned every 1.5s forever. When the cause was permanent —
+/// bun missing from PATH is the common one — that produced an endless stream
+/// of identical stderr lines and no signal to the user, who just saw a window
+/// stuck on "connecting…". Delays now grow, and after enough consecutive
+/// failures the supervisor stops and says so.
+#[derive(Default)]
+struct Backoff {
+    failures: u32,
+}
+
+impl Backoff {
+    /// Run at least this long before a restart counts as "it was working".
+    const HEALTHY_AFTER: Duration = Duration::from_secs(30);
+    const MAX_FAILURES: u32 = 6;
+    const BASE_MS: u64 = 1_500;
+    const CAP_MS: u64 = 30_000;
+
+    /// 1.5s, 3s, 6s, 12s, 24s, then capped at 30s.
+    fn delay_for(failures: u32) -> Duration {
+        let shifted = Self::BASE_MS.saturating_mul(1u64 << failures.min(20));
+        Duration::from_millis(shifted.min(Self::CAP_MS))
+    }
+
+    fn reset(&mut self) {
+        self.failures = 0;
+    }
+
+    /// Sleeps before the next attempt. Returns false once we've given up.
+    fn sleep_or_give_up(&mut self, reason: &str) -> bool {
+        if self.failures >= Self::MAX_FAILURES {
+            eprintln!(
+                "[sidecar] {reason} — giving up after {} tries",
+                self.failures
+            );
+            return false;
+        }
+        let delay = Self::delay_for(self.failures);
+        self.failures += 1;
+        eprintln!("[sidecar] {reason} — retrying in {delay:?}");
+        std::thread::sleep(delay);
+        true
+    }
+}
+
 fn supervise_sidecar(app: AppHandle) {
-    std::thread::spawn(move || loop {
-        let state = app.state::<AppState>();
-        if state.exiting.load(Ordering::SeqCst) {
-            break;
-        }
-
-        let mut child = match sidecar_command(&app, &state.secret).spawn() {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("[sidecar] failed to spawn bun: {e}");
-                std::thread::sleep(Duration::from_secs(3));
-                continue;
-            }
-        };
-
-        if let Some(stdout) = child.stdout.take() {
-            let app2 = app.clone();
-            std::thread::spawn(move || {
-                for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-                    if let Some(port) = line.strip_prefix("SIDECAR_PORT=") {
-                        if let Ok(port) = port.trim().parse::<u16>() {
-                            *app2.state::<AppState>().sidecar_port.lock().unwrap() = port;
-                            let _ = app2.emit("sidecar-ready", port);
-                        }
-                    }
-                    println!("[sidecar] {line}");
-                }
-            });
-        }
-        if let Some(stderr) = child.stderr.take() {
-            std::thread::spawn(move || {
-                for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                    eprintln!("[sidecar] {line}");
-                }
-            });
-        }
-        *state.sidecar.lock().unwrap() = Some(child);
-
-        // Poll for exit without holding the lock (RunEvent::Exit needs it to kill).
+    std::thread::spawn(move || {
+        let mut backoff = Backoff::default();
         loop {
-            std::thread::sleep(Duration::from_millis(500));
+            let state = app.state::<AppState>();
             if state.exiting.load(Ordering::SeqCst) {
-                return;
+                break;
             }
-            let mut guard = state.sidecar.lock().unwrap();
-            match guard.as_mut().map(|c| c.try_wait()) {
-                Some(Ok(None)) => {} // still running
-                _ => {
-                    guard.take();
-                    break;
+
+            let mut child = match sidecar_command(&app, &state.secret).spawn() {
+                Ok(c) => c,
+                Err(e) => {
+                    // Usually "bun is not on PATH", which retrying cannot fix.
+                    // Tell the frontend so it can show the prereq screen instead
+                    // of spinning on "connecting…" forever.
+                    eprintln!("[sidecar] failed to spawn bun: {e}");
+                    let _ = app.emit("sidecar-unavailable", e.to_string());
+                    if !backoff.sleep_or_give_up("spawn bun") {
+                        break;
+                    }
+                    continue;
+                }
+            };
+            let started = std::time::Instant::now();
+
+            if let Some(stdout) = child.stdout.take() {
+                let app2 = app.clone();
+                std::thread::spawn(move || {
+                    for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                        if let Some(port) = line.strip_prefix("SIDECAR_PORT=") {
+                            if let Ok(port) = port.trim().parse::<u16>() {
+                                *app2.state::<AppState>().sidecar_port.lock().unwrap() = port;
+                                let _ = app2.emit("sidecar-ready", port);
+                            }
+                        }
+                        println!("[sidecar] {line}");
+                    }
+                });
+            }
+            if let Some(stderr) = child.stderr.take() {
+                std::thread::spawn(move || {
+                    for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                        eprintln!("[sidecar] {line}");
+                    }
+                });
+            }
+            *state.sidecar.lock().unwrap() = Some(child);
+
+            // Poll for exit without holding the lock (RunEvent::Exit needs it to kill).
+            loop {
+                std::thread::sleep(Duration::from_millis(500));
+                if state.exiting.load(Ordering::SeqCst) {
+                    return;
+                }
+                let mut guard = state.sidecar.lock().unwrap();
+                match guard.as_mut().map(|c| c.try_wait()) {
+                    Some(Ok(None)) => {} // still running
+                    _ => {
+                        guard.take();
+                        break;
+                    }
                 }
             }
-        }
 
-        *state.sidecar_port.lock().unwrap() = 0;
-        eprintln!("[sidecar] exited — restarting in 1.5s");
-        std::thread::sleep(Duration::from_millis(1500));
+            *state.sidecar_port.lock().unwrap() = 0;
+            // A sidecar that ran a good while and then died is a one-off; one
+            // that dies instantly is broken, and hammering it hides the reason.
+            if started.elapsed() >= Backoff::HEALTHY_AFTER {
+                backoff.reset();
+            }
+            if !backoff.sleep_or_give_up("sidecar exited") {
+                let _ = app.emit(
+                    "sidecar-unavailable",
+                    "the sidecar keeps exiting on startup".to_string(),
+                );
+                break;
+            }
+        }
     });
 }
 
@@ -534,4 +600,47 @@ pub fn run() {
                 }
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn backoff_grows_then_caps() {
+        assert_eq!(Backoff::delay_for(0), Duration::from_millis(1_500));
+        assert_eq!(Backoff::delay_for(1), Duration::from_millis(3_000));
+        assert_eq!(Backoff::delay_for(2), Duration::from_millis(6_000));
+        // Capped, and never overflows however many failures accumulate.
+        assert_eq!(Backoff::delay_for(5), Duration::from_millis(30_000));
+        assert_eq!(Backoff::delay_for(u32::MAX), Duration::from_millis(30_000));
+    }
+
+    #[test]
+    fn backoff_gives_up_after_max_failures() {
+        let mut b = Backoff::default();
+        // The first few attempts sleep only briefly, so this stays fast.
+        for _ in 0..2 {
+            assert!(b.sleep_or_give_up("test"));
+        }
+        b.failures = Backoff::MAX_FAILURES;
+        assert!(!b.sleep_or_give_up("test"));
+    }
+
+    #[test]
+    fn reset_restores_the_full_retry_budget() {
+        let mut b = Backoff::default();
+        b.failures = Backoff::MAX_FAILURES;
+        assert!(!b.sleep_or_give_up("test"));
+        b.reset();
+        assert!(b.sleep_or_give_up("test"));
+    }
+
+    #[test]
+    fn open_external_refuses_non_http_schemes() {
+        // The scheme check is what keeps file:// and custom handlers out.
+        assert!(open_external("file:///etc/passwd".into()).is_err());
+        assert!(open_external("javascript:alert(1)".into()).is_err());
+        assert!(open_external("not a url".into()).is_err());
+    }
 }
