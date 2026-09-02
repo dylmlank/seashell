@@ -233,17 +233,29 @@ async fn capture_url(
             .map(|d| d.as_millis())
             .unwrap_or(0)
     );
+    // Wait for the page's own load event rather than a flat sleep: a fixed
+    // 3s was simultaneously too long for a static page and too short for a
+    // cold dev server, and it was wrong in a way nothing could report.
+    let (loaded_tx, loaded_rx) = std::sync::mpsc::channel::<()>();
     let window =
         tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::External(parsed))
             .visible(false)
             .skip_taskbar(true)
             .inner_size(width, height)
+            .on_page_load(move |_w, payload| {
+                if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                    let _ = loaded_tx.send(());
+                }
+            })
             .build()
             .map_err(|e| e.to_string())?;
 
-    // Give the page time to load and settle (fonts, first paint, dev-server HMR).
-    let _ = tauri::async_runtime::spawn_blocking(|| {
-        std::thread::sleep(Duration::from_millis(3000));
+    let _ = tauri::async_runtime::spawn_blocking(move || {
+        // Capture anyway if the load event never arrives — a half-rendered
+        // screenshot beats none, and some pages never fire it at all.
+        let loaded = loaded_rx.recv_timeout(Duration::from_secs(10)).is_ok();
+        // Even after load, fonts and first paint trail the event slightly.
+        std::thread::sleep(Duration::from_millis(if loaded { 350 } else { 0 }));
     })
     .await;
 
