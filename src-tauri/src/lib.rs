@@ -193,18 +193,19 @@ async fn open_popout(app: AppHandle, tab_id: String) -> Result<(), String> {
 }
 
 /// External links from chat markdown open in the default browser.
+///
+/// This deliberately does NOT shell out to `cmd /c start`. Neither Rust's nor
+/// Node's Windows argument quoting escapes `&`, and cmd.exe treats it as a
+/// command separator — so `https://x/?a=1&b=2` both truncated the real URL and
+/// let a link Claude picked up from a fetched page run `b=2` as a command.
+/// The opener plugin goes straight to the platform API with no shell in front.
 #[tauri::command]
 fn open_external(url: String) -> Result<(), String> {
-    if !url.starts_with("http://") && !url.starts_with("https://") {
+    let parsed: tauri::Url = url.parse().map_err(|e| format!("bad url: {e}"))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
         return Err("only http(s) links".into());
     }
-    #[cfg(windows)]
-    let spawned = Command::new("cmd.exe").args(["/c", "start", "", &url]).spawn();
-    #[cfg(target_os = "macos")]
-    let spawned = Command::new("open").arg(&url).spawn();
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let spawned = Command::new("xdg-open").arg(&url).spawn();
-    spawned.map(|_| ()).map_err(|e| e.to_string())
+    tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
 /// Used by "export chat" — the save dialog runs in the frontend, we do the write.

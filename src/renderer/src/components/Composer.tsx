@@ -113,7 +113,7 @@ export function Composer({
     for (const path of paths) {
       const name = path.split(/[\\/]/).pop() ?? path
       if (/\.(png|jpe?g|gif|webp)$/i.test(name)) {
-        const result = await window.api.invoke('fs:readFileBase64', { path })
+        const result = await window.api.invoke('fs:readFileBase64', { tabId, path })
         if (!('error' in result)) {
           setImages((prev) => [
             ...prev,
@@ -128,7 +128,7 @@ export function Composer({
           : [...prev, { id: crypto.randomUUID(), path, name }]
       )
     }
-  }, [])
+  }, [tabId])
 
   const attachViaDialog = async (): Promise<void> => {
     const paths = await window.api.pickFiles()

@@ -16,9 +16,16 @@ export function openPath(path: string): void {
   else fire('xdg-open', [path])
 }
 
-/** Open a URL in the default browser. */
+/** Open a URL in the default browser.
+ *
+ *  Windows goes through rundll32's protocol handler rather than
+ *  `cmd /c start`: cmd re-parses its arguments and treats `&` as a command
+ *  separator, which Node's quoting does not escape. That both truncated any
+ *  URL with a query string and turned `…?a=1&calc` into a command execution.
+ *  rundll32 is a plain CreateProcess call with no shell in the middle. */
 export function openUrl(url: string): void {
-  if (IS_WIN) fire('cmd.exe', ['/c', 'start', '', url])
+  if (!/^https?:\/\//i.test(url)) return
+  if (IS_WIN) fire('rundll32.exe', ['url.dll,FileProtocolHandler', url])
   else if (IS_MAC) fire('open', [url])
   else fire('xdg-open', [url])
 }
@@ -34,9 +41,13 @@ export function openTerminalWith(command: string, cwd?: string): void {
   if (IS_WIN) {
     fire('cmd.exe', ['/c', 'start', 'cmd', '/k', command], cwd)
   } else if (IS_MAC) {
+    // Build the shell line first, then escape it as one AppleScript string
+    // literal — interpolating `command` straight into the quoted script broke
+    // on any quote it contained.
+    const line = `${cwd ? `cd ${JSON.stringify(cwd)} && ` : ''}${command}`
     fire('osascript', [
       '-e',
-      `tell application "Terminal" to do script "${cwd ? `cd ${JSON.stringify(cwd)} && ` : ''}${command}"`,
+      `tell application "Terminal" to do script ${JSON.stringify(line)}`,
       '-e',
       'tell application "Terminal" to activate'
     ])

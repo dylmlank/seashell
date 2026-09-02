@@ -66,7 +66,7 @@ export interface Invokes {
   ) => void
 
   'dialog:pickFolder': () => string | null
-  'fs:readFile': (a: { path: string }) => { content: string } | { error: string }
+  'fs:readFile': (a: { tabId: string; path: string }) => { content: string } | { error: string }
 
   'app:openDataFolder': () => void
   'previews:clearCache': () => { ok: true } | { error: string }
@@ -129,6 +129,7 @@ export interface Invokes {
   'fs:listDir': (a: { tabId: string; rel: string }) => { entries: DirEntry[] } | { error: string }
   'fs:listFiles': (a: { tabId: string }) => { files: string[] } | { error: string }
   'fs:readFileBase64': (a: {
+    tabId: string
     path: string
   }) => { data: string; mediaType: string } | { error: string }
   'fs:writeFile': (a: {

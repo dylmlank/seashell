@@ -15,7 +15,29 @@ import { ensureRetrospectiveSkill } from './retrospective'
 import { sessionManager, setBroadcast } from './session-manager'
 import { usageStore } from './usage-store'
 
+// The Rust shell generates this per launch and hands it to both sides. Refuse
+// to run without it: an unsecreted sidecar exposes the whole handler table —
+// session:create, fs:writeFile, the lot — to anything that can reach the port.
 const secret = process.env.SIDECAR_SECRET ?? ''
+if (!secret) {
+  console.error(
+    '[sidecar] refusing to start: SIDECAR_SECRET is not set. ' +
+      'Launch via the Tauri shell (bun run dev), or set it yourself for a standalone run.'
+  )
+  process.exit(1)
+}
+
+// WebSocket upgrades are not subject to CORS, so any page in any browser on
+// this machine may try ws://127.0.0.1:<port>. A browser always sends Origin;
+// our webview sends its own scheme, and non-browser clients (the test suite)
+// send none. The secret is still the real gate — this is defence in depth.
+const ALLOWED_ORIGINS = new Set([
+  'tauri://localhost', // macOS / Linux production webview
+  'http://tauri.localhost', // Windows WebView2 production
+  'https://tauri.localhost',
+  'http://localhost:5173', // vite dev server
+  'http://127.0.0.1:5173'
+])
 
 interface WireRequest {
   id: number
@@ -42,7 +64,11 @@ const server = Bun.serve({
   port: Number(process.env.SIDECAR_PORT ?? 0),
   fetch(req, srv) {
     const url = new URL(req.url)
-    if (secret && url.searchParams.get('s') !== secret) {
+    if (url.searchParams.get('s') !== secret) {
+      return new Response('forbidden', { status: 403 })
+    }
+    const origin = req.headers.get('origin')
+    if (origin !== null && !ALLOWED_ORIGINS.has(origin)) {
       return new Response('forbidden', { status: 403 })
     }
     if (srv.upgrade(req)) return undefined

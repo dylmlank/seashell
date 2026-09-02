@@ -1,5 +1,6 @@
 import { spawnSync } from 'child_process'
-import { existsSync, readFileSync, writeFileSync, rmSync } from 'fs'
+import { existsSync, readFileSync, rmSync } from 'fs'
+import { writeFileAtomicSync } from './atomic-write'
 import { join } from 'path'
 import { userDataDir } from './paths'
 
@@ -117,7 +118,7 @@ function save(field: keyof SecretsFile, value: string): boolean {
   if (!blob) return false
   const data = readSecrets()
   data[field] = blob
-  writeFileSync(file(), JSON.stringify(data))
+  writeFileAtomicSync(file(), JSON.stringify(data))
   return true
 }
 
@@ -129,7 +130,7 @@ function clear(field: keyof SecretsFile): void {
   if (Object.keys(data).length === 0) {
     if (existsSync(file())) rmSync(file())
   } else {
-    writeFileSync(file(), JSON.stringify(data))
+    writeFileAtomicSync(file(), JSON.stringify(data))
   }
 }
 

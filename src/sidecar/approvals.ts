@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import { resolve } from 'path'
 import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk'
 import { notifyIfUnfocused } from './notify'
 import type { Events } from '../shared/ipc-contract'
@@ -77,6 +78,23 @@ export const approvals = {
     } else {
       entry.resolve(result)
     }
+  },
+
+  /** Is this path the subject of an approval this tab is currently waiting on?
+   *  The approval UI has to render a diff against the file Claude is about to
+   *  write, and that file is legitimately allowed to sit outside the project
+   *  (Claude editing ~/.claude/settings.json, say) — so the read guard in
+   *  ipc.ts consults this instead of refusing every out-of-project read. */
+  isPendingPath(tabId: string, absPath: string): boolean {
+    const target = resolve(absPath)
+    for (const entry of pending.values()) {
+      if (entry.tabId !== tabId) continue
+      for (const key of ['file_path', 'path', 'notebook_path']) {
+        const value = entry.input[key]
+        if (typeof value === 'string' && resolve(value) === target) return true
+      }
+    }
+    return false
   },
 
   cancelAll(tabId: string): void {

@@ -1,7 +1,7 @@
 {
   "name": "seashell",
   "version": "0.1.0",
-  "description": "Desktop UI for Claude Code \u00e2\u20ac\u201d Tauri + Bun. Chat, editor, terminal, approvals, history, usage.",
+  "description": "Desktop UI for Claude Code \u2014 Tauri + Bun. Chat, editor, terminal, approvals, history, usage.",
   "author": "Dylan",
   "scripts": {
     "format": "prettier --write .",

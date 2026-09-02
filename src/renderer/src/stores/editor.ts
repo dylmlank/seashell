@@ -57,7 +57,7 @@ export const useEditor = create<EditorStore>((set, get) => ({
     } else {
       const cwd = cwdOf(tabId)
       const result = cwd
-        ? await window.api.invoke('fs:readFile', { path: `${cwd}/${rel}` })
+        ? await window.api.invoke('fs:readFile', { tabId, path: `${cwd}/${rel}` })
         : { error: 'Session not found' }
       buf =
         'error' in result
@@ -155,7 +155,7 @@ export async function reloadFromDisk(tabId: string, filePath: string): Promise<v
     (b) => !b.error && normalized.endsWith(b.rel.replace(/\\/g, '/').toLowerCase())
   )
   if (!buf || buf.text !== buf.savedText) return
-  const result = await window.api.invoke('fs:readFile', { path: `${cwd}/${buf.rel}` })
+  const result = await window.api.invoke('fs:readFile', { tabId, path: `${cwd}/${buf.rel}` })
   if ('error' in result) return
   useEditor.setState((s) => {
     const cur = s.byTab[tabId]
