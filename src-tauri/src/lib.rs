@@ -233,12 +233,13 @@ async fn capture_url(
             .map(|d| d.as_millis())
             .unwrap_or(0)
     );
-    let window = tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::External(parsed))
-        .visible(false)
-        .skip_taskbar(true)
-        .inner_size(width, height)
-        .build()
-        .map_err(|e| e.to_string())?;
+    let window =
+        tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::External(parsed))
+            .visible(false)
+            .skip_taskbar(true)
+            .inner_size(width, height)
+            .build()
+            .map_err(|e| e.to_string())?;
 
     // Give the page time to load and settle (fonts, first paint, dev-server HMR).
     let _ = tauri::async_runtime::spawn_blocking(|| {

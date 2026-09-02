@@ -1,0 +1,4 @@
+The sidecar bundle is built into this directory by `bun run build:sidecar`
+and is not committed. Tauri's build script resolves `resources/sidecar/` at
+compile time, though, so the directory itself has to exist in a fresh clone —
+hence this file.
