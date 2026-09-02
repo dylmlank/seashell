@@ -11,6 +11,7 @@ import { approvals } from './approvals'
 import { auth } from './auth'
 import { changes } from './changes'
 import { AsyncQueue } from './async-queue'
+import { budget } from './budget'
 import { loadDesktopMcpServers } from './desktop-mcp'
 import { notifyIfUnfocused } from './notify'
 import { OPENROUTER_BASE_URL } from './openrouter'
@@ -605,6 +606,11 @@ class SessionHandle {
           costUsd: costDelta,
           turns: 1
         })
+        // Checked after the day bucket is folded in, so the daily figure the
+        // user is warned about is the one they'd see in the usage panel.
+        for (const alert of budget.evaluate(this.sdkSessionId ?? this.tabId, this.usage.costUsd)) {
+          broadcast('budget:alert', alert)
+        }
         this.send({
           kind: 'turn_result',
           usage: { ...this.usage },

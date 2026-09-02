@@ -15,6 +15,7 @@ import { SettingsView } from './components/SettingsView'
 import { Sidebar } from './components/Sidebar'
 import { Toaster } from './components/Toaster'
 import { UpdateBanner } from './components/UpdateBanner'
+import { BudgetBanner } from './components/BudgetBanner'
 import { UsagePanel } from './components/UsagePanel'
 import { useUi } from './stores/ui'
 
@@ -328,6 +329,7 @@ export default function App(): React.JSX.Element {
   return (
     <div className="flex h-full flex-col">
       <UpdateBanner />
+      <BudgetBanner />
       <div className="flex min-h-0 flex-1">
         <Sidebar
           changesOpen={changesOpen}

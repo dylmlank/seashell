@@ -5,6 +5,7 @@ import { extname, join } from 'path'
 import type { Invokes } from '../shared/ipc-contract'
 import { approvals } from './approvals'
 import { auth } from './auth'
+import { budget } from './budget'
 import { changes } from './changes'
 import { userCommands } from './commands'
 import { startDictation } from './dictation'
@@ -150,7 +151,12 @@ export const handlers: { [C in SidecarChannel]: Handler<C> } = {
   },
 
   'settings:get': () => settingsStore.get(),
-  'settings:set': (a) => settingsStore.set(a),
+  'settings:set': (a) => {
+    const next = settingsStore.set(a)
+    // A freshly raised (or lowered) limit should be able to alert again.
+    if ('dailyBudgetUsd' in a || 'sessionBudgetUsd' in a) budget.reset()
+    return next
+  },
 
   'changes:list': (a) => {
     const h = sessionManager.get(a.tabId)

@@ -98,6 +98,40 @@ function AccountSection(): React.JSX.Element {
   )
 }
 
+/** A dollar limit, or blank for "don't warn me". Kept as local text while the
+ *  user types so a half-typed "1." doesn't round-trip as NaN. */
+function BudgetInput({
+  value,
+  onChange
+}: {
+  value: number | null
+  onChange: (next: number | null) => void
+}): React.JSX.Element {
+  const [draft, setDraft] = useState(value === null ? '' : String(value))
+
+  const commit = (raw: string): void => {
+    const trimmed = raw.trim()
+    if (!trimmed) return onChange(null)
+    const parsed = Number(trimmed)
+    onChange(Number.isFinite(parsed) && parsed > 0 ? parsed : null)
+  }
+
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="text-sm text-text-dim">$</span>
+      <input
+        inputMode="decimal"
+        value={draft}
+        placeholder="off"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => commit(draft)}
+        onKeyDown={(e) => e.key === 'Enter' && commit(draft)}
+        className="w-20 rounded-lg border border-border bg-surface-2 px-2 py-1 text-sm outline-none focus:border-accent-dim"
+      />
+    </span>
+  )
+}
+
 function Row({
   label,
   hint,
@@ -501,6 +535,24 @@ export function SettingsView({ onClose }: { onClose: () => void }): React.JSX.El
                 <option value="100000">100k tokens</option>
                 <option value="140000">140k tokens</option>
               </select>
+            </Row>
+            <Row
+              label="Daily spend warning"
+              hint="Warn once at 80% and again when today's total crosses this. Advisory only — a running turn is never interrupted."
+            >
+              <BudgetInput
+                value={settings.dailyBudgetUsd}
+                onChange={(dailyBudgetUsd) => void updateSettings({ dailyBudgetUsd })}
+              />
+            </Row>
+            <Row
+              label="Per-session spend warning"
+              hint="Same, for a single conversation's running total."
+            >
+              <BudgetInput
+                value={settings.sessionBudgetUsd}
+                onChange={(sessionBudgetUsd) => void updateSettings({ sessionBudgetUsd })}
+              />
             </Row>
           </div>
 

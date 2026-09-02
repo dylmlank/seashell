@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { invoke as tauriInvoke } from '@tauri-apps/api/core'
 
 interface Props {
   children: ReactNode
@@ -6,13 +7,14 @@ interface Props {
 interface State {
   error: Error | null
   stack: string
+  copied: boolean
 }
 
 /** Without this, a single render throw anywhere in the tree leaves the user
  *  staring at a blank window with no way to tell us what happened — and with
  *  no crash reporting, no way for us to find out either. */
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { error: null, stack: '' }
+  state: State = { error: null, stack: '', copied: false }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return { error }
@@ -23,9 +25,11 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('[ui] render crashed:', error, info.componentStack)
   }
 
-  private report = (): void => {
+  /** Everything useful about the crash, and nothing else. No project paths,
+   *  no conversation content — a stack trace and a build id. */
+  private diagnostics(): string {
     const { error, stack } = this.state
-    const body = [
+    return [
       `Seashell ${__APP_VERSION__} — ${navigator.userAgent}`,
       '',
       `${error?.name}: ${error?.message}`,
@@ -34,7 +38,24 @@ export class ErrorBoundary extends Component<Props, State> {
       'Component stack:',
       stack
     ].join('\n')
-    void navigator.clipboard.writeText(body)
+  }
+
+  private copy = (): void => {
+    void navigator.clipboard.writeText(this.diagnostics())
+    this.setState({ copied: true })
+  }
+
+  /** There's no telemetry endpoint and there shouldn't be one — an app that
+   *  reads your source has no business phoning home. Reporting is a prefilled
+   *  issue instead: the user sees exactly what is sent, and sends it. */
+  private report = (): void => {
+    const title = `Crash: ${this.state.error?.message ?? 'unknown'}`.slice(0, 120)
+    // GitHub truncates long query strings; keep the body well under the limit.
+    const body = `**What I was doing:**\n\n_(please describe)_\n\n\`\`\`\n${this.diagnostics().slice(0, 5000)}\n\`\`\``
+    const url =
+      'https://github.com/dylmlank/seashell/issues/new' +
+      `?labels=crash&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`
+    void tauriInvoke('open_external', { url })
   }
 
   render(): ReactNode {
@@ -62,7 +83,13 @@ export class ErrorBoundary extends Component<Props, State> {
             className="rounded border border-white/15 px-3 py-1.5 text-sm"
             onClick={this.report}
           >
-            Copy diagnostics
+            Report on GitHub
+          </button>
+          <button
+            className="rounded border border-white/15 px-3 py-1.5 text-sm"
+            onClick={this.copy}
+          >
+            {this.state.copied ? 'Copied' : 'Copy diagnostics'}
           </button>
         </div>
       </div>

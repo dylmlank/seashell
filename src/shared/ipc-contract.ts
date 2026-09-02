@@ -3,6 +3,7 @@ import type {
   AppSettings,
   AuthState,
   BranchInfo,
+  BudgetAlert,
   ChangedFile,
   ContextBreakdown,
   DayUsage,
@@ -224,6 +225,8 @@ export interface Events {
   'notify': { title: string; body: string }
   /** Fresh plan rate-limit snapshot (from rate_limit_events or usage fetches). */
   'limits:update': PlanLimits
+  /** A spend threshold was crossed. Advisory — the turn is not interrupted. */
+  'budget:alert': BudgetAlert
 }
 
 export type InvokeChannel = keyof Invokes
@@ -237,5 +240,6 @@ export const EVENT_CHANNELS: EventChannel[] = [
   'auth:state',
   'usage:update',
   'notify',
-  'limits:update'
+  'limits:update',
+  'budget:alert'
 ]
