@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS } from '../src/shared/default-settings'
 // answer. Both shipped off, so out of the box it did neither — these pin the
 // behaviour to the intent.
 
-test('a retrospective runs after every answer by default', () => {
+test('the retrospective is on by default', () => {
   expect(DEFAULT_SETTINGS.autoRetrospective).toBe(true)
 })
 
@@ -20,12 +20,10 @@ test('auto-compact is on by default', () => {
   expect(DEFAULT_SETTINGS.autoCompact).toBe(true)
 })
 
-test('compact stays threshold-based, above the floor the code enforces', () => {
-  // Compacting a small context spends a call to save less than it costs, so
-  // the threshold has to clear COMPACT_MIN_CONTEXT (30k) to mean anything.
+test('compact and retro share one trigger, above the floor the code enforces', () => {
+  // Below COMPACT_MIN_CONTEXT (30k) the trigger would never fire at all.
   expect(DEFAULT_SETTINGS.compactThreshold).toBeGreaterThan(30_000)
-  // ...but low enough to actually fire in a normal session.
-  expect(DEFAULT_SETTINGS.compactThreshold).toBeLessThanOrEqual(60_000)
+  expect(DEFAULT_SETTINGS.compactThreshold).toBe(100_000)
 })
 
 test('every setting has a default — a missing one reads as undefined at runtime', async () => {

@@ -22,17 +22,23 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // keep the context from bloating. Both of these shipped off, which meant the
   // feature the project exists for was one nobody would ever find.
   autoRetrospective: true,
-  // "After every response" means every response, not only ones that touched
-  // files — a decision, a preference or a dead end is worth remembering even
-  // when nothing was written.
+  // Not limited to turns that touched files — a decision or a dead end is
+  // worth remembering even when nothing was written.
   retroOnlyAfterEdits: false,
   autoCompact: true,
-  // Compact stays threshold-based rather than every-turn on purpose.
-  // Summarising a 5k context spends a whole call to save almost nothing and
-  // throws away detail there was still room for — it costs more than it saves.
-  // 40k is roughly where the savings on later turns clear the price of the
-  // call that makes them.
-  compactThreshold: 40_000,
+  /** The single trigger for both follow-ups.
+   *
+   *  A retrospective after literally every answer costs an extra full-context
+   *  call per turn, and its prompt and reply then ride along in the context
+   *  for every turn after — so the price compounds. Sharing compact's
+   *  threshold turns that into one extra call per ~100k of accumulated
+   *  context, which is the difference between roughly double the baseline
+   *  spend and a few percent over it.
+   *
+   *  The cost is recall granularity, not tokens: one retrospective covers many
+   *  exchanges instead of each one, so finer detail is likelier to be missed.
+   */
+  compactThreshold: 100_000,
 
   importDesktopMcp: true,
   autoScreenshots: true,
