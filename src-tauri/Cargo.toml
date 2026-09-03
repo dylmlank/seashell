@@ -1,6 +1,6 @@
 [package]
 name = "seashell"
-version = "0.2.0"
+version = "0.2.1"
 description = "Desktop UI for Claude Code"
 edition = "2021"
 
