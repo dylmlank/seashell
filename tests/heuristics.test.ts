@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { smartModelChoice, smartThinkingLevel } from '../src/sidecar/session-heuristics'
+import {
+  nextRetroLatch,
+  retroDue,
+  smartModelChoice,
+  smartThinkingLevel
+} from '../src/sidecar/session-heuristics'
 
 const OPUS = 'claude-opus-4-8[1m]'
 
@@ -51,5 +56,36 @@ describe('smartModelChoice', () => {
 
   test('hard debugging with code routes to the preferred model', () => {
     expect(smartModelChoice('why does this throw? ```ts\nx()\n``` debug it', OPUS)).toBe(OPUS)
+  })
+})
+
+describe('retro/compact trigger', () => {
+  const T = 100_000
+
+  test('stays quiet below the threshold', () => {
+    expect(retroDue(99_000, T, 0)).toBe(false)
+  })
+
+  test('fires when the context reaches it', () => {
+    expect(retroDue(100_000, T, 0)).toBe(true)
+  })
+
+  test('does not fire again on the next turn just for still being big', () => {
+    // The bug this latch exists to prevent: context stays above the mark until
+    // a compact brings it down, so a bare >= test would retro every turn.
+    const latch = nextRetroLatch(100_000, T)
+    expect(retroDue(105_000, T, latch)).toBe(false)
+    expect(retroDue(150_000, T, latch)).toBe(false)
+  })
+
+  test('a session that never compacts still retros once per threshold of growth', () => {
+    const latch = nextRetroLatch(100_000, T)
+    expect(retroDue(200_000, T, latch)).toBe(true)
+  })
+
+  test('after a compact drops the context, the plain threshold applies again', () => {
+    // A finished compact resets the latch to 0.
+    expect(retroDue(20_000, T, 0)).toBe(false)
+    expect(retroDue(100_000, T, 0)).toBe(true)
   })
 })

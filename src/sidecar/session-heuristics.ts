@@ -69,3 +69,22 @@ export function smartModelChoice(text: string, preferred: string): string {
   if (hasBuildIntent(text)) return preferred
   return grade === 'off' ? 'haiku' : 'sonnet'
 }
+
+/** When the answer → retrospective → compact cycle is due.
+ *
+ *  Both follow-ups fire off one trigger: the context reaching the threshold.
+ *  That needs a latch, because context stays above the mark until a compact
+ *  brings it down — a bare `>= threshold` test would run a retrospective on
+ *  every turn once the session got big, which is the per-turn cost the shared
+ *  trigger exists to avoid.
+ */
+export function retroDue(contextTokens: number, threshold: number, nextRetroAt: number): boolean {
+  return contextTokens >= Math.max(threshold, nextRetroAt)
+}
+
+/** Where the bar moves after a retrospective runs: another threshold's worth
+ *  of growth away, so a session that never compacts still retros periodically
+ *  instead of either spamming or going silent forever. */
+export function nextRetroLatch(contextTokens: number, threshold: number): number {
+  return contextTokens + threshold
+}

@@ -12,7 +12,13 @@ import { auth } from './auth'
 import { changes } from './changes'
 import { AsyncQueue } from './async-queue'
 import { budget } from './budget'
-import { smartModelChoice, smartThinkingLevel, THINKING_BUDGETS } from './session-heuristics'
+import {
+  nextRetroLatch,
+  retroDue,
+  smartModelChoice,
+  smartThinkingLevel,
+  THINKING_BUDGETS
+} from './session-heuristics'
 import { SELF_EXTEND_PROMPT, STYLE_PROMPTS } from './session-prompts'
 import { loadDesktopMcpServers } from './desktop-mcp'
 import { notifyIfUnfocused } from './notify'
@@ -76,10 +82,11 @@ class SessionHandle {
   private turnPhase: 'user' | 'retro' | 'compact' = 'user'
   /** Skip auto-compact below this many context tokens — compacting tiny contexts wastes quota. */
   private static readonly COMPACT_MIN_CONTEXT = 30_000
-  /** The retrospective runs here when the context is small enough that the
-   *  model saving beats the uncached re-read a switch costs. */
+  /** Where the retrospective runs when switching is worth it. */
   private static readonly RETRO_MODEL = 'haiku'
-  private static readonly RETRO_CHEAP_MAX_CONTEXT = 60_000
+  /** Session models whose cache-read rate exceeds Haiku's base input rate —
+   *  the only ones where moving the retrospective off them actually saves. */
+  private static readonly RETRO_WORTH_SWITCHING = /opus/i
   /** Whether the current turn changed anything (files/commands). Read-only turns
    *  have nothing worth remembering, so the retrospective call can be skipped. */
   private turnHadMutations = false
@@ -101,6 +108,9 @@ class SessionHandle {
   private appliedModel?: string
   /** Session model parked while the retrospective runs on a cheap one. */
   private modelBeforeRetro?: string
+  /** Context level the next retrospective is owed at; 0 means "just the
+   *  threshold". Raised after each retro, reset by a compact. */
+  private nextRetroAt = 0
   /** Whether a user message has ever been sent (guards the ready broadcast). */
   private everSent = false
   private usage: UsageTotals = {
@@ -674,8 +684,16 @@ class SessionHandle {
       return false
     }
     if (this.turnPhase === 'user') {
-      if (settings.autoRetrospective && (!settings.retroOnlyAfterEdits || this.turnHadMutations)) {
+      // Retro and compact share one trigger, and the order matters: the
+      // retrospective has to read the exchanges before compact folds them into
+      // a summary.
+      if (
+        settings.autoRetrospective &&
+        this.retroDue() &&
+        (!settings.retroOnlyAfterEdits || this.turnHadMutations)
+      ) {
         this.turnPhase = 'retro'
+        this.nextRetroAt = nextRetroLatch(this.usage.lastContextTokens, this.compactAt())
         this.enterRetroModel()
         this.send({ kind: 'cycle', phase: 'retro' })
         this.pushText(RETRO_PROMPT)
@@ -702,7 +720,9 @@ class SessionHandle {
       this.send({ kind: 'cycle', phase: null })
       return false
     }
-    // compact finished
+    // compact finished — the context just dropped, so the next retrospective
+    // is due at the plain threshold again.
+    this.nextRetroAt = 0
     this.turnPhase = 'user'
     this.send({ kind: 'cycle', phase: null })
     return false
@@ -710,18 +730,21 @@ class SessionHandle {
 
   /** Run the retrospective on a cheap model instead of the session's.
    *
-   *  It's a three-line memory-capture task, but it inherits whatever the
-   *  session is set to — so on Opus it roughly doubles the cost of every
-   *  answer, which is the opposite of what an always-on feature should do.
+   *  It's a three-line memory-capture task that inherits whatever the session
+   *  is set to, and it always runs on a large context — so the model it lands
+   *  on matters.
    *
-   *  The catch is the same one smart routing already knows about: switching
-   *  models re-reads the context uncached, so below a certain size the model
-   *  saving wins and above it the cache miss does. Big sessions stay put.
+   *  Whether switching pays is a question of rates, not context size. The
+   *  switch reads the context uncached, so it's worth it only when the cheap
+   *  model's input rate is below the session model's *cache-read* rate (a
+   *  tenth of its base). That holds against Opus and not against Sonnet, whose
+   *  cache reads are already cheaper than Haiku's base rate. Switching back
+   *  costs nothing: the session model's cached prefix is still warm.
    */
   private enterRetroModel(): void {
-    if (this.usage.lastContextTokens > SessionHandle.RETRO_CHEAP_MAX_CONTEXT) return
     const current = this.appliedModel ?? this.preferredModel
     if (!current || current === SessionHandle.RETRO_MODEL) return
+    if (!SessionHandle.RETRO_WORTH_SWITCHING.test(current)) return
     this.modelBeforeRetro = current
     this.appliedModel = SessionHandle.RETRO_MODEL
     void this.q.setModel(SessionHandle.RETRO_MODEL).catch(() => {})
@@ -736,12 +759,24 @@ class SessionHandle {
     void this.q.setModel(target).catch(() => {})
   }
 
+  private compactAt(): number {
+    return Math.max(settingsStore.get().compactThreshold, SessionHandle.COMPACT_MIN_CONTEXT)
+  }
+
   private shouldAutoCompact(enabled: boolean): boolean {
-    const threshold = Math.max(
-      settingsStore.get().compactThreshold,
-      SessionHandle.COMPACT_MIN_CONTEXT
-    )
-    return enabled && this.usage.lastContextTokens >= threshold
+    return enabled && this.usage.lastContextTokens >= this.compactAt()
+  }
+
+  /** Is a retrospective owed?
+   *
+   *  Sharing compact's threshold needs a latch. Context stays above the mark
+   *  until a compact brings it down, so a bare `>= threshold` test would fire
+   *  a retrospective on every single turn once the session got big — the exact
+   *  per-turn cost this trigger exists to avoid. After each one the bar moves
+   *  up by another threshold's worth of growth, and a compact resets it.
+   */
+  private retroDue(): boolean {
+    return retroDue(this.usage.lastContextTokens, this.compactAt(), this.nextRetroAt)
   }
 
   private pushText(text: string): void {
