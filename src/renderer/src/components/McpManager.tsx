@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2, Loader2, Plus, Plug, Trash2, X, XCircle } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { CheckCircle2, Library, Loader2, Plug, Plus, Trash2, X, XCircle } from 'lucide-react'
 import clsx from 'clsx'
 import type { McpCheckResult, McpServerEntry } from '@shared/types'
+import { availableCatalog, catalogToEntry } from '@shared/mcp-catalog'
 import { useSessions } from '../stores/sessions'
 import { useUi } from '../stores/ui'
 
@@ -141,6 +142,10 @@ export function McpManager({ tabId, onClose }: { tabId: string; onClose: () => v
     null
   )
   const [checks, setChecks] = useState<Record<string, McpCheckResult | 'running'>>({})
+  const [browsing, setBrowsing] = useState(false)
+  // Hide anything already configured — offering to add a server listed
+  // directly above is just noise.
+  const available = useMemo(() => availableCatalog(servers), [servers])
   const toast = useUi((s) => s.toast)
 
   // Servers the live session actually connected to, which is a different
@@ -314,18 +319,88 @@ export function McpManager({ tabId, onClose }: { tabId: string; onClose: () => v
           )}
         </div>
 
+        {browsing && (
+          <div className="border-t border-border pt-3">
+            <p className="pb-2 text-xs text-text-dim">
+              A starting set of well-known servers. Adding one opens it in the editor first, so
+              you can read the command — and fill in any path it needs — before it&apos;s saved.
+            </p>
+            {available.length === 0 ? (
+              <p className="py-3 text-center text-sm text-text-dim">
+                Everything in the catalog is already configured here.
+              </p>
+            ) : (
+              <div className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
+                {available.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-start gap-3 rounded-xl border border-border bg-bg p-2.5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{item.title}</span>
+                        {item.needsEditing && (
+                          <span className="rounded bg-amber-900/40 px-1.5 py-0.5 text-[10px] text-amber-300">
+                            needs a path
+                          </span>
+                        )}
+                      </div>
+                      <p className="pt-0.5 text-xs text-text-dim">{item.blurb}</p>
+                      <p className="truncate pt-1 font-mono text-[11px] text-text-dim/70">
+                        {[item.command, ...item.args].join(' ')}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <button
+                        onClick={() => {
+                          setBrowsing(false)
+                          setEditing({ entry: catalogToEntry(item) })
+                        }}
+                        className="rounded-lg bg-accent px-2.5 py-1 text-xs font-medium text-white hover:bg-accent-dim"
+                      >
+                        Add
+                      </button>
+                      {/* A plain anchor on purpose: api.ts intercepts every
+                          http(s) link click and routes it through the
+                          open_external command, so this opens in the real
+                          browser rather than navigating the app's webview. */}
+                      <a
+                        href={item.docs}
+                        className="text-[11px] text-text-dim hover:text-text"
+                      >
+                        Docs
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 border-t border-border pt-3">
           <p className="text-xs text-text-dim">
             Saved to the project&apos;s <code>.mcp.json</code>, so the CLI picks them up too.
             Disabling moves a server out of that file rather than flagging it, so nothing loads it.
           </p>
           {!editing && (
-            <button
-              onClick={() => setEditing({ entry: BLANK })}
-              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-dim"
-            >
-              <Plus size={14} /> Add server
-            </button>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <button
+                onClick={() => setBrowsing((v) => !v)}
+                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-dim hover:text-text"
+              >
+                <Library size={14} /> {browsing ? 'Hide catalog' : 'Browse'}
+              </button>
+              <button
+                onClick={() => {
+                  setBrowsing(false)
+                  setEditing({ entry: BLANK })
+                }}
+                className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-dim"
+              >
+                <Plus size={14} /> Add server
+              </button>
+            </div>
           )}
         </div>
       </div>
