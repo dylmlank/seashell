@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { AppSettings } from '@shared/types'
+import { DEFAULT_SETTINGS } from '@shared/default-settings'
 
 interface SettingsStore {
   settings: AppSettings
@@ -7,43 +8,8 @@ interface SettingsStore {
 }
 
 export const useSettings = create<SettingsStore>(() => ({
-  settings: {
-    defaultModel: null,
-    defaultPermissionMode: 'default',
-    defaultProvider: 'anthropic',
-    openrouterModel: null,
-    customBaseUrl: null,
-    customModel: null,
-    notifications: true,
-    allowSelfSkills: true,
-    autoCompact: false,
-    compactThreshold: 60_000,
-    autoRetrospective: false,
-    retroOnlyAfterEdits: true,
-    importDesktopMcp: true,
-    autoScreenshots: true,
-    fontSize: 'md',
-    reducedMotion: false,
-    accent: '#14b8a6',
-    theme: 'abyss',
-    terminalShell: 'cmd',
-    terminalFontSize: 13,
-    editorFontSize: 13,
-    smoothStreaming: true,
-    reopenLastProject: true,
-    chatWidth: 'wide',
-    defaultThinkingLevel: 'medium',
-    smartThinking: true,
-    smartModel: true,
-    leanSessions: false,
-    templates: [],
-    responseStyle: 'normal',
-    speakReplies: false,
-    autoTidySessions: true,
-    projectsRoot: null,
-    dailyBudgetUsd: null,
-    sessionBudgetUsd: null
-  },
+  // Placeholder until settings:get answers; the real values arrive below.
+  settings: DEFAULT_SETTINGS,
   loaded: false
 }))
 

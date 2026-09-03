@@ -25,7 +25,7 @@ jobs:
       - run: bun run lint
       # sidecar.test.ts spawns a real sidecar and is excluded on purpose;
       # everything else is pure and runs everywhere.
-      - run: bun test tests/heuristics.test.ts tests/reduce-event.test.ts tests/json-file.test.ts tests/fs-guard.test.ts tests/redact.test.ts tests/budget.test.ts tests/mcp-servers.test.ts tests/tauri-versions.test.ts
+      - run: bun test tests/heuristics.test.ts tests/reduce-event.test.ts tests/json-file.test.ts tests/fs-guard.test.ts tests/redact.test.ts tests/budget.test.ts tests/mcp-servers.test.ts tests/tauri-versions.test.ts tests/default-settings.test.ts
       # Separate process: the DOM registrar replaces globals (WebSocket among
       # them) for every file sharing a bun test run.
       - run: bun run test:ui

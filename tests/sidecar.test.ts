@@ -71,11 +71,13 @@ test('rejects a wrong secret', async () => {
   await expect(connect('WRONG')).rejects.toThrow()
 })
 
-test('settings:get returns defaults in a fresh profile', async () => {
+test('settings:get returns the shared defaults in a fresh profile', async () => {
+  // Compared against DEFAULT_SETTINGS rather than literals: hard-coding the
+  // values here just made a third copy to drift out of sync. What matters is
+  // that the wire actually hands back what the defaults say.
+  const { DEFAULT_SETTINGS } = await import('../src/shared/default-settings')
   const res = await invoke('settings:get')
-  const settings = res.result as { compactThreshold: number; retroOnlyAfterEdits: boolean }
-  expect(settings.compactThreshold).toBe(60000)
-  expect(settings.retroOnlyAfterEdits).toBe(true)
+  expect(res.result).toEqual(DEFAULT_SETTINGS)
 })
 
 test('settings:set round-trips', async () => {
