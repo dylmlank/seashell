@@ -7,8 +7,10 @@ import {
   Eye,
   Folder,
   FolderTree,
+  Gauge,
   History,
   MessagesSquare,
+  Plug,
   Radar,
   SquareTerminal,
   Waypoints,
@@ -18,7 +20,7 @@ import clsx from 'clsx'
 import { contextWindow } from '../lib/models'
 import { dispatchMessage, mergeSuggestions, useCommands } from '../stores/commands'
 import { closeTab, interrupt, useSessions, type TabState } from '../stores/sessions'
-import { useUi } from '../stores/ui'
+import { useUi, type SidePanel } from '../stores/ui'
 import { alertDialog, confirmDialog } from '../lib/dialogs'
 
 function basename(p: string): string {
@@ -39,6 +41,80 @@ import { SessionInfoPanel } from './SessionInfoPanel'
 import { SideChatPanel } from './SideChatPanel'
 import { TerminalPanel } from './TerminalPanel'
 import { WorkflowPanel } from './WorkflowPanel'
+
+type PanelId = Exclude<SidePanel, null>
+
+interface PanelDef {
+  id: PanelId
+  label: string
+  Icon: typeof FolderTree
+  title: string
+}
+
+/** The workspace panels, grouped by what you'd open them for.
+ *
+ *  Nine peers in a flat strip is the whole reason this row read as clutter —
+ *  there was no signal that Files/Editor/Terminal are one activity and
+ *  Workflow/Memory/Checkpoints are another. Declared as data rather than nine
+ *  near-identical JSX blocks so adding a tenth is one line, not a copy-paste.
+ */
+const PANEL_GROUPS: PanelDef[][] = [
+  [
+    { id: 'files', label: 'Files', Icon: FolderTree, title: 'Project files (Ctrl+B)' },
+    {
+      id: 'editor',
+      label: 'Editor',
+      Icon: Code2,
+      title: 'Code editor — open files from the Files panel or Ctrl+P'
+    },
+    {
+      id: 'terminal',
+      label: 'Terminal',
+      Icon: SquareTerminal,
+      title: 'Terminal in this folder (Ctrl+`)'
+    }
+  ],
+  [
+    {
+      id: 'workflow',
+      label: 'Workflow',
+      Icon: Waypoints,
+      title: 'How this project fits together — modules, API calls, composition'
+    },
+    {
+      id: 'memory',
+      label: 'Memory',
+      Icon: Brain,
+      title: "What Claude remembers about this project — written by the retrospective after each turn, so it's empty until one has run"
+    },
+    {
+      id: 'checkpoints',
+      label: 'Checkpoints',
+      Icon: History,
+      title: 'Checkpoints — restore your files to any earlier turn'
+    }
+  ],
+  [
+    {
+      id: 'preview',
+      label: 'Preview',
+      Icon: Eye,
+      title: 'Live preview — your dev server or the last file Claude wrote'
+    },
+    {
+      id: 'sidechat',
+      label: 'Side chat',
+      Icon: MessagesSquare,
+      title: 'Side chat — a separate conversation for quick questions'
+    },
+    {
+      id: 'mission',
+      label: 'Mission',
+      Icon: Radar,
+      title: 'Mission control — every project on your drive, its git state and its agent'
+    }
+  ]
+]
 
 export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
   const streaming = tab.status === 'streaming'
@@ -92,7 +168,7 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
       active ? 'text-accent' : 'text-text-dim hover:text-text'
     )
 
-  // The main workspace tabs — prominent, bordered, centered in the header.
+  // The workspace panel buttons — bordered, in their own row below the header.
   const tabBtn = (active: boolean): string =>
     clsx(
       'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-all',
@@ -156,72 +232,6 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             </button>
           </span>
         )}
-        {/* Workspace tabs — centered */}
-        <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2">
-          <button
-            onClick={() => setPanel('files')}
-            title="Project files (Ctrl+B)"
-            className={tabBtn(panel === 'files')}
-          >
-            <FolderTree size={14} />
-            Files
-          </button>
-          <button
-            onClick={() => setPanel('editor')}
-            title="Code editor — open files from the Files panel or Ctrl+P"
-            className={tabBtn(panel === 'editor')}
-          >
-            <Code2 size={14} />
-            Editor
-          </button>
-          <button
-            onClick={() => setPanel('terminal')}
-            title="Terminal in this folder (Ctrl+`)"
-            className={tabBtn(panel === 'terminal')}
-          >
-            <SquareTerminal size={14} />
-            Terminal
-          </button>
-          <button
-            onClick={() => setPanel('sidechat')}
-            title="Side chat — a separate conversation for quick questions"
-            className={tabBtn(panel === 'sidechat')}
-          >
-            <MessagesSquare size={14} />
-            Side chat
-          </button>
-          <button
-            onClick={() => setPanel('workflow')}
-            title="How this project fits together — modules, API calls, composition"
-            className={tabBtn(panel === 'workflow')}
-          >
-            <Waypoints size={14} />
-            Workflow
-          </button>
-          <button
-            onClick={() => {
-              setSeenArtifact(tab.lastArtifact)
-              setPanel('preview')
-            }}
-            title="Live preview — your dev server or the last file Claude wrote"
-            className={clsx(tabBtn(panel === 'preview'), 'relative')}
-          >
-            <Eye size={14} />
-            Preview
-            {panel !== 'preview' && tab.lastArtifact && tab.lastArtifact !== seenArtifact && (
-              <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
-            )}
-          </button>
-          <button
-            onClick={() => setPanel('checkpoints')}
-            title="Checkpoints — restore your files to any earlier turn"
-            className={tabBtn(panel === 'checkpoints')}
-          >
-            <History size={14} />
-            Checkpoints
-          </button>
-        </div>
-
         <span className="ml-auto flex items-center gap-1.5">
           {(tab.contextUsage ?? tab.usage) && (
             <button
@@ -231,8 +241,13 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
                   ? `Context: ${(tab.contextUsage.totalTokens / 1000).toFixed(0)}k of ${(tab.contextUsage.maxTokens / 1000).toFixed(0)}k (${tab.contextUsage.percentage.toFixed(0)}%) — click for the breakdown`
                   : 'Context window fill — click for the breakdown'
               }
-              className="mr-1.5 flex items-center gap-2 rounded-lg px-1 py-0.5 hover:bg-surface-2"
+              className="mr-1.5 flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 hover:bg-surface-2 hover:text-text"
             >
+              {/* Labelled: as a bare bar with a number beside it, nobody read
+                  this as the context tracker — it looked like a progress
+                  indicator for whatever was streaming. */}
+              <Gauge size={13} className="shrink-0" />
+              <span className="hidden sm:inline">Context</span>
               <span className="h-1 w-16 overflow-hidden rounded-full bg-surface-2">
                 <span
                   className="block h-full rounded-full bg-accent transition-all duration-500"
@@ -257,25 +272,18 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             </button>
           )}
           <button
-            onClick={() => setPanel('mission')}
-            title="Mission control — all your agents and projects"
-            className={headerBtn(panel === 'mission')}
-          >
-            <Radar size={14} />
-          </button>
-          <button
-            onClick={() => setPanel('memory')}
-            title="What Claude remembers about this project"
-            className={headerBtn(panel === 'memory')}
-          >
-            <Brain size={14} />
-          </button>
-          <button
             onClick={() => setInstructionsOpen(true)}
             title="Edit instructions for Claude (CLAUDE.md)"
             className={headerBtn(false)}
           >
             <BookOpen size={14} />
+          </button>
+          <button
+            onClick={() => useUi.getState().setMcpManager(true)}
+            title="MCP servers — add, configure and test this project's connectors"
+            className={headerBtn(false)}
+          >
+            <Plug size={14} />
           </button>
           <button
             onClick={() => setInfoOpen(true)}
@@ -285,6 +293,41 @@ export function ChatView({ tab }: { tab: TabState }): React.JSX.Element {
             <Blocks size={14} />
           </button>
         </span>
+      </div>
+
+      {/* Workspace panels get their own row.
+          They used to be absolutely centred in the header, which overlapped
+          the status text and the icon cluster the moment a worktree badge or a
+          long model name showed up — and two of the nine (Mission, Memory)
+          were unlabelled icons stranded on the right, which is why they read
+          as broken rather than merely unvisited. One strip, one treatment,
+          grouped by what they're for, scrolling instead of colliding. */}
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-3 py-1.5">
+        {PANEL_GROUPS.map((group, gi) => (
+          <div key={gi} className="flex items-center gap-1">
+            {gi > 0 && <span className="mx-1.5 h-4 w-px shrink-0 bg-border" />}
+            {group.map(({ id, label, Icon, title }) => (
+              <button
+                key={id}
+                onClick={() => {
+                  if (id === 'preview') setSeenArtifact(tab.lastArtifact)
+                  setPanel(id)
+                }}
+                title={title}
+                className={clsx(tabBtn(panel === id), 'relative shrink-0')}
+              >
+                <Icon size={14} />
+                {label}
+                {id === 'preview' &&
+                  panel !== 'preview' &&
+                  tab.lastArtifact &&
+                  tab.lastArtifact !== seenArtifact && (
+                    <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
+                  )}
+              </button>
+            ))}
+          </div>
+        ))}
       </div>
 
       {tab.error && (

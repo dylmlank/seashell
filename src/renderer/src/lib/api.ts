@@ -130,11 +130,25 @@ api.on('notify', ({ title, body }) => {
 
 // Tauri owns drag-drop (that's how we get real file paths in a webview) —
 // re-broadcast drops as a DOM event the composer picks up.
-void getCurrentWebview().onDragDropEvent((event) => {
-  if (event.payload.type === 'drop' && event.payload.paths.length) {
-    window.dispatchEvent(new CustomEvent('shell-file-drop', { detail: event.payload.paths }))
-  }
-})
+//
+// Guarded because getCurrentWebview() throws outside Tauri, and this runs at
+// import time — one throw here and the whole module graph fails, so nothing
+// renders at all rather than rendering without drag-drop.
+//
+// Note this is necessary but not sufficient to run the renderer in a plain
+// browser: `bun run dev:renderer` still comes up blank, because the bridge
+// below also needs Tauri to resolve. Making the UI inspectable outside a full
+// `tauri dev` build would mean stubbing that too, which is worth doing but
+// isn't what this guard achieves.
+try {
+  void getCurrentWebview().onDragDropEvent((event) => {
+    if (event.payload.type === 'drop' && event.payload.paths.length) {
+      window.dispatchEvent(new CustomEvent('shell-file-drop', { detail: event.payload.paths }))
+    }
+  })
+} catch {
+  // Not running inside Tauri — drag-drop of real paths is unavailable.
+}
 
 // External links in chat markdown open in the default browser, not the webview.
 document.addEventListener('click', (e) => {
