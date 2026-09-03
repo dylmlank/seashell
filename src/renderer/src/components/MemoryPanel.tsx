@@ -110,8 +110,17 @@ export function MemoryPanel({ tabId }: { tabId: string }): React.JSX.Element {
         </div>
       ) : (files ?? []).length === 0 ? (
         <p className="p-4 text-xs leading-relaxed text-text-dim">
-          Nothing remembered for this project yet. Claude writes memories here as you work
-          (retrospectives, preferences, project facts).
+          Nothing remembered for this project yet.
+          <br />
+          <br />
+          {/* This used to promise memories appear "as you work", which was
+              untrue in two ways: auto-retrospective shipped disabled, and it
+              now runs on a context threshold rather than every turn. An empty
+              panel with no explanation reads as a broken feature. */}
+          A retrospective writes here once this session&apos;s context reaches the compact
+          threshold — so a short session may never trigger one. You can also ask Claude to
+          remember something directly, or run <span className="font-mono">/compact</span> to
+          trigger the cycle now.
         </p>
       ) : (
         <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2">
