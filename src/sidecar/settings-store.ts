@@ -1,46 +1,11 @@
 import { writeFileAtomicSync } from './atomic-write'
 import { join } from 'path'
 import type { AppSettings } from '../shared/types'
+import { DEFAULT_SETTINGS as DEFAULTS } from '../shared/default-settings'
 import { readJsonFile } from './json-file'
 import { userDataDir } from './paths'
 
-const DEFAULTS: AppSettings = {
-  defaultModel: null,
-  defaultPermissionMode: 'default',
-  defaultProvider: 'anthropic',
-  openrouterModel: null,
-  customBaseUrl: null,
-  customModel: null,
-  notifications: true,
-  allowSelfSkills: true,
-  autoCompact: false,
-  compactThreshold: 60_000,
-  autoRetrospective: false,
-  retroOnlyAfterEdits: true,
-  importDesktopMcp: true,
-  autoScreenshots: true,
-  fontSize: 'md',
-  reducedMotion: false,
-  accent: '#14b8a6',
-  theme: 'abyss',
-  terminalShell: 'cmd',
-  terminalFontSize: 13,
-  editorFontSize: 13,
-  smoothStreaming: true,
-  reopenLastProject: true,
-  chatWidth: 'wide',
-  defaultThinkingLevel: 'medium',
-  smartThinking: true,
-  smartModel: true,
-  leanSessions: false,
-  templates: [],
-  responseStyle: 'normal',
-  speakReplies: false,
-  autoTidySessions: true,
-  projectsRoot: null,
-  dailyBudgetUsd: null,
-  sessionBudgetUsd: null
-}
+
 
 const file = (): string => join(userDataDir(), 'settings.json')
 

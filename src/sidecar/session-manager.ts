@@ -76,6 +76,10 @@ class SessionHandle {
   private turnPhase: 'user' | 'retro' | 'compact' = 'user'
   /** Skip auto-compact below this many context tokens — compacting tiny contexts wastes quota. */
   private static readonly COMPACT_MIN_CONTEXT = 30_000
+  /** The retrospective runs here when the context is small enough that the
+   *  model saving beats the uncached re-read a switch costs. */
+  private static readonly RETRO_MODEL = 'haiku'
+  private static readonly RETRO_CHEAP_MAX_CONTEXT = 60_000
   /** Whether the current turn changed anything (files/commands). Read-only turns
    *  have nothing worth remembering, so the retrospective call can be skipped. */
   private turnHadMutations = false
@@ -95,6 +99,8 @@ class SessionHandle {
    *  simpler messages drop to sonnet/haiku. */
   private preferredModel?: string
   private appliedModel?: string
+  /** Session model parked while the retrospective runs on a cheap one. */
+  private modelBeforeRetro?: string
   /** Whether a user message has ever been sent (guards the ready broadcast). */
   private everSent = false
   private usage: UsageTotals = {
@@ -553,6 +559,9 @@ class SessionHandle {
             totals: { ...this.usage }
           })
         }
+        // advanceTurnCycle mutates turnPhase, so anything that wants to know
+        // which phase just *finished* has to read it first.
+        const finishedPhase = this.turnPhase
         const continued = this.advanceTurnCycle(msg.subtype === 'success')
         if (!continued) {
           broadcast('session:status', { tabId: this.tabId, status: 'idle' })
@@ -567,7 +576,10 @@ class SessionHandle {
           }
         }
         // After the ANSWER turn (before retro/compact), show what it changed.
-        if (this.turnPhase === 'user' && this.turnHadMutations && !this.chatOnly) {
+        // Reads the phase captured above: by now turnPhase may already have
+        // advanced to 'retro', which silently suppressed this whenever
+        // auto-retrospective was on.
+        if (finishedPhase === 'user' && this.turnHadMutations && !this.chatOnly) {
           void changes.shortstat(this.cwd).then((stat) => {
             if (stat) this.send({ kind: 'diffstat', ...stat })
           })
@@ -654,6 +666,9 @@ class SessionHandle {
     if (!success || this.chatOnly) {
       // Side chats skip auto-retro/compact — retro writes memory (a file write),
       // and burning extra turns on a quick-question chat wastes quota.
+      // A failed or interrupted retro must not strand the session on the
+      // cheap model — the user's next answer would silently run on it.
+      this.restoreModelAfterRetro()
       if (this.turnPhase !== 'user') this.send({ kind: 'cycle', phase: null })
       this.turnPhase = 'user'
       return false
@@ -661,6 +676,7 @@ class SessionHandle {
     if (this.turnPhase === 'user') {
       if (settings.autoRetrospective && (!settings.retroOnlyAfterEdits || this.turnHadMutations)) {
         this.turnPhase = 'retro'
+        this.enterRetroModel()
         this.send({ kind: 'cycle', phase: 'retro' })
         this.pushText(RETRO_PROMPT)
         return true
@@ -674,6 +690,7 @@ class SessionHandle {
       return false
     }
     if (this.turnPhase === 'retro') {
+      this.restoreModelAfterRetro()
       this.send({ kind: 'status_text', text: 'retrospective complete' })
       if (this.shouldAutoCompact(settings.autoCompact)) {
         this.turnPhase = 'compact'
@@ -689,6 +706,34 @@ class SessionHandle {
     this.turnPhase = 'user'
     this.send({ kind: 'cycle', phase: null })
     return false
+  }
+
+  /** Run the retrospective on a cheap model instead of the session's.
+   *
+   *  It's a three-line memory-capture task, but it inherits whatever the
+   *  session is set to — so on Opus it roughly doubles the cost of every
+   *  answer, which is the opposite of what an always-on feature should do.
+   *
+   *  The catch is the same one smart routing already knows about: switching
+   *  models re-reads the context uncached, so below a certain size the model
+   *  saving wins and above it the cache miss does. Big sessions stay put.
+   */
+  private enterRetroModel(): void {
+    if (this.usage.lastContextTokens > SessionHandle.RETRO_CHEAP_MAX_CONTEXT) return
+    const current = this.appliedModel ?? this.preferredModel
+    if (!current || current === SessionHandle.RETRO_MODEL) return
+    this.modelBeforeRetro = current
+    this.appliedModel = SessionHandle.RETRO_MODEL
+    void this.q.setModel(SessionHandle.RETRO_MODEL).catch(() => {})
+  }
+
+  /** Put the session's model back before anything the user sees runs on it. */
+  private restoreModelAfterRetro(): void {
+    const target = this.modelBeforeRetro
+    if (!target) return
+    this.modelBeforeRetro = undefined
+    this.appliedModel = target
+    void this.q.setModel(target).catch(() => {})
   }
 
   private shouldAutoCompact(enabled: boolean): boolean {
@@ -709,6 +754,7 @@ class SessionHandle {
   }
 
   sendUserMessage(text: string, images?: ImageAttachment[]): void {
+    this.restoreModelAfterRetro()
     if (this.turnPhase !== 'user') this.send({ kind: 'cycle', phase: null })
     this.turnPhase = 'user' // a real user message restarts the auto follow-up cycle
     this.turnHadMutations = false
